@@ -40,6 +40,14 @@ def test_open_typing_stats_command_routes_to_module() -> None:
     assert command.message == "Opening Typing Stats"
 
 
+def test_open_orbit_command_routes_to_module() -> None:
+    command = execute_shell_command("open orbit")
+
+    assert command.action == "open"
+    assert command.target == "ascii-orbit"
+    assert command.message == "Opening ASCII Orbit"
+
+
 def test_unknown_command_returns_help_hint() -> None:
     command = execute_shell_command("unknown thing")
 

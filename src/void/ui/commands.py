@@ -18,7 +18,7 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
             action="help",
             target=None,
             message=(
-                "Commands: open json | open ambient | open typing | open typing-stats | modules | help | clear | quit"
+                "Commands: open json | open ambient | open orbit | open typing | open typing-stats | modules | help | clear | quit"
             ),
         )
 
@@ -30,6 +30,11 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
     if command in {"open ambient", "ambient"}:
         return ShellCommandResult(
             action="open", target="ambient", message="Opening Ambient Mode"
+        )
+
+    if command in {"open orbit", "orbit", "open ascii-orbit", "ascii-orbit"}:
+        return ShellCommandResult(
+            action="open", target="ascii-orbit", message="Opening ASCII Orbit"
         )
 
     if command in {"open typing", "typing"}:
@@ -46,7 +51,7 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
         return ShellCommandResult(
             action="modules",
             target=None,
-            message="Modules: json-tools (j), ambient (a), typing (t), typing-stats (s)",
+            message="Modules: json-tools (j), ambient (a), ascii-orbit (o), typing (t), typing-stats (s)",
         )
 
     if command == "clear":
@@ -60,5 +65,5 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
     return ShellCommandResult(
         action="error",
         target=None,
-        message="Unknown command. Try: open json, open ambient, open typing, open typing-stats, modules, help, clear, quit",
+        message="Unknown command. Try: open json, open ambient, open orbit, open typing, open typing-stats, modules, help, clear, quit",
     )

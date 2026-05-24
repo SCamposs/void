@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from void.core.module import ModuleDefinition
 from void.modules.ambient.screen import AmbientScreen
+from void.modules.ascii_orbit.screen import AsciiOrbitScreen
 from void.modules.json_tools.screen import JsonToolsScreen
 from void.modules.typing.screen import TypingScreen
 from void.modules.typing.stats_screen import TypingStatsScreen
@@ -28,6 +29,13 @@ MODULES: tuple[ModuleDefinition, ...] = (
         command="a",
         description="Animated ASCII/noise vibe screen",
         screen_factory=AmbientScreen,
+    ),
+    ModuleDefinition(
+        id="ascii-orbit",
+        name="ASCII Orbit",
+        command="orbit",
+        description="Render a rotating ASCII signal globe",
+        screen_factory=AsciiOrbitScreen,
     ),
     ModuleDefinition(
         id="typing",

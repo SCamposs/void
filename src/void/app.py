@@ -38,12 +38,12 @@ class VoidApp(App[None]):
       color: #d0d0d0;
     }
 
-    #home-title, #json-title, #ambient-title, #typing-title, #typing-stats-title {
+    #home-title, #json-title, #ambient-title, #typing-title, #typing-stats-title, #orbit-title {
       text-style: bold;
       padding: 1 2;
     }
 
-    #home-subtitle, #home-hints, #json-hint, #ambient-hint, #typing-hint, #typing-stats-hint {
+    #home-subtitle, #home-hints, #json-hint, #ambient-hint, #typing-hint, #typing-stats-hint, #orbit-hint {
       padding: 0 2;
     }
 
@@ -132,11 +132,32 @@ class VoidApp(App[None]):
       height: 1fr;
       border: round white;
     }
+
+    #orbit-layout {
+      height: 1fr;
+      padding: 1;
+    }
+
+    #orbit-frame {
+      width: 3fr;
+      height: 1fr;
+    }
+
+    #orbit-side {
+      width: 1fr;
+      height: 1fr;
+      padding: 0 1;
+    }
+
+    #orbit-status {
+      height: auto;
+    }
     """
 
     BINDINGS = [
         Binding("j", "open_by_command('j')", "JSON"),
         Binding("a", "open_by_command('a')", "Ambient"),
+        Binding("o", "open_orbit", "Orbit"),
         Binding("t", "open_typing", "Typing"),
         Binding("s", "open_typing_stats", "Stats"),
         Binding("h", "open_home", "Home"),
@@ -160,6 +181,9 @@ class VoidApp(App[None]):
 
     def action_open_typing(self) -> None:
         self.open_module("typing")
+
+    def action_open_orbit(self) -> None:
+        self.open_module("ascii-orbit")
 
     def action_open_typing_stats(self) -> None:
         self.open_module("typing-stats")
