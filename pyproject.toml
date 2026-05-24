@@ -15,6 +15,7 @@ dependencies = [
 [project.scripts]
 void = "void.cli:app"
 void-ui = "void.cli:ui_main"
+json-format = "void.cli:json_format_main"
 
 [dependency-groups]
 dev = [

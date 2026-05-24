@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -8,8 +10,19 @@ from void.app import VoidApp
 from void.core.registry import list_modules
 from void.modules.json_tools.formatter import JsonFormatError, format_json
 
-app = typer.Typer(help="VOID terminal-first playground")
+app = typer.Typer(
+    help="VOID terminal-first playground",
+    invoke_without_command=True,
+    no_args_is_help=False,
+)
 console = Console()
+
+
+@app.callback()
+def main(ctx: typer.Context) -> None:
+    """Launch TUI when no subcommand is provided."""
+    if ctx.invoked_subcommand is None:
+        VoidApp().run()
 
 
 @app.command("ui")
@@ -46,3 +59,10 @@ def json_format(text: str) -> None:
 def ui_main() -> None:
     """Script entry for uv run void-ui."""
     VoidApp().run()
+
+
+def json_format_main() -> None:
+    """Script entry for uv run json-format."""
+    if len(sys.argv) != 2:
+        raise typer.BadParameter("Usage: uv run json-format '<json>'")
+    json_format(sys.argv[1])
