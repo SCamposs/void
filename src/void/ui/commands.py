@@ -18,7 +18,7 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
             action="help",
             target=None,
             message=(
-                "Commands: open json | open ambient | modules | help | clear | quit"
+                "Commands: open json | open ambient | open typing | modules | help | clear | quit"
             ),
         )
 
@@ -32,11 +32,16 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
             action="open", target="ambient", message="Opening Ambient Mode"
         )
 
+    if command in {"open typing", "typing"}:
+        return ShellCommandResult(
+            action="open", target="typing", message="Opening Typing Test"
+        )
+
     if command == "modules":
         return ShellCommandResult(
             action="modules",
             target=None,
-            message="Modules: json-tools (j), ambient (a)",
+            message="Modules: json-tools (j), ambient (a), typing (t)",
         )
 
     if command == "clear":
@@ -50,5 +55,5 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
     return ShellCommandResult(
         action="error",
         target=None,
-        message="Unknown command. Try: open json, open ambient, modules, help, clear, quit",
+        message="Unknown command. Try: open json, open ambient, open typing, modules, help, clear, quit",
     )

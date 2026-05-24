@@ -3,6 +3,7 @@ from __future__ import annotations
 from void.core.module import ModuleDefinition
 from void.modules.ambient.screen import AmbientScreen
 from void.modules.json_tools.screen import JsonToolsScreen
+from void.modules.typing.screen import TypingScreen
 from void.ui.screens.home import HomeScreen
 
 MODULES: tuple[ModuleDefinition, ...] = (
@@ -26,6 +27,13 @@ MODULES: tuple[ModuleDefinition, ...] = (
         command="a",
         description="Animated ASCII/noise vibe screen",
         screen_factory=AmbientScreen,
+    ),
+    ModuleDefinition(
+        id="typing",
+        name="Typing Test",
+        command="typing",
+        description="Practice speed and accuracy",
+        screen_factory=TypingScreen,
     ),
 )
 

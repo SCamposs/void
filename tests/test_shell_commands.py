@@ -24,6 +24,14 @@ def test_quit_command_routes_to_quit_action() -> None:
     assert command.target is None
 
 
+def test_open_typing_command_routes_to_module() -> None:
+    command = execute_shell_command("open typing")
+
+    assert command.action == "open"
+    assert command.target == "typing"
+    assert command.message == "Opening Typing Test"
+
+
 def test_unknown_command_returns_help_hint() -> None:
     command = execute_shell_command("unknown thing")
 

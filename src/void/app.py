@@ -38,12 +38,12 @@ class VoidApp(App[None]):
       color: #d0d0d0;
     }
 
-    #home-title, #json-title, #ambient-title {
+    #home-title, #json-title, #ambient-title, #typing-title {
       text-style: bold;
       padding: 1 2;
     }
 
-    #home-subtitle, #home-hints, #json-hint, #ambient-hint {
+    #home-subtitle, #home-hints, #json-hint, #ambient-hint, #typing-hint {
       padding: 0 2;
     }
 
@@ -103,11 +103,25 @@ class VoidApp(App[None]):
       height: 1fr;
       color: white;
     }
+
+    #typing-layout {
+      height: 1fr;
+      padding: 1;
+    }
+
+    #typing-target {
+      height: auto;
+    }
+
+    #typing-stats {
+      height: auto;
+    }
     """
 
     BINDINGS = [
         Binding("j", "open_by_command('j')", "JSON"),
         Binding("a", "open_by_command('a')", "Ambient"),
+        Binding("t", "open_typing", "Typing"),
         Binding("h", "open_home", "Home"),
         Binding("q", "quit", "Quit"),
     ]
@@ -126,6 +140,9 @@ class VoidApp(App[None]):
 
     def action_open_home(self) -> None:
         self.open_module("home")
+
+    def action_open_typing(self) -> None:
+        self.open_module("typing")
 
     def action_open_by_command(self, command: str) -> None:
         module = get_module_by_command(command)

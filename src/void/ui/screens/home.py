@@ -35,14 +35,14 @@ class HomeScreen(Screen):
                     "\n".join(module_lines), id="home-modules", classes="void-panel"
                 )
                 yield Static(
-                    "Examples\n--------\nopen json\nopen ambient\nmodules\nhelp\nclear\nquit",
+                    "Examples\n--------\nopen json\nopen ambient\nopen typing\nmodules\nhelp\nclear\nquit",
                     id="home-commands",
                     classes="void-panel",
                 )
             with Vertical(id="home-right"):
                 yield StatusPanel("", id="home-status", classes="void-panel")
                 yield Static(
-                    "Keys\n----\n[j] JSON Tools\n[a] Ambient Mode\n[h] Home\n[q] Quit",
+                    "Keys\n----\n[j] JSON Tools\n[a] Ambient Mode\n[t] Typing Test\n[h] Home\n[q] Quit",
                     id="home-keys",
                     classes="void-panel",
                 )
