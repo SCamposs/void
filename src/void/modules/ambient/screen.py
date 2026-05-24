@@ -5,7 +5,9 @@ import random
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.screen import Screen
-from textual.widgets import Footer, Header, Static
+from textual.widgets import Static
+
+from void.ui.widgets.shell import VoidFooter, VoidHeader
 
 
 class AmbientScreen(Screen):
@@ -17,11 +19,11 @@ class AmbientScreen(Screen):
     NOISE = " .:-=+*#%@"
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        yield VoidHeader(show_clock=True)
         yield Static("Ambient Mode", id="ambient-title")
         yield Static("[h] home  [q] quit", id="ambient-hint")
         yield Static("", id="ambient-noise")
-        yield Footer()
+        yield VoidFooter()
 
     def on_mount(self) -> None:
         self.set_interval(0.08, self._tick)

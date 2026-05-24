@@ -6,7 +6,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Footer, Header, Static, TextArea
+from textual.widgets import Static, TextArea
 
 from void.modules.json_tools.formatter import (
     JsonFormatError,
@@ -14,6 +14,7 @@ from void.modules.json_tools.formatter import (
     is_valid_json,
     minify_json,
 )
+from void.ui.widgets.shell import VoidFooter, VoidHeader
 
 
 class JsonToolsScreen(Screen):
@@ -27,7 +28,7 @@ class JsonToolsScreen(Screen):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        yield VoidHeader(show_clock=True)
         yield Static("JSON Tools", id="json-title")
         yield Static(
             "[f] format  [m] minify  [v] validate  [c] clear  [h] home  [q] quit",
@@ -42,7 +43,7 @@ class JsonToolsScreen(Screen):
                 output = TextArea.code_editor(language="json", id="json-output")
                 output.read_only = True
                 yield output
-        yield Footer()
+        yield VoidFooter()
 
     def action_format(self) -> None:
         self._transform(format_json, "Formatted")
