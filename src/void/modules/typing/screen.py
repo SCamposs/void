@@ -5,15 +5,18 @@ from time import monotonic
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
+from textual.events import Key
 from textual.screen import Screen
-from textual.widgets import Static, TextArea
+from textual.widgets import Input, Static
 
 from void.modules.typing.engine import (
-    TypingStats,
+    WordFlowStats,
     compute_elapsed_seconds,
-    compute_typing_stats,
+    compute_word_flow_stats,
+    generate_word_sequence,
 )
 from void.modules.typing.repository import save_typing_session
+from void.modules.typing.words import PT_BR_WORDS
 from void.ui.widgets.shell import VoidFooter, VoidHeader
 
 
@@ -26,18 +29,22 @@ class TypingScreen(Screen):
         Binding("q", "quit", "Quit"),
     ]
 
-    TARGET_TEXT = "void is a quiet place to practice terminal craft"
+    DURATION_SECONDS = 60.0
+    WORD_COUNT = 140
 
     def compose(self) -> ComposeResult:
         yield VoidHeader(show_clock=True)
-        yield Static("Typing Test v0.1", id="typing-title")
+        yield Static("Typing Test v0.2", id="typing-title")
         yield Static(
-            "Type the target text. [ctrl+enter] finish  [r] reset  [h] home  [q] quit",
+            "space submit  [ctrl+enter] finish  [r] reset  [s] stats  [h] home  [q] quit",
             id="typing-hint",
         )
         with Vertical(id="typing-layout"):
-            yield Static(self.TARGET_TEXT, id="typing-target", classes="void-panel")
-            yield TextArea(id="typing-input")
+            yield Static("", id="typing-timer", classes="void-panel")
+            yield Static("", id="typing-word-line", classes="void-panel")
+            yield Input(
+                placeholder="type current word and press space", id="typing-input"
+            )
             yield Static("", id="typing-stats", classes="void-panel")
         yield VoidFooter()
 
@@ -46,41 +53,93 @@ class TypingScreen(Screen):
         self._finished = False
         self._saved = False
         self._last_elapsed = 0.0
-        self._refresh_timer = self.set_interval(0.2, self._refresh_stats)
+        self._target_words: list[str] = []
+        self._submitted_words: list[str] = []
+        self._refresh_timer = self.set_interval(0.2, self._tick)
         self.action_reset()
 
-    def on_text_area_changed(self, event: TextArea.Changed) -> None:
-        if event.text_area.id != "typing-input":
+    def on_key(self, event: Key) -> None:
+        if event.key != "space":
             return
-        if self._started_at is None and event.text_area.text:
-            self._started_at = monotonic()
-        if not self._finished:
-            self._refresh_stats()
+        if self.focused is not self.query_one("#typing-input", Input):
+            return
+        event.prevent_default()
+        self._submit_current_word()
 
     def action_finish(self) -> None:
         if self._finished:
             self.notify("Typing test already finished")
             return
 
-        typed = self.query_one("#typing-input", TextArea).text
-        if self._started_at is None or not typed.strip():
-            self.notify("Type something before finishing", severity="warning")
+        self._finalize(save=True)
+
+    def action_reset(self) -> None:
+        self._started_at = None
+        self._finished = False
+        self._saved = False
+        self._last_elapsed = 0.0
+        self._target_words = generate_word_sequence(PT_BR_WORDS, count=self.WORD_COUNT)
+        self._submitted_words = []
+        input_box = self.query_one("#typing-input", Input)
+        input_box.value = ""
+        input_box.focus()
+        self._refresh_panels()
+
+    def action_home(self) -> None:
+        self.app.switch_screen("home")
+
+    def action_stats(self) -> None:
+        self.app.switch_screen("typing-stats")
+
+    def _tick(self) -> None:
+        if self._finished:
             return
+        if self._started_at is None:
+            self._refresh_panels()
+            return
+
+        elapsed = compute_elapsed_seconds(self._started_at, monotonic())
+        if elapsed >= self.DURATION_SECONDS:
+            self._finalize(save=True)
+            return
+        self._refresh_panels()
+
+    def _submit_current_word(self) -> None:
+        if self._finished:
+            return
+
+        input_box = self.query_one("#typing-input", Input)
+        value = input_box.value.strip()
+        if value == "":
+            return
+
+        if self._started_at is None:
+            self._started_at = monotonic()
+
+        self._submitted_words.append(value)
+        input_box.value = ""
+        self._refresh_panels()
+
+    def _finalize(self, *, save: bool) -> None:
+        input_box = self.query_one("#typing-input", Input)
+        pending = input_box.value.strip()
+        if pending and not self._finished:
+            if self._started_at is None:
+                self._started_at = monotonic()
+            self._submitted_words.append(pending)
+            input_box.value = ""
 
         if self._started_at is not None:
             self._last_elapsed = compute_elapsed_seconds(self._started_at, monotonic())
 
         self._finished = True
-        self._refresh_stats()
-        stats = compute_typing_stats(
-            target=self.TARGET_TEXT,
-            typed=typed,
-            elapsed_seconds=self._last_elapsed,
-        )
-        if not self._saved:
+        self._refresh_panels()
+        stats = self._stats()
+
+        if save and not self._saved and len(self._submitted_words) > 0:
             save_typing_session(
-                target_text=self.TARGET_TEXT,
-                typed_text=typed,
+                target_text=" ".join(self._target_words),
+                typed_text=" ".join(self._submitted_words),
                 elapsed_seconds=stats.elapsed_seconds,
                 correct_characters=stats.correct_characters,
                 incorrect_characters=stats.incorrect_characters,
@@ -92,47 +151,60 @@ class TypingScreen(Screen):
         else:
             self.notify("Typing test finished")
 
-    def action_reset(self) -> None:
-        self._started_at = None
-        self._finished = False
-        self._saved = False
-        self._last_elapsed = 0.0
-        input_box = self.query_one("#typing-input", TextArea)
-        input_box.text = ""
-        input_box.focus()
-        self._refresh_stats()
-
-    def action_home(self) -> None:
-        self.app.switch_screen("home")
-
-    def _refresh_stats(self) -> None:
-        typed = self.query_one("#typing-input", TextArea).text
-        elapsed = self._current_elapsed()
-        stats = compute_typing_stats(
-            target=self.TARGET_TEXT,
-            typed=typed,
-            elapsed_seconds=elapsed,
-        )
-        self.query_one("#typing-stats", Static).update(self._render_stats(stats))
-
-    def action_stats(self) -> None:
-        self.app.switch_screen("typing-stats")
-
-    def _current_elapsed(self) -> float:
+    def _elapsed(self) -> float:
         if self._finished:
             return self._last_elapsed
         if self._started_at is None:
             return 0.0
         return compute_elapsed_seconds(self._started_at, monotonic())
 
+    def _stats(self) -> WordFlowStats:
+        return compute_word_flow_stats(
+            target_words=self._target_words,
+            submitted_words=self._submitted_words,
+            elapsed_seconds=self._elapsed(),
+            duration_seconds=self.DURATION_SECONDS,
+        )
+
+    def _refresh_panels(self) -> None:
+        stats = self._stats()
+        self.query_one("#typing-timer", Static).update(
+            "TIMER\n-----\n"
+            f"remaining: {stats.remaining_seconds:.1f}s\n"
+            f"elapsed: {stats.elapsed_seconds:.1f}s"
+        )
+        self.query_one("#typing-word-line", Static).update(self._render_word_line())
+        self.query_one("#typing-stats", Static).update(self._render_stats(stats))
+
+    def _render_word_line(self) -> str:
+        idx = len(self._submitted_words)
+        previous_start = max(0, idx - 6)
+        prev = []
+        for i in range(previous_start, idx):
+            target = self._target_words[i] if i < len(self._target_words) else ""
+            typed = self._submitted_words[i]
+            marker = "ok" if typed == target else "xx"
+            prev.append(f"{typed}({marker})")
+
+        current = self._target_words[idx] if idx < len(self._target_words) else "-"
+        upcoming = self._target_words[idx + 1 : idx + 7]
+
+        return (
+            "WORDS\n-----\n"
+            f"prev: {' '.join(prev) if prev else '-'}\n"
+            f"now : [{current}]\n"
+            f"next: {' '.join(upcoming) if upcoming else '-'}"
+        )
+
     @staticmethod
-    def _render_stats(stats: TypingStats) -> str:
+    def _render_stats(stats: WordFlowStats) -> str:
         return (
             "STATS\n"
             "-----\n"
-            f"elapsed: {stats.elapsed_seconds:.2f}s\n"
-            f"correct: {stats.correct_characters}\n"
-            f"incorrect: {stats.incorrect_characters}\n"
+            f"correct words: {stats.correct_words}\n"
+            f"incorrect words: {stats.incorrect_words}\n"
+            f"correct chars: {stats.correct_characters}\n"
+            f"incorrect chars: {stats.incorrect_characters}\n"
             f"accuracy: {stats.accuracy_percent:.2f}%\n"
             f"wpm: {stats.wpm:.2f}"
         )
