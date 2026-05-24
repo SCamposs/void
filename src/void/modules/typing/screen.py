@@ -21,6 +21,7 @@ class TypingScreen(Screen):
     BINDINGS = [
         Binding("ctrl+enter", "finish", "Finish"),
         Binding("r", "reset", "Reset"),
+        Binding("s", "stats", "Stats"),
         Binding("h", "home", "Home"),
         Binding("q", "quit", "Quit"),
     ]
@@ -113,6 +114,9 @@ class TypingScreen(Screen):
             elapsed_seconds=elapsed,
         )
         self.query_one("#typing-stats", Static).update(self._render_stats(stats))
+
+    def action_stats(self) -> None:
+        self.app.switch_screen("typing-stats")
 
     def _current_elapsed(self) -> float:
         if self._finished:

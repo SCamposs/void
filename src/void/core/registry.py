@@ -4,6 +4,7 @@ from void.core.module import ModuleDefinition
 from void.modules.ambient.screen import AmbientScreen
 from void.modules.json_tools.screen import JsonToolsScreen
 from void.modules.typing.screen import TypingScreen
+from void.modules.typing.stats_screen import TypingStatsScreen
 from void.ui.screens.home import HomeScreen
 
 MODULES: tuple[ModuleDefinition, ...] = (
@@ -34,6 +35,13 @@ MODULES: tuple[ModuleDefinition, ...] = (
         command="typing",
         description="Practice speed and accuracy",
         screen_factory=TypingScreen,
+    ),
+    ModuleDefinition(
+        id="typing-stats",
+        name="Typing Stats",
+        command="typing-stats",
+        description="View saved typing performance",
+        screen_factory=TypingStatsScreen,
     ),
 )
 
