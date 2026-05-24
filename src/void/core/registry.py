@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+from void.core.module import ModuleDefinition
+from void.modules.ambient.screen import AmbientScreen
+from void.modules.json_tools.screen import JsonToolsScreen
+from void.ui.screens.home import HomeScreen
+
+MODULES: tuple[ModuleDefinition, ...] = (
+    ModuleDefinition(
+        id="home",
+        name="Home",
+        command="h",
+        description="Return to home dashboard",
+        screen_factory=HomeScreen,
+    ),
+    ModuleDefinition(
+        id="json-tools",
+        name="JSON Tools",
+        command="j",
+        description="Format, minify, and validate JSON",
+        screen_factory=JsonToolsScreen,
+    ),
+    ModuleDefinition(
+        id="ambient",
+        name="Ambient Mode",
+        command="a",
+        description="Animated ASCII/noise vibe screen",
+        screen_factory=AmbientScreen,
+    ),
+)
+
+_MODULES_BY_ID = {module.id: module for module in MODULES}
+_MODULES_BY_COMMAND = {
+    module.command: module for module in MODULES if module.id != "home"
+}
+
+
+def list_modules() -> tuple[ModuleDefinition, ...]:
+    return MODULES
+
+
+def get_module(module_id: str) -> ModuleDefinition | None:
+    return _MODULES_BY_ID.get(module_id)
+
+
+def get_module_by_command(command: str) -> ModuleDefinition | None:
+    return _MODULES_BY_COMMAND.get(command)
