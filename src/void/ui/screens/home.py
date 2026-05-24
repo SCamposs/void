@@ -60,7 +60,7 @@ class HomeScreen(Screen):
         self.query_one("#home-command-input", Input).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
-        message = cast(VoidApp, self.app).run_shell_command(event.value)
+        message = cast("VoidApp", self.app).run_shell_command(event.value)
         self.query_one("#home-status", StatusPanel).update_status(message)
 
         command_input = self.query_one("#home-command-input", Input)
