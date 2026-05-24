@@ -13,6 +13,7 @@ from void.modules.typing.engine import (
     compute_elapsed_seconds,
     compute_typing_stats,
 )
+from void.modules.typing.repository import save_typing_session
 from void.ui.widgets.shell import VoidFooter, VoidHeader
 
 
@@ -42,6 +43,7 @@ class TypingScreen(Screen):
     def on_mount(self) -> None:
         self._started_at: float | None = None
         self._finished = False
+        self._saved = False
         self._last_elapsed = 0.0
         self._refresh_timer = self.set_interval(0.2, self._refresh_stats)
         self.action_reset()
@@ -55,15 +57,44 @@ class TypingScreen(Screen):
             self._refresh_stats()
 
     def action_finish(self) -> None:
+        if self._finished:
+            self.notify("Typing test already finished")
+            return
+
+        typed = self.query_one("#typing-input", TextArea).text
+        if self._started_at is None or not typed.strip():
+            self.notify("Type something before finishing", severity="warning")
+            return
+
         if self._started_at is not None:
             self._last_elapsed = compute_elapsed_seconds(self._started_at, monotonic())
+
         self._finished = True
         self._refresh_stats()
-        self.notify("Typing test finished")
+        stats = compute_typing_stats(
+            target=self.TARGET_TEXT,
+            typed=typed,
+            elapsed_seconds=self._last_elapsed,
+        )
+        if not self._saved:
+            save_typing_session(
+                target_text=self.TARGET_TEXT,
+                typed_text=typed,
+                elapsed_seconds=stats.elapsed_seconds,
+                correct_characters=stats.correct_characters,
+                incorrect_characters=stats.incorrect_characters,
+                accuracy=stats.accuracy_percent,
+                wpm=stats.wpm,
+            )
+            self._saved = True
+            self.notify("Typing test finished and saved")
+        else:
+            self.notify("Typing test finished")
 
     def action_reset(self) -> None:
         self._started_at = None
         self._finished = False
+        self._saved = False
         self._last_elapsed = 0.0
         input_box = self.query_one("#typing-input", TextArea)
         input_box.text = ""
