@@ -38,6 +38,20 @@ class OrbitTelemetry:
     detail_level: int
 
 
+def resolve_orbit_dimensions(
+    *,
+    container_width: int,
+    container_height: int,
+    padding_x: int = 2,
+    padding_y: int = 2,
+    min_width: int = 24,
+    min_height: int = 10,
+) -> tuple[int, int]:
+    usable_width = max(0, container_width - max(0, padding_x))
+    usable_height = max(0, container_height - max(0, padding_y))
+    return max(min_width, usable_width), max(min_height, usable_height)
+
+
 def rotate_point(
     x: float, y: float, z: float, angle_x: float, angle_y: float
 ) -> tuple[float, float, float]:

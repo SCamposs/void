@@ -18,21 +18,32 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
             action="help",
             target=None,
             message=(
-                "Commands: open shell | open json | open ambient | open orbit | open typing | open typing-stats | modules | help | clear | quit"
+                "Commands: open shell | open typing | open orbit | open stacker | modules | help | clear | quit"
             ),
         )
 
     if command in {"open shell", "shell", "open home", "home", "h"}:
-        return ShellCommandResult(action="open", target="home", message="Opening SHELL")
-
-    if command in {"open json", "json"}:
         return ShellCommandResult(
-            action="open", target="json-tools", message="Opening JSON Tools"
+            action="open", target="shell", message="Opening SHELL"
         )
 
-    if command in {"open ambient", "ambient"}:
+    if command in {"open stacker", "stacker", "k"}:
         return ShellCommandResult(
-            action="open", target="ambient", message="Opening Ambient Mode"
+            action="open", target="stacker", message="Opening STACKER"
+        )
+
+    if command in {"open json", "json", "j"}:
+        return ShellCommandResult(
+            action="disabled",
+            target=None,
+            message="JSON_TOOLS is disabled in this build",
+        )
+
+    if command in {"open ambient", "ambient", "a"}:
+        return ShellCommandResult(
+            action="disabled",
+            target=None,
+            message="AMBIENT is disabled in this build",
         )
 
     if command in {"open orbit", "orbit", "open ascii-orbit", "ascii-orbit", "o"}:
@@ -45,7 +56,7 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
             action="open", target="typing", message="Opening Typing Test"
         )
 
-    if command in {"open typing-stats", "typing-stats", "stats"}:
+    if command in {"open typing-stats", "typing-stats", "stats", "s"}:
         return ShellCommandResult(
             action="open", target="typing-stats", message="Opening Typing Stats"
         )
@@ -54,7 +65,7 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
         return ShellCommandResult(
             action="modules",
             target=None,
-            message="Modules: home (h), json-tools (j), ambient (a), ascii-orbit (o), typing (t), typing-stats (s)",
+            message="Modules: shell (h), typing (t), orbit (o), stacker (k)",
         )
 
     if command == "clear":
@@ -68,5 +79,5 @@ def execute_shell_command(raw: str) -> ShellCommandResult:
     return ShellCommandResult(
         action="error",
         target=None,
-        message="Unknown command. Try: open shell, open json, open ambient, open orbit, open typing, open typing-stats, modules, help, clear, quit",
+        message="Unknown command. Try: open shell, open typing, open orbit, open stacker, modules, help, clear, quit",
     )

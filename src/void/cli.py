@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.table import Table
 
 from void.app import VoidApp
+from void.core.modules import list_shell_modules
 from void.core.registry import list_modules
 from void.db.session import init_db
 from void.modules.json_tools.formatter import JsonFormatError, format_json
@@ -41,10 +42,11 @@ def modules() -> None:
     table.add_column("Name")
     table.add_column("Description")
 
-    for module in list_modules():
-        if module.id == "home":
-            continue
-        table.add_row(module.command, module.name, module.description)
+    legacy_by_id = {module.id: module for module in list_modules()}
+    for module in list_shell_modules():
+        legacy = legacy_by_id.get(module.screen_id)
+        description = legacy.description if legacy is not None else "Core module"
+        table.add_row(module.command, module.label.replace("_", " "), description)
 
     console.print(table)
 

@@ -23,7 +23,6 @@ from void.ui.widgets.shell import VoidFooter, VoidHeader
 
 class TypingScreen(Screen):
     BINDINGS = [
-        Binding("ctrl+enter", "finish", "Finish"),
         Binding("r", "reset", "Reset"),
         Binding("s", "stats", "Stats"),
         Binding("h", "home", "Home"),
@@ -31,13 +30,13 @@ class TypingScreen(Screen):
     ]
 
     DURATION_SECONDS = 60.0
-    WORD_COUNT = 240
+    WORD_COUNT = 360
 
     def compose(self) -> ComposeResult:
         yield VoidHeader(show_clock=True)
         yield Static("Typing Test // PT-BR // 60 seconds", id="typing-title")
         yield Static(
-            "space submit  [ctrl+enter] finish  [r] reset  [s] stats  [h] home  [q] quit",
+            "type to start  [space] submit  [r] reset  [s] stats  [h] home  [q] quit",
             id="typing-hint",
         )
         with Vertical(id="typing-layout"):
@@ -76,12 +75,6 @@ class TypingScreen(Screen):
         ):
             self._started_at = monotonic()
         self._refresh_panels()
-
-    def action_finish(self) -> None:
-        if self._finished:
-            self.notify("typing test already finished")
-            return
-        self._finalize(save=True)
 
     def action_reset(self) -> None:
         self._started_at = None
@@ -168,7 +161,10 @@ class TypingScreen(Screen):
             f"wpm: {stats.wpm:.2f}\n"
             f"accuracy: {stats.accuracy_percent:.2f}%\n"
             f"correct words: {stats.correct_words}\n"
-            f"incorrect words: {stats.incorrect_words}"
+            f"incorrect words: {stats.incorrect_words}\n"
+            f"correct chars: {stats.correct_characters}\n"
+            f"incorrect chars: {stats.incorrect_characters}\n"
+            f"duration: {int(self.DURATION_SECONDS)}s"
         )
         self.notify("typing test finished")
 

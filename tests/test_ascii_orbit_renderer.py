@@ -4,6 +4,7 @@ from void.modules.ascii_orbit.renderer import (
     build_telemetry,
     render_orbit_frame,
     render_orbit_frame_with_config,
+    resolve_orbit_dimensions,
 )
 
 
@@ -87,3 +88,15 @@ def test_telemetry_is_deterministic_for_same_tick_mode() -> None:
     )
 
     assert a == b
+
+
+def test_resolve_orbit_dimensions_enforces_minimums() -> None:
+    width, height = resolve_orbit_dimensions(
+        container_width=12,
+        container_height=6,
+        min_width=24,
+        min_height=10,
+    )
+
+    assert width == 24
+    assert height == 10

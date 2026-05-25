@@ -98,6 +98,22 @@ Screen {
     padding: 1;
 }
 
+.workspace-action {
+    height: 3;
+    margin-top: 1;
+    border: solid #3e4a40;
+    background: #1a221d;
+    color: #6bdc96;
+    text-style: bold;
+}
+
+.workspace-quick {
+    height: 3;
+    border: solid #3e4a40;
+    background: #131916;
+    color: #bdcabd;
+}
+
 #terminal-panel {
     height: 1fr;
     border: solid #3e4a40;
@@ -110,9 +126,10 @@ Screen {
 }
 
 #prompt-line {
-    height: 1;
+    height: 3;
     border-top: dashed #3e4a40;
     color: #6bdc96;
+    padding-top: 1;
 }
 
 #prompt-prefix {
@@ -136,9 +153,11 @@ Screen {
 }
 
 .module-item {
-    height: 2;
+    height: 3;
     color: #bdcabd;
-    padding: 0 1;
+    border: none;
+    background: transparent;
+    text-align: left;
 }
 
 .module-active {

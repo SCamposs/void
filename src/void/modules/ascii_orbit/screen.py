@@ -11,6 +11,7 @@ from void.modules.ascii_orbit.renderer import (
     OrbitRenderConfig,
     build_telemetry,
     render_orbit_frame_with_config,
+    resolve_orbit_dimensions,
 )
 from void.ui.widgets.shell import VoidFooter, VoidHeader
 
@@ -80,8 +81,14 @@ class AsciiOrbitScreen(Screen):
 
     def _render_now(self) -> None:
         frame_widget = self.query_one("#orbit-frame", Static)
-        width = max(20, frame_widget.size.width - 2)
-        height = max(8, frame_widget.size.height - 2)
+        width, height = resolve_orbit_dimensions(
+            container_width=frame_widget.size.width,
+            container_height=frame_widget.size.height,
+            padding_x=2,
+            padding_y=2,
+            min_width=48,
+            min_height=18,
+        )
         frame_widget.update(
             render_orbit_frame_with_config(
                 OrbitRenderConfig(

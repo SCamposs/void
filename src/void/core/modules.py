@@ -8,52 +8,68 @@ from void.core.registry import list_modules
 @dataclass(frozen=True, slots=True)
 class ShellModule:
     module_id: str
+    screen_id: str
     code: str
     label: str
     icon: str
     command: str
+    enabled: bool = True
 
     @property
     def display_name(self) -> str:
         return f"[{self.code}] {self.label}"
 
 
-_SHELL_META: dict[str, tuple[str, str, str]] = {
-    "home": ("MOD-01", "SHELL", ">"),
-    "json-tools": ("MOD-02", "JSON_TOOLS", "{}"),
-    "typing": ("MOD-03", "TYPING", "::"),
-    "typing-stats": ("MOD-04", "TYPING_STATS", "[]"),
-    "ambient": ("MOD-05", "AMBIENT", "~~"),
-    "ascii-orbit": ("MOD-06", "ASCII_ORBIT", "##"),
-}
+_SHELL_META: tuple[ShellModule, ...] = (
+    ShellModule(
+        module_id="shell",
+        screen_id="home",
+        code="MOD-01",
+        label="SHELL",
+        icon=">",
+        command="shell",
+    ),
+    ShellModule(
+        module_id="typing",
+        screen_id="typing",
+        code="MOD-02",
+        label="TYPING_TEST",
+        icon="::",
+        command="typing",
+    ),
+    ShellModule(
+        module_id="ascii-orbit",
+        screen_id="ascii-orbit",
+        code="MOD-03",
+        label="ASCII_ORBIT",
+        icon="##",
+        command="orbit",
+    ),
+    ShellModule(
+        module_id="stacker",
+        screen_id="stacker",
+        code="MOD-04",
+        label="STACKER",
+        icon="[]",
+        command="stacker",
+    ),
+)
 
 _COMMAND_TO_MODULE_ID: dict[str, str] = {
-    "h": "home",
-    "j": "json-tools",
+    "h": "shell",
     "t": "typing",
-    "s": "typing-stats",
-    "a": "ambient",
     "o": "ascii-orbit",
+    "k": "stacker",
 }
 
 
 def list_shell_modules() -> tuple[ShellModule, ...]:
-    modules = []
-    for module in list_modules():
-        if module.id not in _SHELL_META:
-            continue
-        code, label, icon = _SHELL_META[module.id]
-        modules.append(
-            ShellModule(
-                module_id=module.id,
-                code=code,
-                label=label,
-                icon=icon,
-                command=module.command,
-            )
-        )
-    modules.sort(key=lambda item: item.code)
-    return tuple(modules)
+    installed_ids = {module.id for module in list_modules()}
+    visible_modules: list[ShellModule] = []
+    for module in _SHELL_META:
+        if module.screen_id in installed_ids:
+            visible_modules.append(module)
+    return tuple(visible_modules)
 
 
 def get_shell_module_by_id(module_id: str) -> ShellModule | None:

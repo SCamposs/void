@@ -13,6 +13,8 @@ from void.modules.typing.engine import (
     compute_word_flow_stats,
     generate_word_sequence,
 )
+from void.modules.typing.screen import TypingScreen
+from void.modules.typing.words import PT_BR_WORDS
 
 
 def test_perfect_typing() -> None:
@@ -102,6 +104,14 @@ def test_word_sequence_generation_length() -> None:
 
     assert len(sequence) == 20
     assert set(sequence).issubset(set(words))
+
+
+def test_timed_mode_word_sequence_target_is_long() -> None:
+    sequence = generate_word_sequence(
+        PT_BR_WORDS, count=TypingScreen.WORD_COUNT, seed=9
+    )
+
+    assert len(sequence) >= 300
 
 
 def test_word_sequence_generation_is_deterministic_with_seed() -> None:
@@ -220,6 +230,17 @@ def test_finish_state_when_duration_is_reached() -> None:
     is_finished = compute_completion_state(elapsed_seconds=60.0, duration_seconds=60.0)
 
     assert is_finished is True
+
+
+def test_word_flow_not_finished_before_time_even_with_many_submissions() -> None:
+    stats = compute_word_flow_stats(
+        target_words=["casa"] * 5,
+        submitted_words=["casa"] * 50,
+        elapsed_seconds=59.9,
+        duration_seconds=60.0,
+    )
+
+    assert stats.is_finished is False
 
 
 def test_word_flow_stats_dataclass_shape() -> None:

@@ -9,12 +9,8 @@ class TerminalPanel(Vertical):
     def __init__(self) -> None:
         super().__init__(id="terminal-panel")
         self._history: list[str] = [
-            "[#6bdc96]>[/] init system_boot",
-            "[OK] Kernel loaded (0.002s)",
-            "[OK] Mounting virtual drives...",
-            "[OK] /usr/void/local mounted.",
-            "[#6bdc96]>[/] load_modules --all",
-            "[OK] MOD-01 to MOD-07 initialized.",
+            "VOID shell ready",
+            "click modules on the left or type commands below",
         ]
 
     def compose(self) -> ComposeResult:
@@ -22,7 +18,7 @@ class TerminalPanel(Vertical):
             yield Static("", id="terminal-log")
             with Horizontal(id="prompt-line"):
                 yield Static("[#6bdc96]>[/]", id="prompt-prefix")
-                yield Input(value="open orbit", id="prompt-input")
+                yield Input(placeholder="open orbit", id="prompt-input")
 
     def on_mount(self) -> None:
         self.refresh_log()
