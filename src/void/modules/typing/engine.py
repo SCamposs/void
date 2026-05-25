@@ -15,6 +15,15 @@ class TypingStats:
 
 
 @dataclass(frozen=True, slots=True)
+class SubmittedWordResult:
+    expected_word: str
+    typed_word: str
+    is_correct_word: bool
+    correct_characters: int
+    incorrect_characters: int
+
+
+@dataclass(frozen=True, slots=True)
 class WordFlowStats:
     elapsed_seconds: float
     remaining_seconds: float
@@ -32,10 +41,35 @@ def compute_elapsed_seconds(started_at: float, current_time: float) -> float:
     return max(0.0, current_time - started_at)
 
 
+def compute_should_start_timer(*, started_at: float | None, current_input: str) -> bool:
+    return started_at is None and current_input != ""
+
+
+def compute_remaining_seconds(
+    *, elapsed_seconds: float, duration_seconds: float
+) -> float:
+    return max(0.0, duration_seconds - max(0.0, elapsed_seconds))
+
+
 def compute_completion_state(
     *, elapsed_seconds: float, duration_seconds: float
 ) -> bool:
     return max(0.0, elapsed_seconds) >= max(0.0, duration_seconds)
+
+
+def compute_live_wpm(*, correct_characters: int, elapsed_seconds: float) -> float:
+    elapsed = max(0.0, elapsed_seconds)
+    if elapsed <= 0.0:
+        return 0.0
+    elapsed_minutes = elapsed / 60.0
+    return round((correct_characters / 5.0) / elapsed_minutes, 2)
+
+
+def compute_accuracy(*, correct_characters: int, incorrect_characters: int) -> float:
+    total = correct_characters + incorrect_characters
+    if total <= 0:
+        return 100.0
+    return round((correct_characters / total) * 100.0, 2)
 
 
 def generate_word_sequence(
@@ -47,15 +81,24 @@ def generate_word_sequence(
     return [rng.choice(word_pool) for _ in range(max(0, count))]
 
 
-def _score_word(target_word: str, typed_word: str) -> tuple[int, int, bool]:
-    matches = 0
-    compared = min(len(target_word), len(typed_word))
+def compare_word(expected: str, typed: str) -> SubmittedWordResult:
+    compared = min(len(expected), len(typed))
+    correct = 0
     for index in range(compared):
-        if target_word[index] == typed_word[index]:
-            matches += 1
+        if expected[index] == typed[index]:
+            correct += 1
 
-    incorrect = (len(target_word) - matches) + (len(typed_word) - matches)
-    return matches, max(0, incorrect), typed_word == target_word
+    mismatched_positions = compared - correct
+    extra_typed = max(0, len(typed) - compared)
+    missing_expected = max(0, len(expected) - compared)
+    incorrect = mismatched_positions + extra_typed + missing_expected
+    return SubmittedWordResult(
+        expected_word=expected,
+        typed_word=typed,
+        is_correct_word=(expected == typed),
+        correct_characters=correct,
+        incorrect_characters=max(0, incorrect),
+    )
 
 
 def compute_word_flow_stats(
@@ -67,7 +110,10 @@ def compute_word_flow_stats(
 ) -> WordFlowStats:
     elapsed = max(0.0, elapsed_seconds)
     duration = max(0.0, duration_seconds)
-    remaining = max(0.0, duration - elapsed)
+    remaining = compute_remaining_seconds(
+        elapsed_seconds=elapsed,
+        duration_seconds=duration,
+    )
 
     correct_words = 0
     incorrect_words = 0
@@ -75,29 +121,23 @@ def compute_word_flow_stats(
     incorrect_characters = 0
 
     for index, typed_word in enumerate(submitted_words):
-        target_word = target_words[index] if index < len(target_words) else ""
-        word_correct_chars, word_incorrect_chars, is_exact = _score_word(
-            target_word, typed_word
-        )
-        correct_characters += word_correct_chars
-        incorrect_characters += word_incorrect_chars
-        if is_exact:
+        expected_word = target_words[index] if index < len(target_words) else ""
+        result = compare_word(expected_word, typed_word)
+        if result.is_correct_word:
             correct_words += 1
         else:
             incorrect_words += 1
+        correct_characters += result.correct_characters
+        incorrect_characters += result.incorrect_characters
 
-    total_chars = correct_characters + incorrect_characters
-    if total_chars == 0:
-        accuracy_percent = 0.0
-    else:
-        accuracy_percent = (correct_characters / total_chars) * 100.0
-
-    if elapsed <= 0.0:
-        wpm = 0.0
-    else:
-        elapsed_minutes = elapsed / 60.0
-        # v0.2 scoring: WPM = (correct_characters / 5) / elapsed_minutes
-        wpm = (correct_characters / 5.0) / elapsed_minutes
+    accuracy_percent = compute_accuracy(
+        correct_characters=correct_characters,
+        incorrect_characters=incorrect_characters,
+    )
+    wpm = compute_live_wpm(
+        correct_characters=correct_characters,
+        elapsed_seconds=elapsed,
+    )
 
     return WordFlowStats(
         elapsed_seconds=elapsed,
@@ -107,8 +147,8 @@ def compute_word_flow_stats(
         incorrect_words=incorrect_words,
         correct_characters=correct_characters,
         incorrect_characters=incorrect_characters,
-        accuracy_percent=round(accuracy_percent, 2),
-        wpm=round(wpm, 2),
+        accuracy_percent=accuracy_percent,
+        wpm=wpm,
         is_finished=compute_completion_state(
             elapsed_seconds=elapsed,
             duration_seconds=duration,
@@ -122,34 +162,31 @@ def compute_typing_stats(
     typed: str,
     elapsed_seconds: float,
 ) -> TypingStats:
-    """Compatibility helper for v0.1 style string scoring tests."""
     elapsed = max(0.0, elapsed_seconds)
-    typed_characters = len(typed)
-    compared_length = min(len(target), typed_characters)
+    compared_length = min(len(target), len(typed))
 
     correct_characters = 0
     for index in range(compared_length):
         if target[index] == typed[index]:
             correct_characters += 1
 
-    incorrect_characters = typed_characters - correct_characters
+    incorrect_characters = len(typed) - correct_characters
 
-    if typed_characters == 0:
+    if len(typed) <= 0:
         accuracy_percent = 0.0
     else:
-        accuracy_percent = (correct_characters / typed_characters) * 100
+        accuracy_percent = round((correct_characters / len(typed)) * 100.0, 2)
 
-    if elapsed <= 0.0:
-        wpm = 0.0
-    else:
-        minutes = elapsed / 60.0
-        wpm = (correct_characters / 5.0) / minutes
+    wpm = compute_live_wpm(
+        correct_characters=correct_characters,
+        elapsed_seconds=elapsed,
+    )
 
     return TypingStats(
         elapsed_seconds=elapsed,
-        typed_characters=typed_characters,
+        typed_characters=len(typed),
         correct_characters=correct_characters,
         incorrect_characters=incorrect_characters,
-        accuracy_percent=round(accuracy_percent, 2),
-        wpm=round(wpm, 2),
+        accuracy_percent=accuracy_percent,
+        wpm=wpm,
     )

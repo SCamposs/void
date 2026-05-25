@@ -14,4 +14,9 @@ class TypingSession(SQLModel, table=True):
     incorrect_characters: int
     accuracy: float
     wpm: float
+    correct_words: int = 0
+    incorrect_words: int = 0
+    duration_seconds: float = 60.0
+    language: str = "pt-BR"
+    mode: str = "word-flow-60s"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

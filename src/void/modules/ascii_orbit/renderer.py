@@ -94,6 +94,18 @@ def _add_star_field(
                 _plot(canvas, x, y, ".")
 
 
+def _add_tech_grid(canvas: list[list[str]], width: int, height: int, tick: int) -> None:
+    step_x = max(6, width // 18)
+    step_y = max(3, height // 14)
+    phase = tick % step_x
+    for x in range(phase, width, step_x):
+        for y in range(0, height, 2):
+            _plot(canvas, x, y, "|")
+    for y in range((tick // 2) % step_y, height, step_y):
+        for x in range(0, width, 3):
+            _plot(canvas, x, y, ":")
+
+
 def _draw_orbit_ring(canvas: list[list[str]], width: int, height: int) -> None:
     cx = width / 2
     cy = height / 2
@@ -120,6 +132,18 @@ def _draw_scan_overlay(
         x = (tick * 2) % width
         for y in range(height):
             _plot(canvas, x, y, "|")
+        cx = width / 2
+        cy = height / 2
+        sweep = (tick * 0.11) % (2 * math.pi)
+        for r in range(4, int(min(width, height) * 0.6)):
+            sx = int(cx + math.cos(sweep) * r)
+            sy = int(cy + math.sin(sweep) * r * 0.6)
+            if 0 <= sx < width and 0 <= sy < height:
+                _plot(canvas, sx, sy, "/")
+            sx2 = int(cx + math.cos(sweep + 0.08) * r)
+            sy2 = int(cy + math.sin(sweep + 0.08) * r * 0.6)
+            if 0 <= sx2 < width and 0 <= sy2 < height:
+                _plot(canvas, sx2, sy2, "\\")
         return
     y = tick % height
     for x in range(width):
@@ -129,13 +153,15 @@ def _draw_scan_overlay(
 def render_orbit_frame_with_config(config: OrbitRenderConfig) -> str:
     width = max(8, config.width)
     height = max(4, config.height)
-    detail = max(1, min(4, config.detail_level))
+    detail = max(1, min(6, config.detail_level))
     tick = max(0, config.tick)
 
     canvas = [[" " for _ in range(width)] for _ in range(height)]
 
     star_density = 1 if config.mode == OrbitMode.GLOBE else detail + 1
     _add_star_field(canvas, width, height, tick, star_density)
+    if config.mode in {OrbitMode.SCANNER, OrbitMode.FIELD}:
+        _add_tech_grid(canvas, width, height, tick)
     _draw_orbit_ring(canvas, width, height)
 
     lat_steps = 10 + detail * 6
@@ -169,6 +195,11 @@ def render_orbit_frame_with_config(config: OrbitRenderConfig) -> str:
         if char != " ":
             _plot(canvas, px, py, char)
 
+            if config.mode == OrbitMode.FIELD and rz > 0.35:
+                trail_x = px - ((tick // 2) % 3)
+                if 0 <= trail_x < width:
+                    _plot(canvas, trail_x, py, "-")
+
     for lat in (-0.65, -0.3, 0.0, 0.3, 0.65):
         for lon_index in range(0, 360, 10):
             lon = math.radians(lon_index)
@@ -185,6 +216,23 @@ def render_orbit_frame_with_config(config: OrbitRenderConfig) -> str:
             _plot(canvas, px, py, "=" if rz > 0 else ":")
 
     _draw_scan_overlay(canvas, width, height, tick, config.mode)
+
+    if config.mode == OrbitMode.SCANNER:
+        pulse_y = (tick * 3) % height
+        for x in range(0, width, 2):
+            _plot(canvas, x, pulse_y, "=")
+
+    if config.mode == OrbitMode.FIELD:
+        cx = width // 2
+        cy = height // 2
+        for ring in range(3, int(min(width, height) * 0.36), 4):
+            for step in range(0, 360, 22):
+                angle = math.radians(step + tick)
+                x = int(cx + math.cos(angle) * ring)
+                y = int(cy + math.sin(angle) * ring * 0.6)
+                if 0 <= x < width and 0 <= y < height:
+                    _plot(canvas, x, y, ".")
+
     return "\n".join("".join(row) for row in canvas)
 
 

@@ -1,8 +1,14 @@
 from void.modules.typing.engine import (
+    SubmittedWordResult,
     TypingStats,
     WordFlowStats,
+    compare_word,
+    compute_accuracy,
     compute_completion_state,
     compute_elapsed_seconds,
+    compute_live_wpm,
+    compute_remaining_seconds,
+    compute_should_start_timer,
     compute_typing_stats,
     compute_word_flow_stats,
     generate_word_sequence,
@@ -98,6 +104,21 @@ def test_word_sequence_generation_length() -> None:
     assert set(sequence).issubset(set(words))
 
 
+def test_word_sequence_generation_is_deterministic_with_seed() -> None:
+    words = ["casa", "tempo", "mundo", "codigo"]
+
+    seq_a = generate_word_sequence(words, count=12, seed=42)
+    seq_b = generate_word_sequence(words, count=12, seed=42)
+
+    assert seq_a == seq_b
+
+
+def test_should_start_timer_only_on_meaningful_input() -> None:
+    assert compute_should_start_timer(started_at=None, current_input="") is False
+    assert compute_should_start_timer(started_at=None, current_input="c") is True
+    assert compute_should_start_timer(started_at=1.0, current_input="c") is False
+
+
 def test_word_flow_exact_match_word() -> None:
     stats = compute_word_flow_stats(
         target_words=["casa", "tempo"],
@@ -151,8 +172,22 @@ def test_word_flow_empty_input() -> None:
     assert stats.incorrect_words == 0
     assert stats.correct_characters == 0
     assert stats.incorrect_characters == 0
-    assert stats.accuracy_percent == 0.0
+    assert stats.accuracy_percent == 100.0
     assert stats.wpm == 0.0
+
+
+def test_word_flow_empty_submitted_word_is_incorrect() -> None:
+    stats = compute_word_flow_stats(
+        target_words=["casa"],
+        submitted_words=[""],
+        elapsed_seconds=10.0,
+        duration_seconds=60.0,
+    )
+
+    assert stats.correct_words == 0
+    assert stats.incorrect_words == 1
+    assert stats.correct_characters == 0
+    assert stats.incorrect_characters == 4
 
 
 def test_word_flow_wpm_zero_time_safety() -> None:
@@ -177,6 +212,10 @@ def test_remaining_time_calculation() -> None:
     assert stats.remaining_seconds == 48.0
 
 
+def test_compute_remaining_seconds_safe_floor() -> None:
+    assert compute_remaining_seconds(elapsed_seconds=61.0, duration_seconds=60.0) == 0.0
+
+
 def test_finish_state_when_duration_is_reached() -> None:
     is_finished = compute_completion_state(elapsed_seconds=60.0, duration_seconds=60.0)
 
@@ -198,3 +237,57 @@ def test_word_flow_stats_dataclass_shape() -> None:
     )
 
     assert stats.duration_seconds == 60.0
+
+
+def test_compare_word_different_character_rule() -> None:
+    result = compare_word("casa", "caza")
+
+    assert result.correct_characters == 3
+    assert result.incorrect_characters == 1
+    assert result.is_correct_word is False
+
+
+def test_compare_word_extra_character_rule() -> None:
+    result = compare_word("casa", "casas")
+
+    assert result.correct_characters == 4
+    assert result.incorrect_characters == 1
+
+
+def test_compare_word_missing_character_rule() -> None:
+    result = compare_word("casa", "cas")
+
+    assert result.correct_characters == 3
+    assert result.incorrect_characters == 1
+
+
+def test_final_wpm_for_60s_equals_correct_chars_divided_by_five() -> None:
+    stats = compute_word_flow_stats(
+        target_words=["casa", "tempo"],
+        submitted_words=["casa", "tempo"],
+        elapsed_seconds=60.0,
+        duration_seconds=60.0,
+    )
+
+    assert stats.correct_characters == 9
+    assert stats.wpm == 1.8
+
+
+def test_compute_live_wpm_avoids_division_by_zero() -> None:
+    assert compute_live_wpm(correct_characters=10, elapsed_seconds=0.0) == 0.0
+
+
+def test_accuracy_formula_behavior() -> None:
+    assert compute_accuracy(correct_characters=8, incorrect_characters=2) == 80.0
+
+
+def test_submitted_word_result_dataclass_shape() -> None:
+    result = SubmittedWordResult(
+        expected_word="casa",
+        typed_word="caza",
+        is_correct_word=False,
+        correct_characters=3,
+        incorrect_characters=1,
+    )
+
+    assert result.expected_word == "casa"

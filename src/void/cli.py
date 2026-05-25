@@ -58,8 +58,9 @@ def typing_history(limit: int = 10) -> None:
     table.add_column("When")
     table.add_column("WPM", justify="right")
     table.add_column("Accuracy", justify="right")
-    table.add_column("Correct", justify="right")
-    table.add_column("Incorrect", justify="right")
+    table.add_column("Words", justify="right")
+    table.add_column("Chars", justify="right")
+    table.add_column("Mode")
     table.add_column("Elapsed", justify="right")
 
     for item in sessions:
@@ -67,8 +68,9 @@ def typing_history(limit: int = 10) -> None:
             item.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             f"{item.wpm:.2f}",
             f"{item.accuracy:.2f}%",
-            str(item.correct_characters),
-            str(item.incorrect_characters),
+            f"{item.correct_words}/{item.incorrect_words}",
+            f"{item.correct_characters}/{item.incorrect_characters}",
+            item.mode,
             f"{item.elapsed_seconds:.2f}s",
         )
 

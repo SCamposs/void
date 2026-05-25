@@ -63,7 +63,7 @@ class AsciiOrbitScreen(Screen):
         self._render_now()
 
     def action_more_detail(self) -> None:
-        self._detail = min(4, self._detail + 1)
+        self._detail = min(6, self._detail + 1)
         self._render_now()
 
     def action_less_detail(self) -> None:

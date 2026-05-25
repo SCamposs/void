@@ -25,6 +25,11 @@ def save_typing_session(
     incorrect_characters: int,
     accuracy: float,
     wpm: float,
+    correct_words: int = 0,
+    incorrect_words: int = 0,
+    duration_seconds: float = 60.0,
+    language: str = "pt-BR",
+    mode: str = "word-flow-60s",
 ) -> TypingSession:
     init_db()
     item = TypingSession(
@@ -35,6 +40,11 @@ def save_typing_session(
         incorrect_characters=incorrect_characters,
         accuracy=accuracy,
         wpm=wpm,
+        correct_words=correct_words,
+        incorrect_words=incorrect_words,
+        duration_seconds=duration_seconds,
+        language=language,
+        mode=mode,
     )
     with get_session() as session:
         session.add(item)

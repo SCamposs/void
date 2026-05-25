@@ -27,6 +27,8 @@ def test_save_and_list_typing_sessions(tmp_path: Path) -> None:
     assert len(sessions) == 1
     assert sessions[0].target_text == "abc"
     assert sessions[0].typed_text == "abc"
+    assert sessions[0].language == "pt-BR"
+    assert sessions[0].mode == "word-flow-60s"
 
 
 def test_typing_summary_aggregates_values(tmp_path: Path) -> None:

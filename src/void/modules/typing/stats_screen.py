@@ -60,10 +60,18 @@ class TypingStatsScreen(Screen):
         table = self.query_one("#typing-stats-table", DataTable)
         table.clear(columns=True)
         table.cursor_type = "row"
-        table.add_columns("When", "WPM", "Accuracy", "Correct", "Incorrect", "Elapsed")
+        table.add_columns(
+            "When",
+            "WPM",
+            "Accuracy",
+            "Words",
+            "Chars",
+            "Mode",
+            "Elapsed",
+        )
 
         if not sessions:
-            table.add_row("No sessions yet", "-", "-", "-", "-", "-")
+            table.add_row("No sessions yet", "-", "-", "-", "-", "-", "-")
             return
 
         for item in sessions:
@@ -71,7 +79,8 @@ class TypingStatsScreen(Screen):
                 item.created_at.strftime("%Y-%m-%d %H:%M"),
                 f"{item.wpm:.2f}",
                 f"{item.accuracy:.2f}%",
-                str(item.correct_characters),
-                str(item.incorrect_characters),
+                f"{item.correct_words}/{item.incorrect_words}",
+                f"{item.correct_characters}/{item.incorrect_characters}",
+                item.mode,
                 f"{item.elapsed_seconds:.2f}s",
             )
