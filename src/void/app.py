@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from textual.app import App, ComposeResult
+from textual.app import App
 from textual.binding import Binding
 
 from void.ui.screens.shell import ShellScreen
@@ -18,8 +18,9 @@ class VoidApp(App[None]):
         Binding("ctrl+s", "save", "Save", show=False),
     ]
 
-    def compose(self) -> ComposeResult:
-        yield ShellScreen()
+    def on_mount(self) -> None:
+        self.install_screen(ShellScreen(), name="shell")
+        self.push_screen("shell")
 
     def action_cancel(self) -> None:
         self.notify("Cancel queued (placeholder)", timeout=1.5)

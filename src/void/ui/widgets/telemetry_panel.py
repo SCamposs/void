@@ -3,61 +3,62 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from textual.app import ComposeResult
-from textual.widget import Widget
+from textual.containers import Vertical
 from textual.widgets import Static
 
 
 @dataclass(frozen=True, slots=True)
 class TelemetrySnapshot:
-    renderer: str
-    used_vram_gb: float
-    total_vram_gb: float
-    storage: str
-    sync_state: str
-    active_threads: int
+    active_module: str
+    mode: str
+    sqlite_status: str
+    command_count: int
+    workspace_path: str
 
 
-def get_fake_telemetry() -> TelemetrySnapshot:
-    return TelemetrySnapshot(
-        renderer="OpenGL v4.6 Core",
-        used_vram_gb=1.2,
-        total_vram_gb=8.0,
-        storage="SQLite DB_01",
-        sync_state="ACTIVE",
-        active_threads=24,
-    )
-
-
-class TelemetryPanel(Widget):
+class TelemetryPanel(Vertical):
     def __init__(self) -> None:
         super().__init__(id="telemetry")
+        self._snapshot = TelemetrySnapshot(
+            active_module="home",
+            mode="idle",
+            sqlite_status="READY",
+            command_count=0,
+            workspace_path="/usr/void/local",
+        )
 
     def compose(self) -> ComposeResult:
-        data = get_fake_telemetry()
-        ratio = max(0.0, min(1.0, data.used_vram_gb / data.total_vram_gb))
-        used_blocks = int(ratio * 20)
-        free_blocks = 20 - used_blocks
-        bar = f"[#6bdc96]{'|' * used_blocks}[/][#3e4a40]{'|' * free_blocks}[/]"
-
         yield Static("SYSTEM TELEMETRY", id="telemetry-title")
-        yield Static(
+        yield Static("", id="telemetry-body")
+
+    def on_mount(self) -> None:
+        self._render_body()
+
+    def update_snapshot(self, snapshot: TelemetrySnapshot) -> None:
+        self._snapshot = snapshot
+        self._render_body()
+
+    def _render_body(self) -> None:
+        self.query_one("#telemetry-body", Static).update(
             "\n".join(
                 [
                     "[#879488]RENDERER[/]",
-                    f"[#5adace]{data.renderer}[/]",
+                    "[#5adace]OpenGL v4.6 Core[/]",
                     "",
-                    "[#879488]MEMORY VRAM[/]",
-                    f"[#6bdc96]{data.used_vram_gb:.1f}GB[/] [#bdcabd]/ {data.total_vram_gb:.1f}GB[/]",
-                    bar,
+                    "[#879488]ACTIVE MODULE[/]",
+                    f"[#6bdc96]{self._snapshot.active_module}[/]",
                     "",
-                    "[#879488]LOCAL STORAGE[/]",
-                    data.storage,
-                    f"[#6bdc96]SYNC: {data.sync_state}[/]",
+                    "[#879488]MODE[/]",
+                    f"[#bdcabd]{self._snapshot.mode}[/]",
                     "",
-                    "[#879488]ACTIVE THREADS[/]",
-                    f"[bold]{data.active_threads}[/]",
-                    "[#6bdc96]|#||#|#|[/]",
-                    "[#6bdc96]||#||##|[/]",
+                    "[#879488]SQLITE[/]",
+                    f"[#6bdc96]{self._snapshot.sqlite_status}[/]",
+                    "",
+                    "[#879488]COMMAND COUNT[/]",
+                    str(self._snapshot.command_count),
+                    "",
+                    "[#879488]WORKSPACE[/]",
+                    self._snapshot.workspace_path,
                 ]
             )
         )

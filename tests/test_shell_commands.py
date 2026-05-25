@@ -9,6 +9,14 @@ def test_open_json_command_routes_to_module() -> None:
     assert command.message == "Opening JSON Tools"
 
 
+def test_open_shell_command_routes_to_shell_module() -> None:
+    command = execute_shell_command("open shell")
+
+    assert command.action == "open"
+    assert command.target == "home"
+    assert command.message == "Opening SHELL"
+
+
 def test_modules_command_returns_listing_action() -> None:
     command = execute_shell_command("modules")
 
@@ -48,8 +56,15 @@ def test_open_orbit_command_routes_to_module() -> None:
     assert command.message == "Opening ASCII Orbit"
 
 
+def test_open_orbit_shortcut_routes_to_module() -> None:
+    command = execute_shell_command("o")
+
+    assert command.action == "open"
+    assert command.target == "ascii-orbit"
+
+
 def test_unknown_command_returns_help_hint() -> None:
     command = execute_shell_command("unknown thing")
 
     assert command.action == "error"
-    assert "Try: open json" in command.message
+    assert "Try: open shell" in command.message

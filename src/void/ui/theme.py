@@ -42,6 +42,7 @@ Screen {
     width: 1fr;
     padding: 1;
     background: #111311;
+    layout: vertical;
 }
 
 #telemetry {
@@ -85,15 +86,20 @@ Screen {
     color: #879488;
 }
 
-#workspace-viewport {
+#workspace-stack {
     height: 1fr;
+}
+
+#workspace-viewport {
+    height: 2fr;
     border: solid #3e4a40;
     content-align: center middle;
     color: #6bdc96;
+    padding: 1;
 }
 
 #terminal-panel {
-    height: 16;
+    height: 1fr;
     border: solid #3e4a40;
     padding: 1;
 }
@@ -109,6 +115,18 @@ Screen {
     color: #6bdc96;
 }
 
+#prompt-prefix {
+    width: 2;
+    color: #6bdc96;
+}
+
+#prompt-input {
+    border: none;
+    background: transparent;
+    color: #6bdc96;
+    height: 1;
+}
+
 .side-button {
     background: #5adace;
     color: #000000;
@@ -118,8 +136,9 @@ Screen {
 }
 
 .module-item {
-    height: 1;
+    height: 2;
     color: #bdcabd;
+    padding: 0 1;
 }
 
 .module-active {
