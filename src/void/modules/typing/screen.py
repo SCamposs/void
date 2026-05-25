@@ -236,13 +236,7 @@ class TypingScreen(Screen):
     def _render_current_input_preview(expected: str, typed: str) -> str:
         if typed == "":
             return "-"
-        result = []
-        for index, char in enumerate(typed):
-            if index < len(expected) and char == expected[index]:
-                result.append(char)
-            else:
-                result.append(f"!{char}")
-        return "".join(result)
+        return typed
 
     @staticmethod
     def _render_stats(stats: WordFlowStats) -> str:
