@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import math
-
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -11,6 +9,7 @@ from textual.widgets import Static
 from void.modules.ascii_orbit.renderer import (
     OrbitMode,
     OrbitRenderConfig,
+    build_telemetry,
     render_orbit_frame_with_config,
 )
 from void.ui.widgets.shell import VoidFooter, VoidHeader
@@ -97,26 +96,27 @@ class AsciiOrbitScreen(Screen):
         self._render_status(width, height)
 
     def _render_status(self, width: int = 0, height: int = 0) -> None:
-        status = "paused" if self._paused else "tracking"
-        angle = self._tick * 0.11
-        scan_phase = (self._tick * 3) % 100
-        signal = 55 + int(30 * abs(math.sin(self._tick * 0.07)))
-        noise = 8 + (self._detail * 3)
-        target_id = f"VX-{(self._tick * 17) % 900 + 100}"
-        coord_x = ((self._tick * 13) % 200) - 100
-        coord_y = ((self._tick * 7) % 140) - 70
+        telemetry = build_telemetry(
+            tick=self._tick,
+            mode=self._mode,
+            width=width,
+            height=height,
+            detail_level=self._detail,
+            paused=self._paused,
+        )
         self.query_one("#orbit-status", Static).update(
             "SIGNAL\n"
             "------\n"
-            f"tick: {self._tick}\n"
-            f"mode: {self._mode.value.upper()}\n"
-            f"status: {status}\n"
-            f"resolution: {width}x{height}\n"
-            f"rotation: {angle:.2f} rad\n"
-            f"scan phase: {scan_phase}%\n"
-            f"signal: {signal}%\n"
-            f"noise: {noise}%\n"
-            f"target: {target_id}\n"
-            f"coord: ({coord_x:+d}, {coord_y:+d})\n"
-            f"detail: {self._detail}"
+            f"tick: {telemetry.tick}\n"
+            f"mode: {telemetry.mode.value.upper()}\n"
+            f"status: {telemetry.status}\n"
+            f"resolution: {telemetry.width}x{telemetry.height}\n"
+            f"rotation: {telemetry.rotation_angle:.2f} rad\n"
+            f"scan phase: {telemetry.scan_phase}%\n"
+            f"signal: {telemetry.signal_strength}%\n"
+            f"noise: {telemetry.noise_level}%\n"
+            f"target: {telemetry.target_id}\n"
+            f"coord: ({telemetry.coord_x:+d}, {telemetry.coord_y:+d})\n"
+            f"lock: {telemetry.lock_quality}%\n"
+            f"detail: {telemetry.detail_level}"
         )

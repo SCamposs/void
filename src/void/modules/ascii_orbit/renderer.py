@@ -20,6 +20,24 @@ class OrbitRenderConfig:
     detail_level: int = 2
 
 
+@dataclass(frozen=True, slots=True)
+class OrbitTelemetry:
+    tick: int
+    mode: OrbitMode
+    status: str
+    width: int
+    height: int
+    rotation_angle: float
+    scan_phase: int
+    signal_strength: int
+    noise_level: int
+    target_id: str
+    coord_x: int
+    coord_y: int
+    lock_quality: int
+    detail_level: int
+
+
 def rotate_point(
     x: float, y: float, z: float, angle_x: float, angle_y: float
 ) -> tuple[float, float, float]:
@@ -234,6 +252,42 @@ def render_orbit_frame_with_config(config: OrbitRenderConfig) -> str:
                     _plot(canvas, x, y, ".")
 
     return "\n".join("".join(row) for row in canvas)
+
+
+def build_telemetry(
+    *,
+    tick: int,
+    mode: OrbitMode,
+    width: int,
+    height: int,
+    detail_level: int,
+    paused: bool = False,
+) -> OrbitTelemetry:
+    safe_tick = max(0, tick)
+    angle = safe_tick * 0.11
+    scan_phase = (safe_tick * 3) % 100
+    signal = 55 + int(30 * abs(math.sin(safe_tick * 0.07)))
+    noise = 8 + (max(1, detail_level) * 3)
+    target_id = f"VX-{(safe_tick * 17) % 900 + 100}"
+    coord_x = ((safe_tick * 13) % 200) - 100
+    coord_y = ((safe_tick * 7) % 140) - 70
+    lock_quality = max(0, min(100, signal - noise // 2))
+    return OrbitTelemetry(
+        tick=safe_tick,
+        mode=mode,
+        status="paused" if paused else "tracking",
+        width=max(0, width),
+        height=max(0, height),
+        rotation_angle=round(angle, 2),
+        scan_phase=scan_phase,
+        signal_strength=signal,
+        noise_level=noise,
+        target_id=target_id,
+        coord_x=coord_x,
+        coord_y=coord_y,
+        lock_quality=lock_quality,
+        detail_level=max(1, detail_level),
+    )
 
 
 def render_orbit_frame(width: int, height: int, tick: int) -> str:

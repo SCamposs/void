@@ -1,6 +1,7 @@
 from void.modules.ascii_orbit.renderer import (
     OrbitMode,
     OrbitRenderConfig,
+    build_telemetry,
     render_orbit_frame,
     render_orbit_frame_with_config,
 )
@@ -75,3 +76,14 @@ def test_legacy_render_orbit_frame_api_still_works() -> None:
 
     assert isinstance(frame, str)
     assert len(frame.splitlines()) == 12
+
+
+def test_telemetry_is_deterministic_for_same_tick_mode() -> None:
+    a = build_telemetry(
+        tick=30, mode=OrbitMode.SCANNER, width=80, height=24, detail_level=3
+    )
+    b = build_telemetry(
+        tick=30, mode=OrbitMode.SCANNER, width=80, height=24, detail_level=3
+    )
+
+    assert a == b
