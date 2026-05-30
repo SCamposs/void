@@ -1,22 +1,29 @@
 # VOID
 
-VOID is a modular, terminal-first Python playground built with Typer + Textual.
+VOID is migrating to a desktop-first app using Tauri + React + TypeScript.
 
-## Run
+## Desktop app (current primary target)
 
-- Start CLI: `uv run void`
-- Launch TUI directly: `uv run void-ui`
-- List modules: `uv run void modules`
-- Format inline JSON: `uv run void json-format '{"b":2,"a":1}'`
+Workspace: `desktop/`
 
-## TUI keys
+- Install deps: `cd desktop && npm.cmd install`
+- Lint: `cd desktop && npm.cmd run lint`
+- Typecheck: `cd desktop && npm.cmd run typecheck`
+- Test: `cd desktop && npm.cmd run test`
+- Build: `cd desktop && npm.cmd run build`
+- Tauri info/dev:
+  - `cd desktop && npm.cmd run tauri -- info`
+  - `cd desktop && npm.cmd run tauri -- dev`
 
-- `j` open JSON Tools
-- `a` open Ambient Mode
-- `h` return Home
-- `q` quit
+Note: Tauri native launch requires local Rust toolchain and Windows MSVC/SDK build tools.
 
-## Dev checks
+## Legacy Python/Textual reference
 
-- Tests: `uv run pytest`
-- Lint: `uv run ruff check .`
+The prior Python/Textual prototype is preserved for reference under:
+
+- `legacy/python-textual-reference/`
+
+Active legacy checks for preserved code:
+
+- `uv run ruff check src tests`
+- `uv run pytest`

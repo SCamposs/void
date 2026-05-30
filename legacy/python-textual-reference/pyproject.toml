@@ -29,6 +29,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/void"]
-
-[tool.pytest.ini_options]
-norecursedirs = ["legacy"]
