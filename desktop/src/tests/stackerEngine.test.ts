@@ -1,6 +1,55 @@
 import { describe, expect, it } from "vitest";
 import { STACKER_KICK_TABLES, StackerEngine } from "../app/modules/stacker/engine";
 
+function canPlaceSnapshotPiece(
+  board: number[][],
+  piece: { matrix: number[][]; x: number; y: number },
+): boolean {
+  for (let py = 0; py < piece.matrix.length; py += 1) {
+    for (let px = 0; px < piece.matrix[py].length; px += 1) {
+      if (!piece.matrix[py][px]) continue;
+      const x = piece.x + px;
+      const y = piece.y + py;
+      if (x < 0 || x >= 10 || y >= 20) return false;
+      if (y >= 0 && board[y][x] !== 0) return false;
+    }
+  }
+  return true;
+}
+
+function rotateCw(matrix: number[][]): number[][] {
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+  const rotated = Array.from({ length: cols }, () => Array(rows).fill(0));
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) rotated[x][rows - 1 - y] = matrix[y][x];
+  }
+  return rotated;
+}
+
+function rotateCcw(matrix: number[][]): number[][] {
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+  const rotated = Array.from({ length: cols }, () => Array(rows).fill(0));
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) rotated[cols - 1 - x][y] = matrix[y][x];
+  }
+  return rotated;
+}
+
+function rotate180m(matrix: number[][]): number[][] {
+  return rotateCw(rotateCw(matrix));
+}
+
+function firstFilledCell(matrix: number[][]): [number, number] {
+  for (let y = 0; y < matrix.length; y += 1) {
+    for (let x = 0; x < matrix[y].length; x += 1) {
+      if (matrix[y][x]) return [x, y];
+    }
+  }
+  return [0, 0];
+}
+
 describe("stacker engine", () => {
   it("does not throw on repeated I-piece 180 rotations", () => {
     const engine = new StackerEngine("endless");
@@ -24,6 +73,55 @@ describe("stacker engine", () => {
     expect(second).toEqual(first);
     engine.hardDrop();
     expect(engine.getSnapshot().canHold).toBe(true);
+  });
+
+  it("resets held piece orientation to spawn state on swap", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [3, 2] }); // T then O
+    engine.start();
+
+    const spawnMatrix = engine.getSnapshot().activePiece.matrix.map((row) => [...row]);
+    engine.rotateClockwise();
+    const rotatedMatrix = engine.getSnapshot().activePiece.matrix.map((row) => [...row]);
+    expect(rotatedMatrix).not.toEqual(spawnMatrix);
+
+    engine.hold(); // store T, activate O
+    engine.hardDrop(); // unlock hold
+    engine.hold(); // retrieve T from hold
+
+    const swapped = engine.getSnapshot().activePiece;
+    expect(swapped.id).toBe(3);
+    expect(swapped.matrix).toEqual(spawnMatrix);
+  });
+
+  it("respawns held pieces in canonical orientation for all piece ids", () => {
+    const ids = [1, 2, 3, 4, 5, 6, 7];
+    const rotateSteps: Record<number, number> = {
+      1: 1,
+      2: 1,
+      3: 1,
+      4: 2,
+      5: 3,
+      6: 1,
+      7: 2,
+    };
+
+    for (const id of ids) {
+      const engine = new StackerEngine("endless");
+      engine.restart({ openerPieceIds: [id, 2] });
+      engine.start();
+
+      const spawnMatrix = engine.getSnapshot().activePiece.matrix.map((row) => [...row]);
+      for (let i = 0; i < (rotateSteps[id] ?? 1); i += 1) engine.rotateClockwise();
+
+      engine.hold(); // store rotated piece, activate O
+      engine.hardDrop(); // unlock hold
+      engine.hold(); // retrieve stored piece
+
+      const swapped = engine.getSnapshot().activePiece;
+      expect(swapped.id).toBe(id);
+      expect(swapped.matrix).toEqual(spawnMatrix);
+    }
   });
 
   it("supports mode switching without runtime errors", () => {
@@ -564,6 +662,613 @@ describe("stacker engine", () => {
     expect(post.x).toBe(7);
   });
 
+  it("applies JLSTZ vertical kick candidate when floor blocks early candidates", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      start: () => void;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      rotateClockwise: () => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [3] }); // T piece
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    // Place T near floor in rotation state 0.
+    engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 1, y: 18 };
+    engine.activeRotation = 0;
+
+    engine.rotateClockwise();
+    const post = engine.getSnapshot().activePiece;
+
+    // 0>1 JLSTZ kicks:
+    // [0,0] and [-1,0] fail (would go out of bottom bounds),
+    // [-1,1] succeeds => x-1, y-1.
+    expect(post.x).toBe(0);
+    expect(post.y).toBe(17);
+  });
+
+  it("selects the first valid JLSTZ CW kick candidate in order", () => {
+    const scenarios = [
+      { blockedCandidates: [0] },
+      { blockedCandidates: [0, 1] },
+      { blockedCandidates: [0, 1, 2] },
+      { blockedCandidates: [0, 1, 2, 3] },
+    ];
+    const kicks: Array<[number, number]> = [
+      [0, 0],
+      [-1, 0],
+      [-1, 1],
+      [0, -2],
+      [-1, -2],
+    ];
+    const rotateCw = (matrix: number[][]): number[][] => {
+      const rows = matrix.length;
+      const cols = matrix[0].length;
+      const rotated = Array.from({ length: cols }, () => Array(rows).fill(0));
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) rotated[x][rows - 1 - y] = matrix[y][x];
+      }
+      return rotated;
+    };
+
+    for (const scenario of scenarios) {
+      const engine = new StackerEngine("endless") as unknown as {
+        board: number[][];
+        activePiece: { id: number; matrix: number[][]; x: number; y: number };
+        activeRotation: number;
+        restart: (opts?: { openerPieceIds?: number[] }) => void;
+        start: () => void;
+        rotateClockwise: () => void;
+        getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+      };
+
+      engine.restart({ openerPieceIds: [3] }); // T piece
+      engine.start();
+      const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+      engine.board = board;
+      engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 4, y: 5 };
+      engine.activeRotation = 0;
+
+      // Rotated T (CW) occupied cells include local (0,0), so block that cell
+      // at candidate target positions to invalidate specific kick candidates.
+      for (const idx of scenario.blockedCandidates) {
+        const [dx, dy] = kicks[idx];
+        const tx = engine.activePiece.x + dx;
+        const ty = engine.activePiece.y - dy;
+        board[ty][tx] = 9;
+      }
+
+      const rotated = rotateCw(engine.activePiece.matrix);
+      const expected = kicks.find(([dx, dy]) =>
+        canPlaceSnapshotPiece(board, { matrix: rotated, x: 4 + dx, y: 5 - dy }),
+      );
+      expect(expected).toBeDefined();
+
+      engine.rotateClockwise();
+      const post = engine.getSnapshot().activePiece;
+      expect(post.x).toBe(4 + (expected?.[0] ?? 0));
+      expect(post.y).toBe(5 - (expected?.[1] ?? 0));
+    }
+  });
+
+  it("selects the first valid JLSTZ CCW kick candidate in order", () => {
+    const scenarios = [
+      { blockedCandidates: [0] },
+      { blockedCandidates: [0, 1] },
+      { blockedCandidates: [0, 1, 2] },
+      { blockedCandidates: [0, 1, 2, 3] },
+    ];
+    const kicks = STACKER_KICK_TABLES.jltsz["0>3"].map(
+      ([dx, dy]) => [dx, dy] as [number, number],
+    );
+    const rotateCcw = (matrix: number[][]): number[][] => {
+      const rows = matrix.length;
+      const cols = matrix[0].length;
+      const rotated = Array.from({ length: cols }, () => Array(rows).fill(0));
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) rotated[cols - 1 - x][y] = matrix[y][x];
+      }
+      return rotated;
+    };
+
+    for (const scenario of scenarios) {
+      const engine = new StackerEngine("endless") as unknown as {
+        board: number[][];
+        activePiece: { id: number; matrix: number[][]; x: number; y: number };
+        activeRotation: number;
+        restart: (opts?: { openerPieceIds?: number[] }) => void;
+        start: () => void;
+        rotateCounterClockwise: () => void;
+        getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+      };
+
+      engine.restart({ openerPieceIds: [3] }); // T piece
+      engine.start();
+      const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+      engine.board = board;
+      engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 4, y: 5 };
+      engine.activeRotation = 0;
+
+      // Rotated T (CCW) occupied cells include local (1,0), use it as blocker probe.
+      for (const idx of scenario.blockedCandidates) {
+        const [dx, dy] = kicks[idx];
+        const tx = engine.activePiece.x + dx + 1;
+        const ty = engine.activePiece.y - dy;
+        board[ty][tx] = 9;
+      }
+
+      const rotated = rotateCcw(engine.activePiece.matrix);
+      const expected = kicks.find(([dx, dy]) =>
+        canPlaceSnapshotPiece(board, { matrix: rotated, x: 4 + dx, y: 5 - dy }),
+      );
+      expect(expected).toBeDefined();
+
+      engine.rotateCounterClockwise();
+      const post = engine.getSnapshot().activePiece;
+      expect(post.x).toBe(4 + (expected?.[0] ?? 0));
+      expect(post.y).toBe(5 - (expected?.[1] ?? 0));
+    }
+  });
+
+  it("selects the first valid I CW kick candidate in order", () => {
+    const scenarios = [
+      { blockedCandidates: [0] },
+      { blockedCandidates: [0, 1] },
+      { blockedCandidates: [0, 1, 2] },
+    ];
+    const kicks: Array<[number, number]> = [
+      [0, 0],
+      [-2, 0],
+      [1, 0],
+      [1, 2],
+      [-2, -1],
+    ];
+    const rotateCw = (matrix: number[][]): number[][] => {
+      const rows = matrix.length;
+      const cols = matrix[0].length;
+      const rotated = Array.from({ length: cols }, () => Array(rows).fill(0));
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) rotated[x][rows - 1 - y] = matrix[y][x];
+      }
+      return rotated;
+    };
+
+    for (const scenario of scenarios) {
+      const engine = new StackerEngine("endless") as unknown as {
+        board: number[][];
+        activePiece: { id: number; matrix: number[][]; x: number; y: number };
+        activeRotation: number;
+        restart: (opts?: { openerPieceIds?: number[] }) => void;
+        start: () => void;
+        rotateClockwise: () => void;
+        getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+      };
+
+      engine.restart({ openerPieceIds: [1] }); // I piece
+      engine.start();
+      const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+      engine.board = board;
+      engine.activePiece = { id: 1, matrix: [[1, 1, 1, 1]], x: 4, y: 5 };
+      engine.activeRotation = 0;
+
+      // Rotated I (CW) occupied cells include local (0,0), use it as blocker probe.
+      for (const idx of scenario.blockedCandidates) {
+        const [dx, dy] = kicks[idx];
+        const tx = engine.activePiece.x + dx;
+        const ty = engine.activePiece.y - dy;
+        board[ty][tx] = 9;
+      }
+
+      const rotated = rotateCw(engine.activePiece.matrix);
+      const expected = kicks.find(([dx, dy]) =>
+        canPlaceSnapshotPiece(board, { matrix: rotated, x: 4 + dx, y: 5 - dy }),
+      );
+      expect(expected).toBeDefined();
+
+      engine.rotateClockwise();
+      const post = engine.getSnapshot().activePiece;
+      expect(post.x).toBe(4 + (expected?.[0] ?? 0));
+      expect(post.y).toBe(5 - (expected?.[1] ?? 0));
+    }
+  });
+
+  it("selects the first valid I CCW kick candidate in order", () => {
+    const scenarios = [
+      { blockedCandidates: [0] },
+      { blockedCandidates: [0, 1] },
+      { blockedCandidates: [0, 1, 2] },
+    ];
+    const kicks = STACKER_KICK_TABLES.i["0>3"].map(([dx, dy]) => [dx, dy] as [number, number]);
+    const rotateCcw = (matrix: number[][]): number[][] => {
+      const rows = matrix.length;
+      const cols = matrix[0].length;
+      const rotated = Array.from({ length: cols }, () => Array(rows).fill(0));
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) rotated[cols - 1 - x][y] = matrix[y][x];
+      }
+      return rotated;
+    };
+
+    for (const scenario of scenarios) {
+      const engine = new StackerEngine("endless") as unknown as {
+        board: number[][];
+        activePiece: { id: number; matrix: number[][]; x: number; y: number };
+        activeRotation: number;
+        restart: (opts?: { openerPieceIds?: number[] }) => void;
+        start: () => void;
+        rotateCounterClockwise: () => void;
+        getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+      };
+
+      engine.restart({ openerPieceIds: [1] }); // I piece
+      engine.start();
+      const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+      engine.board = board;
+      engine.activePiece = { id: 1, matrix: [[1, 1, 1, 1]], x: 4, y: 5 };
+      engine.activeRotation = 0;
+
+      for (const idx of scenario.blockedCandidates) {
+        const [dx, dy] = kicks[idx];
+        const tx = engine.activePiece.x + dx;
+        const ty = engine.activePiece.y - dy;
+        board[ty][tx] = 9;
+      }
+
+      const rotated = rotateCcw(engine.activePiece.matrix);
+      const expected = kicks.find(([dx, dy]) =>
+        canPlaceSnapshotPiece(board, { matrix: rotated, x: 4 + dx, y: 5 - dy }),
+      );
+      expect(expected).toBeDefined();
+
+      engine.rotateCounterClockwise();
+      const post = engine.getSnapshot().activePiece;
+      expect(post.x).toBe(4 + (expected?.[0] ?? 0));
+      expect(post.y).toBe(5 - (expected?.[1] ?? 0));
+    }
+  });
+
+  it("rejects JLSTZ rotation when every CW kick candidate is blocked", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      rotateClockwise: () => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [3] }); // T
+    engine.start();
+    const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.board = board;
+    engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 4, y: 5 };
+    engine.activeRotation = 0;
+
+    // Block probe cell for each 0>1 JLSTZ kick candidate.
+    const kicks = STACKER_KICK_TABLES.jltsz["0>1"];
+    for (const [dx, dy] of kicks) {
+      board[5 - dy][4 + dx] = 9;
+    }
+
+    const before = engine.getSnapshot().activePiece;
+    engine.rotateClockwise();
+    const after = engine.getSnapshot().activePiece;
+    expect(after.x).toBe(before.x);
+    expect(after.y).toBe(before.y);
+    expect(after.matrix).toEqual(before.matrix);
+  });
+
+  it("rejects I rotation when every CW kick candidate is blocked", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      rotateClockwise: () => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [1] }); // I
+    engine.start();
+    const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.board = board;
+    engine.activePiece = { id: 1, matrix: [[1, 1, 1, 1]], x: 4, y: 5 };
+    engine.activeRotation = 0;
+
+    // Rotated I (CW) probe local cell (0,0) for each 0>1 I kick candidate.
+    const kicks = STACKER_KICK_TABLES.i["0>1"];
+    for (const [dx, dy] of kicks) {
+      board[5 - dy][4 + dx] = 9;
+    }
+
+    const before = engine.getSnapshot().activePiece;
+    engine.rotateClockwise();
+    const after = engine.getSnapshot().activePiece;
+    expect(after.x).toBe(before.x);
+    expect(after.y).toBe(before.y);
+    expect(after.matrix).toEqual(before.matrix);
+  });
+
+  it("follows configured first-valid kick order across all transition tables", () => {
+    const baseByFamily: Record<"i" | "jltsz", number[][]> = {
+      i: [[1, 1, 1, 1]],
+      jltsz: [[0, 1, 0], [1, 1, 1]], // T footprint (3x2 family)
+    };
+    const tableGroups = [
+      { family: "jltsz" as const, table: STACKER_KICK_TABLES.jltsz, rotate: "90" as const },
+      { family: "i" as const, table: STACKER_KICK_TABLES.i, rotate: "90" as const },
+      { family: "jltsz" as const, table: STACKER_KICK_TABLES.jltsz180, rotate: "180" as const },
+      { family: "i" as const, table: STACKER_KICK_TABLES.i180, rotate: "180" as const },
+    ];
+
+    for (const group of tableGroups) {
+      for (const [key, kicks] of Object.entries(group.table)) {
+        const [fromRaw, toRaw] = key.split(">");
+        const from = Number(fromRaw);
+        const to = Number(toRaw);
+        const action =
+          group.rotate === "180"
+            ? "180"
+            : ((from + 1) % 4 === to ? "cw" : "ccw");
+
+        for (let blockedCount = 0; blockedCount < Math.max(1, kicks.length - 1); blockedCount += 1) {
+          const engine = new StackerEngine("endless") as unknown as {
+            board: number[][];
+            activePiece: { id: number; matrix: number[][]; x: number; y: number };
+            activeRotation: number;
+            restart: (opts?: { openerPieceIds?: number[] }) => void;
+            start: () => void;
+            rotateClockwise: () => void;
+            rotateCounterClockwise: () => void;
+            rotate180: () => void;
+            getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+          };
+          engine.restart({ openerPieceIds: [group.family === "i" ? 1 : 3] });
+          engine.start();
+
+          const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+          engine.board = board;
+          let matrix = baseByFamily[group.family].map((row) => [...row]);
+          for (let i = 0; i < from; i += 1) matrix = rotateCw(matrix);
+          engine.activePiece = {
+            id: group.family === "i" ? 1 : 3,
+            matrix,
+            x: group.family === "i" ? 4 : 4,
+            y: 6,
+          };
+          engine.activeRotation = from;
+          const originX = engine.activePiece.x;
+          const originY = engine.activePiece.y;
+
+          const rotated =
+            action === "cw"
+              ? rotateCw(matrix)
+              : action === "ccw"
+                ? rotateCcw(matrix)
+                : rotate180m(matrix);
+          const [probeX, probeY] = firstFilledCell(rotated);
+
+          for (let i = 0; i < blockedCount; i += 1) {
+            const [dx, dy] = kicks[i];
+            const tx = originX + dx + probeX;
+            const ty = originY - dy + probeY;
+            if (ty >= 0 && ty < 20 && tx >= 0 && tx < 10) board[ty][tx] = 9;
+          }
+
+          const expected = kicks.find(([dx, dy]) =>
+            canPlaceSnapshotPiece(board, {
+              matrix: rotated,
+              x: originX + dx,
+              y: originY - dy,
+            }),
+          );
+          if (!expected) continue;
+
+          if (action === "cw") engine.rotateClockwise();
+          else if (action === "ccw") engine.rotateCounterClockwise();
+          else engine.rotate180();
+
+          const post = engine.getSnapshot().activePiece;
+          expect(post.x).toBe(originX + expected[0]);
+          expect(post.y).toBe(originY - expected[1]);
+        }
+      }
+    }
+  });
+
+  it("rejects rotation across all configured transitions when every kick candidate is blocked", () => {
+    const baseByFamily: Record<"i" | "jltsz", number[][]> = {
+      i: [[1, 1, 1, 1]],
+      jltsz: [[0, 1, 0], [1, 1, 1]],
+    };
+    const tableGroups = [
+      { family: "jltsz" as const, table: STACKER_KICK_TABLES.jltsz, rotate: "90" as const },
+      { family: "i" as const, table: STACKER_KICK_TABLES.i, rotate: "90" as const },
+      { family: "jltsz" as const, table: STACKER_KICK_TABLES.jltsz180, rotate: "180" as const },
+      { family: "i" as const, table: STACKER_KICK_TABLES.i180, rotate: "180" as const },
+    ];
+
+    for (const group of tableGroups) {
+      for (const [key, kicks] of Object.entries(group.table)) {
+        const [fromRaw, toRaw] = key.split(">");
+        const from = Number(fromRaw);
+        const to = Number(toRaw);
+        const action =
+          group.rotate === "180"
+            ? "180"
+            : ((from + 1) % 4 === to ? "cw" : "ccw");
+
+        const engine = new StackerEngine("endless") as unknown as {
+          board: number[][];
+          activePiece: { id: number; matrix: number[][]; x: number; y: number };
+          activeRotation: number;
+          restart: (opts?: { openerPieceIds?: number[] }) => void;
+          start: () => void;
+          rotateClockwise: () => void;
+          rotateCounterClockwise: () => void;
+          rotate180: () => void;
+          getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+        };
+        engine.restart({ openerPieceIds: [group.family === "i" ? 1 : 3] });
+        engine.start();
+
+        const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+        engine.board = board;
+        let matrix = baseByFamily[group.family].map((row) => [...row]);
+        for (let i = 0; i < from; i += 1) matrix = rotateCw(matrix);
+        engine.activePiece = {
+          id: group.family === "i" ? 1 : 3,
+          matrix,
+          x: 4,
+          y: 6,
+        };
+        engine.activeRotation = from;
+        const originX = engine.activePiece.x;
+        const originY = engine.activePiece.y;
+
+        const rotated =
+          action === "cw"
+            ? rotateCw(matrix)
+            : action === "ccw"
+              ? rotateCcw(matrix)
+              : rotate180m(matrix);
+        const [probeX, probeY] = firstFilledCell(rotated);
+
+        // Block a required filled cell at every candidate target.
+        for (const [dx, dy] of kicks) {
+          const tx = originX + dx + probeX;
+          const ty = originY - dy + probeY;
+          if (tx >= 0 && tx < 10 && ty >= 0 && ty < 20) board[ty][tx] = 9;
+        }
+
+        const before = engine.getSnapshot().activePiece;
+        if (action === "cw") engine.rotateClockwise();
+        else if (action === "ccw") engine.rotateCounterClockwise();
+        else engine.rotate180();
+        const after = engine.getSnapshot().activePiece;
+
+        expect(after.x).toBe(before.x);
+        expect(after.y).toBe(before.y);
+        expect(after.matrix).toEqual(before.matrix);
+      }
+    }
+  });
+
+  it("keeps rotation outcomes valid under deterministic dense blocker stress", () => {
+    const baseByFamily: Record<"i" | "jltsz", number[][]> = {
+      i: [[1, 1, 1, 1]],
+      jltsz: [[0, 1, 0], [1, 1, 1]],
+    };
+    const tableGroups = [
+      { family: "jltsz" as const, table: STACKER_KICK_TABLES.jltsz, rotate: "90" as const },
+      { family: "i" as const, table: STACKER_KICK_TABLES.i, rotate: "90" as const },
+      { family: "jltsz" as const, table: STACKER_KICK_TABLES.jltsz180, rotate: "180" as const },
+      { family: "i" as const, table: STACKER_KICK_TABLES.i180, rotate: "180" as const },
+    ];
+
+    let rng = 987654321;
+    const nextRandom = () => {
+      rng = (rng * 1664525 + 1013904223) >>> 0;
+      return rng / 0x100000000;
+    };
+
+    for (const group of tableGroups) {
+      for (const [key, kicks] of Object.entries(group.table)) {
+        const [fromRaw, toRaw] = key.split(">");
+        const from = Number(fromRaw);
+        const to = Number(toRaw);
+        const action =
+          group.rotate === "180"
+            ? "180"
+            : ((from + 1) % 4 === to ? "cw" : "ccw");
+
+        for (let sample = 0; sample < 40; sample += 1) {
+          const engine = new StackerEngine("endless") as unknown as {
+            board: number[][];
+            activePiece: { id: number; matrix: number[][]; x: number; y: number };
+            activeRotation: number;
+            restart: (opts?: { openerPieceIds?: number[] }) => void;
+            start: () => void;
+            rotateClockwise: () => void;
+            rotateCounterClockwise: () => void;
+            rotate180: () => void;
+            getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+          };
+          engine.restart({ openerPieceIds: [group.family === "i" ? 1 : 3] });
+          engine.start();
+
+          const board = Array.from({ length: 20 }, () => Array(10).fill(0));
+          engine.board = board;
+
+          let matrix = baseByFamily[group.family].map((row) => [...row]);
+          for (let i = 0; i < from; i += 1) matrix = rotateCw(matrix);
+          engine.activePiece = {
+            id: group.family === "i" ? 1 : 3,
+            matrix,
+            x: 4,
+            y: 6,
+          };
+          engine.activeRotation = from;
+          const originX = engine.activePiece.x;
+          const originY = engine.activePiece.y;
+
+          for (let y = 0; y < 20; y += 1) {
+            for (let x = 0; x < 10; x += 1) {
+              if (nextRandom() < 0.22) board[y][x] = 9;
+            }
+          }
+
+          // Ensure the pre-rotation position itself is legal in the generated field.
+          for (let y = 0; y < matrix.length; y += 1) {
+            for (let x = 0; x < matrix[y].length; x += 1) {
+              if (!matrix[y][x]) continue;
+              const bx = originX + x;
+              const by = originY + y;
+              if (bx >= 0 && bx < 10 && by >= 0 && by < 20) board[by][bx] = 0;
+            }
+          }
+
+          const rotated =
+            action === "cw"
+              ? rotateCw(matrix)
+              : action === "ccw"
+                ? rotateCcw(matrix)
+                : rotate180m(matrix);
+          const expected = kicks.find(([dx, dy]) =>
+            canPlaceSnapshotPiece(board, {
+              matrix: rotated,
+              x: originX + dx,
+              y: originY - dy,
+            }),
+          );
+          const before = engine.getSnapshot().activePiece;
+
+          if (action === "cw") engine.rotateClockwise();
+          else if (action === "ccw") engine.rotateCounterClockwise();
+          else engine.rotate180();
+
+          const after = engine.getSnapshot().activePiece;
+          expect(canPlaceSnapshotPiece(board, after)).toBe(true);
+
+          if (expected) {
+            expect(after.x).toBe(originX + expected[0]);
+            expect(after.y).toBe(originY - expected[1]);
+            expect(after.matrix).toEqual(rotated);
+          } else {
+            expect(after.x).toBe(before.x);
+            expect(after.y).toBe(before.y);
+            expect(after.matrix).toEqual(before.matrix);
+          }
+        }
+      }
+    }
+  });
+
   it("locks after default grounded reset cap is exhausted (15 resets)", () => {
     const engine = new StackerEngine("endless") as unknown as {
       restart: (opts?: { openerPieceIds?: number[] }) => void;
@@ -640,6 +1345,85 @@ describe("stacker engine", () => {
     expect(engine.getSnapshot().lastLock).toBeNull();
 
     // Crossing 500ms total should lock.
+    engine.update(1);
+    expect(engine.getSnapshot().lastLock).not.toBeNull();
+  });
+
+  it("failed grounded movement does not reset lock delay timer", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [2] }); // O piece
+    engine.start();
+
+    // Ground piece and push to left wall so further left moves fail.
+    for (let i = 0; i < 40; i += 1) engine.softDrop();
+    for (let i = 0; i < 8; i += 1) engine.moveLeft();
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.update(400);
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    // Failed grounded movement should not refresh timer.
+    engine.moveLeft();
+    engine.update(99);
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.update(1);
+    expect(engine.getSnapshot().lastLock).not.toBeNull();
+  });
+
+  it("successful grounded rotation resets lock delay timer", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [2] }); // O piece can't meaningfully rotate to change placement
+    engine.start();
+
+    // Ground piece.
+    for (let i = 0; i < 40; i += 1) engine.softDrop();
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.update(400);
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    // Grounded rotation counts as a successful transform and should reset the timer.
+    engine.rotateClockwise();
+    engine.update(499);
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.update(1);
+    expect(engine.getSnapshot().lastLock).not.toBeNull();
+  });
+
+  it("failed grounded rotation does not reset lock delay timer", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      softDrop: () => void;
+      rotateClockwise: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [1] }); // I piece
+    engine.start();
+    for (let i = 0; i < 40; i += 1) engine.softDrop();
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    // Block all reachable CW targets from grounded 0>1 at x=3:
+    // x=3 (no-kick), x=1 (-2), x=4 (+1).
+    const blocked = engine.board.map((row) => [...row]);
+    blocked[16][3] = 9;
+    blocked[16][1] = 9;
+    blocked[16][4] = 9;
+    engine.board = blocked;
+
+    engine.update(400);
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    // Rotation should fail and therefore not reset lock timer.
+    engine.rotateClockwise();
+    engine.update(99);
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
     engine.update(1);
     expect(engine.getSnapshot().lastLock).not.toBeNull();
   });
@@ -751,6 +1535,52 @@ describe("stacker engine", () => {
     expect(snap.lastLock?.lockCause).toBe("hard-drop");
   });
 
+  it("hard-drop overrides prior grounded soft-drop lock intent", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [2] });
+    engine.start();
+
+    let previousY = engine.getSnapshot().activePiece.y;
+    for (let i = 0; i < 40; i += 1) {
+      engine.softDrop();
+      const nextY = engine.getSnapshot().activePiece.y;
+      if (nextY === previousY) break;
+      previousY = nextY;
+    }
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.softDrop(); // grounded, tags soft-drop intent
+    engine.hardDrop(); // should override and lock immediately
+
+    const snap = engine.getSnapshot();
+    expect(snap.lastLock).not.toBeNull();
+    expect(snap.lastLock?.lockCause).toBe("hard-drop");
+  });
+
+  it("hard-drop locks immediately regardless of configured lock delay and pending soft-drop intent", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [2] });
+    engine.setHandling({ lockDelayMs: 900, lockResetLimit: 15 });
+    engine.start();
+
+    let previousY = engine.getSnapshot().activePiece.y;
+    for (let i = 0; i < 40; i += 1) {
+      engine.softDrop();
+      const nextY = engine.getSnapshot().activePiece.y;
+      if (nextY === previousY) break;
+      previousY = nextY;
+    }
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.softDrop(); // pending soft-drop intent
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.hardDrop(); // must lock immediately
+    const snap = engine.getSnapshot();
+    expect(snap.lastLock).not.toBeNull();
+    expect(snap.lastLock?.lockCause).toBe("hard-drop");
+  });
+
   it("records soft-drop as lock cause when grounded soft drop precedes delayed lock", () => {
     const engine = new StackerEngine("endless");
     engine.restart({ openerPieceIds: [2] });
@@ -771,6 +1601,29 @@ describe("stacker engine", () => {
     const snap = engine.getSnapshot();
     expect(snap.lastLock).not.toBeNull();
     expect(snap.lastLock?.lockCause).toBe("soft-drop");
+  });
+
+  it("reverts lock cause to gravity after successful grounded move following soft-drop", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [2] });
+    engine.start();
+
+    let previousY = engine.getSnapshot().activePiece.y;
+    for (let i = 0; i < 40; i += 1) {
+      engine.softDrop();
+      const nextY = engine.getSnapshot().activePiece.y;
+      if (nextY === previousY) break;
+      previousY = nextY;
+    }
+    expect(engine.getSnapshot().lastLock).toBeNull();
+
+    engine.softDrop(); // tag soft-drop cause at contact
+    engine.moveRight(); // successful transform should reset cause to gravity
+    engine.update(500);
+
+    const snap = engine.getSnapshot();
+    expect(snap.lastLock).not.toBeNull();
+    expect(snap.lastLock?.lockCause).toBe("gravity");
   });
 
   it("records gravity as lock cause when piece locks by timer without grounded soft drop", () => {
@@ -885,6 +1738,39 @@ describe("stacker engine", () => {
     ).not.toThrow();
     for (let i = 0; i < 10; i += 1) {
       expect(() => engine.update(16)).not.toThrow();
+    }
+  });
+
+  it("keeps active piece in legal position under long deterministic random action sequence", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ seed: 20260531 });
+    engine.start();
+
+    // Deterministic LCG for reproducible action stream.
+    let state = 99173;
+    const next = () => {
+      state = (state * 48271) % 2147483647;
+      return state / 2147483647;
+    };
+
+    const actions = [
+      () => engine.moveLeft(),
+      () => engine.moveRight(),
+      () => engine.rotateClockwise(),
+      () => engine.rotateCounterClockwise(),
+      () => engine.rotate180(),
+      () => engine.softDrop(),
+      () => engine.hardDrop(),
+      () => engine.hold(),
+      () => engine.update(16),
+      () => engine.update(33),
+    ];
+
+    for (let i = 0; i < 1200; i += 1) {
+      actions[Math.floor(next() * actions.length)]();
+      const snap = engine.getSnapshot();
+      if (snap.isGameOver) break;
+      expect(canPlaceSnapshotPiece(snap.board, snap.activePiece)).toBe(true);
     }
   });
 });

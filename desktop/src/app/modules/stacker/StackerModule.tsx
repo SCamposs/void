@@ -71,6 +71,22 @@ function clearTone(clear: LastClearEvent): string {
   return "#c9c5bc";
 }
 
+function comboTierTone(combo: number): string {
+  if (combo >= 8) return "#f2efe5";
+  if (combo >= 5) return "#d9d4ca";
+  if (combo >= 3) return "#c9c5bc";
+  if (combo >= 2) return "#b9b5ab";
+  return "#9f9c95";
+}
+
+function b2bTierTone(b2bStreak: number): string {
+  if (b2bStreak >= 8) return "#f2efe5";
+  if (b2bStreak >= 5) return "#d5d1c7";
+  if (b2bStreak >= 3) return "#c3bfb6";
+  if (b2bStreak >= 2) return "#b5b1a8";
+  return "#98958f";
+}
+
 function clearSubtitle(clear: LastClearEvent): string {
   const detail: string[] = [];
   if (clear.combo > 1) detail.push(`C${clear.combo}`);
@@ -172,6 +188,31 @@ const STACKER_RUNS_KEY = "void_stacker_runs_v1";
 const SEED_KEY = "void_stacker_seed";
 const OPENER_KEY = "void_stacker_opener";
 
+function readNumberSetting(key: string, fallback: number, min?: number, max?: number): number {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (raw === null) return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  let value = parsed;
+  if (typeof min === "number") value = Math.max(min, value);
+  if (typeof max === "number") value = Math.min(max, value);
+  return value;
+}
+
+function readStringSetting(key: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  return raw === null ? fallback : raw;
+}
+
+function readBoolSetting(key: string, fallback: boolean): boolean {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (raw === null) return fallback;
+  return raw === "1";
+}
+
 function loadSprintHistory(): SprintHistoryEntry[] {
   if (typeof window === "undefined") return [];
   try {
@@ -271,19 +312,27 @@ export function StackerModule() {
   const keyHeld = useRef({ left: false, right: false, down: false });
   const moveRepeat = useRef({ left: 0, right: 0, down: 0 });
   const horizontalPriority = useRef<"left" | "right">("left");
-  const [dasMs, setDasMs] = useState<number>(() => Number(localStorage.getItem("void_stacker_das") ?? 125));
-  const [arrMs, setArrMs] = useState<number>(() => Number(localStorage.getItem("void_stacker_arr") ?? 16));
-  const [dcdMs, setDcdMs] = useState<number>(() => Number(localStorage.getItem("void_stacker_dcd") ?? 0));
-  const [sdfMs, setSdfMs] = useState<number>(() => Number(localStorage.getItem("void_stacker_sdf") ?? 35));
-  const [lockDelayMs, setLockDelayMs] = useState<number>(() => Number(localStorage.getItem("void_stacker_lock_delay") ?? 500));
-  const [lockResetLimit, setLockResetLimit] = useState<number>(() => Number(localStorage.getItem("void_stacker_lock_resets") ?? 15));
-  const [clearFxStrength, setClearFxStrength] = useState<number>(() => Number(localStorage.getItem("void_stacker_clear_fx") ?? 0.65));
-  const [hearNextPieces, setHearNextPieces] = useState<boolean>(() => localStorage.getItem("void_stacker_hear_next") === "1");
-  const [showGhost, setShowGhost] = useState<boolean>(() => localStorage.getItem("void_stacker_show_ghost") !== "0");
-  const [ghostOpacity, setGhostOpacity] = useState<number>(() => Number(localStorage.getItem("void_stacker_ghost_opacity") ?? 0.22));
-  const [seedInput, setSeedInput] = useState<string>(() => localStorage.getItem(SEED_KEY) ?? "");
-  const [openerInput, setOpenerInput] = useState<string>(() => localStorage.getItem(OPENER_KEY) ?? "");
-  const [volume, setVolume] = useState<number>(() => Number(localStorage.getItem("void_stacker_volume") ?? 0.7));
+  const [dasMs, setDasMs] = useState<number>(() => readNumberSetting("void_stacker_das", 125, 50, 220));
+  const [arrMs, setArrMs] = useState<number>(() => readNumberSetting("void_stacker_arr", 16, 0, 50));
+  const [dcdMs, setDcdMs] = useState<number>(() => readNumberSetting("void_stacker_dcd", 0, 0, 80));
+  const [sdfMs, setSdfMs] = useState<number>(() => readNumberSetting("void_stacker_sdf", 35, 0, 80));
+  const [lockDelayMs, setLockDelayMs] = useState<number>(() => readNumberSetting("void_stacker_lock_delay", 500, 0, 900));
+  const [lockResetLimit, setLockResetLimit] = useState<number>(() => readNumberSetting("void_stacker_lock_resets", 15, 0, 20));
+  const [clearFxStrength, setClearFxStrength] = useState<number>(() => readNumberSetting("void_stacker_clear_fx", 0.65, 0, 1));
+  const [shakeStrength, setShakeStrength] = useState<number>(() => readNumberSetting("void_stacker_shake", 1, 0, 1.5));
+  const [showParticles, setShowParticles] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("void_stacker_particles") !== "0";
+  });
+  const [hearNextPieces, setHearNextPieces] = useState<boolean>(() => readBoolSetting("void_stacker_hear_next", false));
+  const [showGhost, setShowGhost] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("void_stacker_show_ghost") !== "0";
+  });
+  const [ghostOpacity, setGhostOpacity] = useState<number>(() => readNumberSetting("void_stacker_ghost_opacity", 0.22, 0.05, 0.35));
+  const [seedInput, setSeedInput] = useState<string>(() => readStringSetting(SEED_KEY, ""));
+  const [openerInput, setOpenerInput] = useState<string>(() => readStringSetting(OPENER_KEY, ""));
+  const [volume, setVolume] = useState<number>(() => readNumberSetting("void_stacker_volume", 0.7, 0, 1));
   const applyPreset = (preset: "balanced" | "competitive" | "instant") => {
     if (preset === "balanced") {
       setDasMs(125);
@@ -293,6 +342,8 @@ export function StackerModule() {
       setLockDelayMs(500);
       setLockResetLimit(15);
       setClearFxStrength(0.65);
+      setShakeStrength(1);
+      setShowParticles(true);
       setHearNextPieces(false);
       setShowGhost(true);
       setGhostOpacity(0.22);
@@ -308,6 +359,8 @@ export function StackerModule() {
       setLockDelayMs(500);
       setLockResetLimit(15);
       setClearFxStrength(0.75);
+      setShakeStrength(1);
+      setShowParticles(true);
       setHearNextPieces(false);
       setShowGhost(true);
       setGhostOpacity(0.2);
@@ -322,6 +375,8 @@ export function StackerModule() {
     setLockDelayMs(420);
     setLockResetLimit(8);
     setClearFxStrength(0.85);
+    setShakeStrength(1.2);
+    setShowParticles(true);
     setHearNextPieces(true);
     setShowGhost(true);
     setGhostOpacity(0.18);
@@ -336,6 +391,8 @@ export function StackerModule() {
   useEffect(() => { localStorage.setItem("void_stacker_lock_delay", String(lockDelayMs)); }, [lockDelayMs]);
   useEffect(() => { localStorage.setItem("void_stacker_lock_resets", String(lockResetLimit)); }, [lockResetLimit]);
   useEffect(() => { localStorage.setItem("void_stacker_clear_fx", String(clearFxStrength)); }, [clearFxStrength]);
+  useEffect(() => { localStorage.setItem("void_stacker_shake", String(shakeStrength)); }, [shakeStrength]);
+  useEffect(() => { localStorage.setItem("void_stacker_particles", showParticles ? "1" : "0"); }, [showParticles]);
   useEffect(() => { localStorage.setItem("void_stacker_hear_next", hearNextPieces ? "1" : "0"); }, [hearNextPieces]);
   useEffect(() => { localStorage.setItem("void_stacker_show_ghost", showGhost ? "1" : "0"); }, [showGhost]);
   useEffect(() => { localStorage.setItem("void_stacker_ghost_opacity", String(ghostOpacity)); }, [ghostOpacity]);
@@ -357,7 +414,7 @@ export function StackerModule() {
   const [runFinessePlus, setRunFinessePlus] = useState(0);
   const [feedback, setFeedback] = useState<{ text: string; detail: string; tone: string; untilMs: number } | null>(null);
   const [clearTrail, setClearTrail] = useState<Array<{ id: number; label: string; tone: string; untilMs: number }>>([]);
-  const [lockTrail, setLockTrail] = useState<Array<{ id: number; label: string; detail: string }>>([]);
+  const [lockTrail, setLockTrail] = useState<Array<{ id: number; label: string; detail: string; tone: string }>>([]);
   const lastLockId = useRef(0);
   const lastActivePieceId = useRef<number>(engineRef.current.getSnapshot().activePiece.id);
   const shakeUntilRef = useRef(0);
@@ -596,23 +653,26 @@ export function StackerModule() {
           clear.isPerfectClear ? 280 : clear.lines >= 4 ? 210 : 140;
         shakeUntilRef.current = Math.max(shakeUntilRef.current, now + shakeDuration);
         flashUntilRef.current = Math.max(flashUntilRef.current, now + flashDuration);
-        const spawned: ClearParticle[] = [];
-        const burstCount = Math.min(42, 10 + clear.lines * 7 + (clear.isPerfectClear ? 8 : 0));
-        for (let i = 0; i < burstCount; i += 1) {
-          spawned.push({
-            id: ++particleIdRef.current,
-            x: Math.random() * (BOARD_PIXEL_W - 12) + 6,
-            y: Math.max(12, BOARD_PIXEL_H - clear.lines * 28 + Math.random() * 24),
-            vx: (Math.random() - 0.5) * 0.1,
-            vy: -(0.06 + Math.random() * 0.12),
-            lifeMs: 420 + Math.random() * 260,
-            maxLifeMs: 420 + Math.random() * 260,
-            size: 1.2 + Math.random() * 2.1,
-            tone,
-          });
+        if (showParticles) {
+          const spawned: ClearParticle[] = [];
+          const burstCount = Math.min(42, 10 + clear.lines * 7 + (clear.isPerfectClear ? 8 : 0));
+          for (let i = 0; i < burstCount; i += 1) {
+            spawned.push({
+              id: ++particleIdRef.current,
+              x: Math.random() * (BOARD_PIXEL_W - 12) + 6,
+              y: Math.max(12, BOARD_PIXEL_H - clear.lines * 28 + Math.random() * 24),
+              vx: (Math.random() - 0.5) * 0.1,
+              vy: -(0.06 + Math.random() * 0.12),
+              lifeMs: 420 + Math.random() * 260,
+              maxLifeMs: 420 + Math.random() * 260,
+              size: 1.2 + Math.random() * 2.1,
+              tone,
+            });
+          }
+          particlesRef.current = [...particlesRef.current, ...spawned].slice(-130);
         }
-        particlesRef.current = [...particlesRef.current, ...spawned].slice(-130);
-        if (audio.current) playSeq(audio.current, sfx(clear), volume);
+        const chainBoost = Math.min(1.15, 0.92 + Math.max(0, clear.combo - 1) * 0.03);
+        if (audio.current) playSeq(audio.current, sfx(clear), Math.min(1, volume * chainBoost));
       }
       setFeedback((current) => (current && current.untilMs <= now ? null : current));
       setClearTrail((current) => current.filter((entry) => entry.untilMs > now));
@@ -640,7 +700,21 @@ export function StackerModule() {
             lock.b2bStreak >= 2 ? `B${lock.b2bStreak - 1}` : "",
             lock.lockCause.toUpperCase(),
           ].filter(Boolean).join(" ");
-          return [{ id: lock.id, label: title, detail }, ...current].slice(0, 6);
+          const tone =
+            lock.lines > 0
+              ? clearTone({
+                  id: lock.id,
+                  pieceId: lock.pieceId,
+                  lines: lock.lines,
+                  isTSpin: lock.isTSpin,
+                  tSpinKind: lock.tSpinKind,
+                  isPerfectClear: lock.isPerfectClear,
+                  combo: lock.combo,
+                  b2bStreak: lock.b2bStreak,
+                  wasBackToBack: lock.b2bStreak >= 2,
+                })
+              : "#8f8c84";
+          return [{ id: lock.id, label: title, detail, tone }, ...current].slice(0, 6);
         });
         applyDasCut();
       }
@@ -649,7 +723,7 @@ export function StackerModule() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [applyDasCut, arrMs, hearNextPieces, mode, runSoftDropBurst, sdfMs, volume]);
+  }, [applyDasCut, arrMs, hearNextPieces, mode, runSoftDropBurst, sdfMs, showParticles, volume]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -833,7 +907,7 @@ export function StackerModule() {
   const fxNow = performance.now();
   const shakeRemaining = Math.max(0, shakeUntilRef.current - fxNow);
   const flashRemaining = Math.max(0, flashUntilRef.current - fxNow);
-  const shakeBase = shakeRemaining > 0 ? Math.min(4.5, (shakeRemaining / 360) * 4.5) * clearFxStrength : 0;
+  const shakeBase = shakeRemaining > 0 ? Math.min(4.5, (shakeRemaining / 360) * 4.5) * clearFxStrength * Math.max(0, shakeStrength) : 0;
   const shakeX = shakeBase > 0 ? Math.sin(fxNow * 0.13) * shakeBase : 0;
   const shakeY = shakeBase > 0 ? Math.cos(fxNow * 0.17) * shakeBase * 0.65 : 0;
   const flashOpacity = flashRemaining > 0 ? Math.min(0.22, (flashRemaining / 280) * 0.22) * clearFxStrength : 0;
@@ -916,13 +990,25 @@ export function StackerModule() {
           </div>
         ))}
       </div>
-      <div>Combo {state.combo}</div>
-      <div>B2B {state.b2bStreak >= 2 ? `x${state.b2bStreak - 1}` : "-"}</div>
+      <div style={{ color: comboTierTone(state.combo) }}>Combo {state.combo > 1 ? `x${state.combo}` : "-"}</div>
+      <div style={{ color: b2bTierTone(state.b2bStreak) }}>B2B {state.b2bStreak >= 2 ? `x${state.b2bStreak - 1}` : "-"}</div>
       <div className="mt-1 h-2 overflow-hidden border border-[var(--border)] bg-[var(--surface2)]">
-        <div className="h-full bg-[#dcd8cf]" style={{ width: `${Math.min(100, (state.combo / 8) * 100)}%` }} />
+        <div
+          className="h-full"
+          style={{
+            width: `${Math.min(100, (state.combo / 8) * 100)}%`,
+            background: comboTierTone(state.combo),
+          }}
+        />
       </div>
       <div className="mt-1 h-2 overflow-hidden border border-[var(--border)] bg-[var(--surface2)]">
-        <div className="h-full bg-[#b9b5ab]" style={{ width: `${Math.min(100, ((state.b2bStreak >= 2 ? state.b2bStreak - 1 : 0) / 8) * 100)}%` }} />
+        <div
+          className="h-full"
+          style={{
+            width: `${Math.min(100, ((state.b2bStreak >= 2 ? state.b2bStreak - 1 : 0) / 8) * 100)}%`,
+            background: b2bTierTone(state.b2bStreak),
+          }}
+        />
       </div>
       <div className="mt-3 text-[var(--muted)]">Input Tuning</div>
       <div className="mb-1 flex gap-1 text-[10px]">
@@ -952,6 +1038,8 @@ export function StackerModule() {
       <label className="block text-xs">Lock {lockDelayMs}ms <input type="range" min={0} max={900} step={10} value={lockDelayMs} onChange={(e) => setLockDelayMs(Number(e.target.value))} /></label>
       <label className="block text-xs">Resets {lockResetLimit} <input type="range" min={0} max={20} step={1} value={lockResetLimit} onChange={(e) => setLockResetLimit(Number(e.target.value))} /></label>
       <label className="block text-xs">Clear FX {Math.round(clearFxStrength * 100)} <input type="range" min={0} max={1} step={0.01} value={clearFxStrength} onChange={(e) => setClearFxStrength(Number(e.target.value))} /></label>
+      <label className="block text-xs">Shake {Math.round(shakeStrength * 100)} <input type="range" min={0} max={1.5} step={0.01} value={shakeStrength} onChange={(e) => setShakeStrength(Number(e.target.value))} /></label>
+      <label className="block text-xs"><input type="checkbox" checked={showParticles} onChange={(e) => setShowParticles(e.target.checked)} /> Particles on clear</label>
       <label className="block text-xs"><input type="checkbox" checked={showGhost} onChange={(e) => setShowGhost(e.target.checked)} /> Ghost</label>
       <label className="block text-xs">Ghost Opacity {Math.round(ghostOpacity * 100)} <input type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(e) => setGhostOpacity(Number(e.target.value))} /></label>
       <label className="block text-xs"><input type="checkbox" checked={hearNextPieces} onChange={(e) => setHearNextPieces(e.target.checked)} /> Hear Next</label>
@@ -959,7 +1047,7 @@ export function StackerModule() {
       <div className="mt-3 text-[var(--muted)]">Recent Locks</div>
       <div className="mt-1 space-y-1 text-[10px]">
         {lockTrail.length === 0 ? <div className="text-[var(--subtle)]">-</div> : lockTrail.map((entry) => (
-          <div key={entry.id} className="border border-[var(--border)] px-1 py-0.5">
+          <div key={entry.id} className="border border-[var(--border)] px-1 py-0.5" style={{ color: entry.tone }}>
             <div>{entry.label}</div>
             <div className="text-[var(--subtle)]">{entry.detail}</div>
           </div>

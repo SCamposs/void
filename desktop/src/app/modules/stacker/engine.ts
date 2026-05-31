@@ -67,6 +67,10 @@ const PIECES: PieceDefinition[] = [
   { id: 7, matrix: [[0, 0, 1], [1, 1, 1]] },
 ];
 
+function getPieceById(id: number): PieceDefinition {
+  return PIECES.find((piece) => piece.id === id) ?? PIECES[0];
+}
+
 type SuccessfulAction = "none" | "cw" | "ccw" | "r180" | "other";
 type HandlingConfig = { lockDelayMs?: number; lockResetLimit?: number };
 
@@ -190,6 +194,9 @@ export class StackerEngine {
 
   private onTransformSuccess(action: SuccessfulAction): void {
     this.lastSuccessfulAction = action;
+    // Successful movement/rotation after contact means the eventual timer lock
+    // is no longer attributable to a direct soft-drop lock intent.
+    this.pendingLockCause = "gravity";
     if (this.isGrounded() && this.lockResetCount < this.lockResetLimit) {
       this.lockTimerMs = 0;
       this.lockResetCount += 1;
@@ -474,7 +481,7 @@ export class StackerEngine {
 
   hold(): void {
     if (this.isGameOver || this.isPaused || !this.canHold) return;
-    const current: PieceDefinition = { id: this.activePiece.id, matrix: cloneMatrix(this.activePiece.matrix) };
+    const current = getPieceById(this.activePiece.id);
     if (this.holdPiece === null) {
       this.holdPiece = current;
       this.activePiece = createSpawnPiece(this.consumeNextForSpawn());
@@ -488,7 +495,7 @@ export class StackerEngine {
     }
     const held = this.holdPiece;
     this.holdPiece = current;
-    this.activePiece = createSpawnPiece(held);
+    this.activePiece = createSpawnPiece(getPieceById(held.id));
     this.activeRotation = 0;
     this.canHold = false;
     this.lastSuccessfulAction = "other";
