@@ -22,6 +22,9 @@ Goal: move from "close" to "verified parity" with test-backed evidence.
 - Visual controls aligned closer to normal-mode ergonomics:
   - separate shake intensity control
   - particles-on-clear toggle
+- Audio reliability hardening:
+  - periodic/responsive AudioContext resume attempts (start/input/tick paths)
+  - improves SFX continuity after browser/context suspensions
 - Persisted settings hardening:
   - numeric localStorage settings are now validated/clamped at load
   - prevents invalid saved values from causing runtime control/FX instability
@@ -33,6 +36,11 @@ Goal: move from "close" to "verified parity" with test-backed evidence.
 - Scoring table parity (Custom Solo style):
   - singles/doubles/triples/quads
   - spin and mini-spin scores (including spin zero)
+  - explicit mini-spin-double and mini-spin-double B2B multiplier coverage
+  - explicit full/mini spin triple/quad tier value coverage
+  - explicit proof that spin-zero and mini-spin-zero do not trigger B2B progression
+  - explicit proof that mini-spin single+ remains difficult-clear/B2B-eligible
+  - real lock-flow event proof: spin-zero variants emit `wasBackToBack: false`
   - B2B multiplier
   - combo bonus
   - all clear bonus
@@ -44,6 +52,7 @@ Goal: move from "close" to "verified parity" with test-backed evidence.
   - successful transform after grounded soft-drop reverts attribution to `gravity`
 - Lock delay behavior:
   - default 500ms lock delay
+  - grounded timer accrues only for actual grounded time (no mid-frame overcount)
   - lock reset cap handling with configured limits
   - grounded failed movement does not reset timer
   - grounded soft-drop input does not reset timer
@@ -51,6 +60,7 @@ Goal: move from "close" to "verified parity" with test-backed evidence.
 - Kick-table coverage:
   - 90-degree keys complete for I and JLSTZ
   - 180-degree keys complete for I and JLSTZ
+  - mirrored primary horizontal probe invariants for complementary SRS+ I transitions
   - scenario tests for left/right wall fallback outcomes across CW/CCW/180
   - exhaustive first-valid candidate order checks per transition table
   - exhaustive full-rejection checks when all candidates are blocked

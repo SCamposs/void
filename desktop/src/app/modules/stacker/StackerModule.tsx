@@ -309,6 +309,7 @@ export function StackerModule() {
   const lastFrame = useRef(performance.now());
   const lastClearId = useRef(0);
   const audio = useRef<AudioContext | null>(null);
+  const lastAudioResumeAttemptRef = useRef(0);
   const keyHeld = useRef({ left: false, right: false, down: false });
   const moveRepeat = useRef({ left: 0, right: 0, down: 0 });
   const horizontalPriority = useRef<"left" | "right">("left");
@@ -449,6 +450,16 @@ export function StackerModule() {
     };
   }, [openerInput, seedInput]);
 
+  const ensureAudioReady = useCallback((nowMs?: number) => {
+    if (typeof window === "undefined" || !window.AudioContext) return;
+    if (!audio.current) audio.current = new window.AudioContext();
+    if (audio.current.state === "running") return;
+    const now = nowMs ?? performance.now();
+    if (now - lastAudioResumeAttemptRef.current < 1500) return;
+    lastAudioResumeAttemptRef.current = now;
+    void audio.current.resume();
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(SPRINT_HISTORY_KEY, JSON.stringify(sprintHistory.slice(0, 10)));
@@ -479,6 +490,7 @@ export function StackerModule() {
   useEffect(() => {
     let raf = 0;
     const tick = (now: number) => {
+      ensureAudioReady(now);
       const dt = Math.min(42, now - lastFrame.current);
       lastFrame.current = now;
 
@@ -723,11 +735,12 @@ export function StackerModule() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [applyDasCut, arrMs, hearNextPieces, mode, runSoftDropBurst, sdfMs, showParticles, volume]);
+  }, [applyDasCut, arrMs, ensureAudioReady, hearNextPieces, mode, runSoftDropBurst, sdfMs, showParticles, volume]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
+      ensureAudioReady();
       const eg = engineRef.current;
       let countedInput = false;
       if (e.key === "ArrowLeft") {
@@ -804,7 +817,7 @@ export function StackerModule() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [applyDasCut, buildRestartOptions, dasMs, mode, runSoftDropBurst, sdfMs]);
+  }, [applyDasCut, buildRestartOptions, dasMs, ensureAudioReady, mode, runSoftDropBurst, sdfMs]);
 
   const grid = useMemo(() => (showGhost ? overlay(state) : (() => {
     const out = state.board.map((r) => [...r]);
@@ -818,8 +831,7 @@ export function StackerModule() {
   })()), [showGhost, state]);
 
   const start = () => {
-    if (!audio.current && typeof window !== "undefined" && window.AudioContext) audio.current = new window.AudioContext();
-    if (audio.current?.state === "suspended") void audio.current.resume();
+    ensureAudioReady();
     engineRef.current.start();
     setState(engineRef.current.getSnapshot());
   };

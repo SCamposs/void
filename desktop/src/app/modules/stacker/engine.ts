@@ -556,15 +556,27 @@ export class StackerEngine {
 
   update(deltaMs: number): void {
     if (this.isGameOver || this.isPaused) return;
-    this.dropAccumulator += deltaMs;
     const dropInterval = this.getDropIntervalMs();
-    while (this.dropAccumulator >= dropInterval) {
-      this.dropAccumulator -= dropInterval;
-      if (!this.tryMove(0, 1)) break;
+    let remainingMs = Math.max(0, deltaMs);
+    let groundedElapsedMs = 0;
+
+    while (remainingMs > 0) {
+      const toNextDrop = Math.max(0, dropInterval - this.dropAccumulator);
+      const stepMs = Math.min(remainingMs, toNextDrop);
+
+      if (this.isGrounded()) groundedElapsedMs += stepMs;
+
+      this.dropAccumulator += stepMs;
+      remainingMs -= stepMs;
+
+      if (this.dropAccumulator >= dropInterval) {
+        this.dropAccumulator -= dropInterval;
+        this.tryMove(0, 1);
+      }
     }
 
     if (this.isGrounded()) {
-      this.lockTimerMs += deltaMs;
+      this.lockTimerMs += groundedElapsedMs;
       if (this.lockTimerMs >= this.lockDelayMs || this.lockResetCount >= this.lockResetLimit) {
         this.lockPieceAndAdvance();
       }

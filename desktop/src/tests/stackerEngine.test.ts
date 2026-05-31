@@ -249,6 +249,51 @@ describe("stacker engine", () => {
     }
   });
 
+  it("keeps JLSTZ SRS kick symmetry across complementary 90-degree transitions", () => {
+    const mirrorPairs: Array<[string, string]> = [
+      ["0>1", "0>3"],
+      ["1>0", "3>0"],
+      ["1>2", "3>2"],
+      ["2>1", "2>3"],
+    ];
+
+    for (const [a, b] of mirrorPairs) {
+      const kicksA = STACKER_KICK_TABLES.jltsz[a];
+      const kicksB = STACKER_KICK_TABLES.jltsz[b];
+      expect(kicksA).toHaveLength(kicksB.length);
+      for (let i = 0; i < kicksA.length; i += 1) {
+        const [ax, ay] = kicksA[i];
+        const [bx, by] = kicksB[i];
+        expect(ax + bx).toBe(0);
+        expect(ay).toBe(by);
+      }
+    }
+  });
+
+  it("keeps mirrored primary horizontal probes for complementary SRS+ I transitions", () => {
+    const mirrorPairs: Array<[string, string]> = [
+      ["0>1", "0>3"],
+      ["1>0", "3>0"],
+      ["1>2", "3>2"],
+      ["2>1", "2>3"],
+    ];
+
+    for (const [a, b] of mirrorPairs) {
+      const kicksA = STACKER_KICK_TABLES.i[a];
+      const kicksB = STACKER_KICK_TABLES.i[b];
+      // Primary probe ordering for SRS+ I transitions is [0,0], horizontal A, horizontal B.
+      // These first 3 probes should be mirrored across complementary turns.
+      expect(kicksA.length).toBeGreaterThanOrEqual(3);
+      expect(kicksB.length).toBeGreaterThanOrEqual(3);
+      for (let i = 0; i < 3; i += 1) {
+        const [ax, ay] = kicksA[i];
+        const [bx, by] = kicksB[i];
+        expect(bx + ax).toBe(0);
+        expect(by).toBe(ay);
+      }
+    }
+  });
+
   it("contains complete 180-degree transition keys for JLSTZ and I kick tables", () => {
     const expected180 = ["0>2", "1>3", "2>0", "3>1"];
     for (const key of expected180) {
@@ -256,6 +301,38 @@ describe("stacker engine", () => {
       expect(STACKER_KICK_TABLES.i180[key]).toBeDefined();
       expect(STACKER_KICK_TABLES.jltsz180[key]).toHaveLength(7);
       expect(STACKER_KICK_TABLES.i180[key]).toHaveLength(7);
+    }
+  });
+
+  it("keeps consistent 180 probe composition across transitions for JLSTZ and I families", () => {
+    const expectedJlstz180 = [
+      [0, 0],
+      [1, 0],
+      [-1, 0],
+      [2, 0],
+      [-2, 0],
+      [0, 1],
+      [0, -1],
+    ];
+    const expectedI180ByTransition: Record<string, Array<[number, number]>> = {
+      "0>2": [[0, 0], [1, 0], [-1, 0], [2, 0], [-2, 0], [0, 1], [0, -1]],
+      "1>3": [[0, 0], [-1, 0], [1, 0], [-2, 0], [2, 0], [0, 1], [0, -1]],
+      "2>0": [[0, 0], [1, 0], [-1, 0], [2, 0], [-2, 0], [0, 1], [0, -1]],
+      "3>1": [[0, 0], [-1, 0], [1, 0], [-2, 0], [2, 0], [0, 1], [0, -1]],
+    };
+
+    for (const [key, kicks] of Object.entries(STACKER_KICK_TABLES.jltsz180)) {
+      expect(kicks).toEqual(expectedJlstz180);
+      expect(kicks).toContainEqual([0, 1]);
+      expect(kicks).toContainEqual([0, -1]);
+      expect(key).toMatch(/^[0-3]>[0-3]$/);
+    }
+
+    for (const [key, kicks] of Object.entries(STACKER_KICK_TABLES.i180)) {
+      expect(kicks).toEqual(expectedI180ByTransition[key]);
+      expect(kicks).toContainEqual([0, 1]);
+      expect(kicks).toContainEqual([0, -1]);
+      expect(key).toMatch(/^[0-3]>[0-3]$/);
     }
   });
 
@@ -292,13 +369,22 @@ describe("stacker engine", () => {
     expect(engine.scoreForClear(4, "none", false, false)).toBe(800);
     expect(engine.scoreForClear(1, "full", false, false)).toBe(800);
     expect(engine.scoreForClear(2, "full", false, false)).toBe(1200);
+    expect(engine.scoreForClear(3, "full", false, false)).toBe(1600);
+    expect(engine.scoreForClear(4, "full", false, false)).toBe(2600);
     expect(engine.scoreForClear(1, "mini", false, false)).toBe(200);
+    expect(engine.scoreForClear(2, "mini", false, false)).toBe(400);
+    expect(engine.scoreForClear(3, "mini", false, false)).toBe(800);
+    expect(engine.scoreForClear(4, "mini", false, false)).toBe(1600);
     expect(engine.scoreForClear(0, "full", false, false)).toBe(400);
     expect(engine.scoreForClear(0, "mini", false, false)).toBe(100);
 
     // B2B difficult multiplier x1.5.
     expect(engine.scoreForClear(4, "none", false, true)).toBe(1200);
     expect(engine.scoreForClear(2, "full", false, true)).toBe(1800);
+    expect(engine.scoreForClear(2, "mini", false, true)).toBe(600);
+    // Spin Zero / Mini Spin Zero are not difficult clears and should not receive B2B boost.
+    expect(engine.scoreForClear(0, "full", false, true)).toBe(400);
+    expect(engine.scoreForClear(0, "mini", false, true)).toBe(100);
 
     // Combo bonus: +50 * comboCount where comboCount is current combo value.
     engine.combo = 3;
@@ -534,7 +620,10 @@ describe("stacker engine", () => {
     // Difficulty rule invariant (TETR.IO/Guideline style): T-spin clear or quad.
     expect(engine.isDifficultClear(4, "none")).toBe(true);
     expect(engine.isDifficultClear(1, "full")).toBe(true);
+    expect(engine.isDifficultClear(1, "mini")).toBe(true);
     expect(engine.isDifficultClear(2, "mini")).toBe(true);
+    expect(engine.isDifficultClear(0, "full")).toBe(false);
+    expect(engine.isDifficultClear(0, "mini")).toBe(false);
     expect(engine.isDifficultClear(3, "none")).toBe(false);
 
     // State transition invariant represented in engine:
@@ -553,6 +642,110 @@ describe("stacker engine", () => {
       engine.b2bStreak = 0;
     }
     expect(engine.b2bStreak).toBe(0);
+  });
+
+  it("does not start or extend B2B on Spin Zero or Mini Spin Zero", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      lastSuccessfulAction: "none" | "cw" | "ccw" | "r180" | "other";
+      b2bStreak: number;
+      lockPieceAndAdvance: () => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    // Full spin zero setup: 3 corners blocked and both front corners blocked.
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 4, y: 4 };
+    engine.activeRotation = 0;
+    engine.lastSuccessfulAction = "cw";
+    engine.board[4][4] = 9; // front-left
+    engine.board[4][6] = 9; // front-right
+    engine.board[6][4] = 9; // back-left
+    engine.b2bStreak = 0;
+    engine.lockPieceAndAdvance();
+    expect(engine.getSnapshot().lastClear?.tSpinKind).toBe("full");
+    expect(engine.getSnapshot().b2bStreak).toBe(0);
+
+    // Mini spin zero setup: 3 corners blocked but only one front corner blocked.
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 4, y: 4 };
+    engine.activeRotation = 0;
+    engine.lastSuccessfulAction = "ccw";
+    engine.board[4][4] = 9; // front-left
+    engine.board[6][4] = 9; // back-left
+    engine.board[6][6] = 9; // back-right
+    engine.b2bStreak = 2;
+    engine.lockPieceAndAdvance();
+    expect(engine.getSnapshot().lastClear?.tSpinKind).toBe("mini");
+    expect(engine.getSnapshot().b2bStreak).toBe(2);
+  });
+
+  it("keeps spin-zero clear events non-B2B in real lock flow", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      lastSuccessfulAction: "none" | "cw" | "ccw" | "r180" | "other";
+      b2bStreak: number;
+      lockPieceAndAdvance: () => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 4, y: 4 };
+    engine.activeRotation = 0;
+    engine.lastSuccessfulAction = "cw";
+    // Full spin-zero corners.
+    engine.board[4][4] = 9;
+    engine.board[4][6] = 9;
+    engine.board[6][4] = 9;
+    engine.b2bStreak = 3;
+    engine.lockPieceAndAdvance();
+
+    const afterFull = engine.getSnapshot();
+    expect(afterFull.lastClear?.tSpinKind).toBe("full");
+    expect(afterFull.lastClear?.lines).toBe(0);
+    expect(afterFull.lastClear?.wasBackToBack).toBe(false);
+    expect(afterFull.b2bStreak).toBe(3);
+
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 3, matrix: [[0, 1, 0], [1, 1, 1]], x: 4, y: 4 };
+    engine.activeRotation = 0;
+    engine.lastSuccessfulAction = "ccw";
+    // Mini spin-zero corners.
+    engine.board[4][4] = 9;
+    engine.board[6][4] = 9;
+    engine.board[6][6] = 9;
+    engine.b2bStreak = 4;
+    engine.lockPieceAndAdvance();
+
+    const afterMini = engine.getSnapshot();
+    expect(afterMini.lastClear?.tSpinKind).toBe("mini");
+    expect(afterMini.lastClear?.lines).toBe(0);
+    expect(afterMini.lastClear?.wasBackToBack).toBe(false);
+    expect(afterMini.b2bStreak).toBe(4);
+  });
+
+  it("treats Mini Spin Single and higher as difficult clears for B2B", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      combo: number;
+      b2bStreak: number;
+      scoreForClear: (
+        linesCleared: number,
+        tSpinKind: "none" | "mini" | "full",
+        isPerfectClear: boolean,
+        wasBackToBack: boolean,
+      ) => number;
+    };
+
+    engine.combo = 0;
+    engine.b2bStreak = 0;
+    // Baseline mini single.
+    expect(engine.scoreForClear(1, "mini", false, false)).toBe(200);
+    // B2B-applied mini single.
+    expect(engine.scoreForClear(1, "mini", false, true)).toBe(300);
   });
 
   it("keeps B2B through no-clear locks and resets on non-difficult clear in real lock flow", () => {
@@ -1325,6 +1518,127 @@ describe("stacker engine", () => {
     // Should lock right after crossing 500ms.
     engine.update(1);
     expect(engine.getSnapshot().lastLock).not.toBeNull();
+  });
+
+  it("does not instantly lock when first ground contact happens mid-frame", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2, 1] }); // O then I
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 17 }; // one cell above floor
+    engine.activeRotation = 0;
+
+    const before = engine.getSnapshot();
+    // At level 1 (760ms gravity), this frame makes first contact mid-frame.
+    engine.update(1000);
+    const afterFirst = engine.getSnapshot();
+    expect(afterFirst.activePiece.id).toBe(before.activePiece.id);
+    expect(afterFirst.activePiece.y).toBe(18);
+    expect(afterFirst.lastLock).toBeNull();
+
+    // Remaining grounded time should complete lock delay and then lock.
+    engine.update(260);
+    const afterSecond = engine.getSnapshot();
+    expect(afterSecond.activePiece.id).not.toBe(before.activePiece.id);
+    expect(afterSecond.lastLock).not.toBeNull();
+  });
+
+  it("counts only post-contact grounded segment when one update spans multiple gravity ticks", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2, 1] }); // O then I
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 16 }; // two cells above floor
+    engine.activeRotation = 0;
+
+    const before = engine.getSnapshot();
+    // Level 1 drop interval is 760ms:
+    // - at 760ms: y 16->17 (still airborne)
+    // - at 1520ms: y 17->18 (grounded)
+    // Remaining ~80ms should be the only grounded time counted in this frame.
+    engine.update(1600);
+    const afterFirst = engine.getSnapshot();
+    expect(afterFirst.activePiece.id).toBe(before.activePiece.id);
+    expect(afterFirst.activePiece.y).toBe(18);
+    expect(afterFirst.lastLock).toBeNull();
+
+    // Lock should happen only after remaining grounded time crosses 500ms.
+    engine.update(419);
+    expect(engine.getSnapshot().lastLock).toBeNull();
+    engine.update(1);
+    const afterSecond = engine.getSnapshot();
+    expect(afterSecond.activePiece.id).not.toBe(before.activePiece.id);
+    expect(afterSecond.lastLock).not.toBeNull();
+  });
+
+  it("does not accrue lock timer during fully-airborne large updates", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      lockTimerMs: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2] }); // O piece
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 0 };
+    engine.activeRotation = 0;
+    engine.lockTimerMs = 0;
+
+    // Large frame spans multiple gravity ticks but remains airborne.
+    engine.update(1500); // at level 1 this is < 3 drops; final y should be 1
+    const mid = engine.getSnapshot();
+    expect(mid.lastLock).toBeNull();
+    expect(mid.activePiece.y).toBe(1);
+    expect(engine.lockTimerMs).toBe(0);
+  });
+
+  it("does not apply residual frame time to newly spawned piece after timer lock", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2, 1] }); // O then I
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 18 }; // already grounded
+    engine.activeRotation = 0;
+
+    // Large frame must lock current piece, but the newly spawned piece should remain at spawn Y.
+    engine.update(2000);
+    const snap = engine.getSnapshot();
+    expect(snap.lastLock).not.toBeNull();
+    expect(snap.activePiece.id).toBe(1);
+    expect(snap.activePiece.y).toBe(0);
   });
 
   it("grounded soft-drop input does not reset lock delay timer", () => {
