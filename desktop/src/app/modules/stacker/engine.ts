@@ -285,8 +285,8 @@ export class StackerEngine {
     return this.board.every((row) => row.every((cell) => cell === 0));
   }
 
-  private detectTSpinKind(linesCleared: number): TSpinKind {
-    if (this.activePiece.id !== 3 || linesCleared === 0) return "none";
+  private detectTSpinKind(): TSpinKind {
+    if (this.activePiece.id !== 3) return "none";
     if (!["cw", "ccw", "r180"].includes(this.lastSuccessfulAction)) return "none";
     const pivotX = this.activePiece.x + 1;
     const pivotY = this.activePiece.y + 1;
@@ -298,7 +298,9 @@ export class StackerEngine {
       this.activeRotation === 2 ? [[pivotX - 1, pivotY + 1],[pivotX + 1, pivotY + 1]] :
       [[pivotX - 1, pivotY - 1],[pivotX - 1, pivotY + 1]];
     const frontBlocked = fronts.reduce((c, [x, y]) => c + (this.isCellBlocked(x, y) ? 1 : 0), 0);
-    if (linesCleared === 1 && frontBlocked < 2) return "mini";
+    // TETR.IO-style scoring distinguishes Spin Zero and Mini Spin Zero.
+    // We classify front-light cases as mini for both zero- and single-line outcomes.
+    if (frontBlocked < 2) return "mini";
     return "full";
   }
 
@@ -330,7 +332,7 @@ export class StackerEngine {
       base = Math.trunc(base * 1.5);
     }
     let total = base;
-    if (this.combo > 1) total += 50 * (this.combo - 1);
+    if (this.combo > 0) total += 50 * this.combo;
     if (isPerfectClear) total += 3500;
     return total * this.level;
   }
@@ -349,7 +351,7 @@ export class StackerEngine {
     this.mergeActivePiece();
     if (this.isGameOver) return;
     const cleared = this.clearCompletedLines();
-    const tSpinKind = this.detectTSpinKind(cleared);
+    const tSpinKind = this.detectTSpinKind();
     const difficult = this.isDifficultClear(cleared, tSpinKind);
     const prevB2B = this.b2bStreak;
 
@@ -360,7 +362,7 @@ export class StackerEngine {
     const isPerfectClear = cleared > 0 && this.isBoardEmpty();
     const wasBackToBack = difficult && prevB2B >= 1;
 
-    if (cleared > 0) {
+    if (cleared > 0 || tSpinKind !== "none") {
       this.score += this.scoreForClear(
         cleared,
         tSpinKind,
@@ -417,6 +419,9 @@ export class StackerEngine {
     if (this.isGameOver || this.isPaused) return;
     if (this.tryMove(0, 1)) {
       this.score += 1;
+    } else {
+      // Preserve input intent for the eventual delayed lock event.
+      this.pendingLockCause = "soft-drop";
     }
   }
 
@@ -554,7 +559,6 @@ export class StackerEngine {
     if (this.isGrounded()) {
       this.lockTimerMs += deltaMs;
       if (this.lockTimerMs >= this.lockDelayMs || this.lockResetCount >= this.lockResetLimit) {
-        this.pendingLockCause = "gravity";
         this.lockPieceAndAdvance();
       }
     } else {
