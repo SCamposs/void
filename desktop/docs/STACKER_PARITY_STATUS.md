@@ -53,6 +53,11 @@ Goal: move from "close" to "verified parity" with test-backed evidence.
 - Lock delay behavior:
   - default 500ms lock delay
   - grounded timer accrues only for actual grounded time (no mid-frame overcount)
+  - invalid frame deltas (`NaN`/`Infinity`/negative) are ignored safely
+  - split-frame cadence invariants validated (`380+380` equals one `760`ms gravity step at L1)
+  - fully-airborne large frames do not accumulate lock timer
+  - single huge grounded frame emits exactly one lock event
+  - no residual-frame auto-fall on the newly spawned piece after timer lock
   - lock reset cap handling with configured limits
   - grounded failed movement does not reset timer
   - grounded soft-drop input does not reset timer
@@ -81,6 +86,25 @@ From `desktop/`:
 - `npm.cmd run lint`
 - `npm.cmd run typecheck`
 - `npm.cmd run build`
+
+## Source Mapping
+
+- `itl-game-hub` normal-mode implementation baseline:
+  - `C:\Users\zuado\code\pessoal\itl-game-hub\components\games\tetris\engine.ts`
+  - `C:\Users\zuado\code\pessoal\itl-game-hub\components\games\tetris\ItlMiniTetris.tsx`
+- Guideline SRS/JLSTZ kick symmetry reference:
+  - <https://tetris.wiki/Super_Rotation_System>
+- TETR.IO SRS+ / 180 system context:
+  - <https://tetris.wiki/Tetr.io>
+  - <https://tetrio.wiki.gg/wiki/Mechanics>
+- TETR.IO custom solo scoring reference:
+  - <https://tetrio.wiki.gg/wiki/Custom_%28Solo%29>
+
+### Notes on 180 reference fidelity
+
+- The canonical TETR.IO 180 data is published as diagrams/images in public references.
+- Current `void` 180 tables are test-locked and internally consistent.
+- Final parity closure still requires one-by-one visual cross-check of every transition against those canonical diagrams.
 
 ## Next recommended parity tasks
 

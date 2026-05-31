@@ -557,7 +557,8 @@ export class StackerEngine {
   update(deltaMs: number): void {
     if (this.isGameOver || this.isPaused) return;
     const dropInterval = this.getDropIntervalMs();
-    let remainingMs = Math.max(0, deltaMs);
+    const safeDelta = Number.isFinite(deltaMs) ? deltaMs : 0;
+    let remainingMs = Math.max(0, safeDelta);
     let groundedElapsedMs = 0;
 
     while (remainingMs > 0) {
@@ -571,7 +572,12 @@ export class StackerEngine {
 
       if (this.dropAccumulator >= dropInterval) {
         this.dropAccumulator -= dropInterval;
-        this.tryMove(0, 1);
+        if (!this.tryMove(0, 1) && this.isGrounded() && remainingMs > 0) {
+          // If gravity step fails while grounded, the rest of this frame is grounded time.
+          groundedElapsedMs += remainingMs;
+          remainingMs = 0;
+          break;
+        }
       }
     }
 

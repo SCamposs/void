@@ -915,6 +915,11 @@ export function StackerModule() {
   const lpm = state.lines / (runSeconds / 60);
   const kpp = runPieces > 0 ? runInputs / runPieces : 0;
   const kps = runInputs / runSeconds;
+  const filledCells = state.board.reduce(
+    (count, row) => count + row.reduce((c, cell) => c + (cell !== 0 ? 1 : 0), 0),
+    0,
+  );
+  const stackPercent = Math.round((filledCells / (W * H)) * 100);
   const sprintWastePieces = mode === "sprint" ? Math.max(0, runPieces - 100) : 0;
   const fxNow = performance.now();
   const shakeRemaining = Math.max(0, shakeUntilRef.current - fxNow);
@@ -948,6 +953,7 @@ export function StackerModule() {
         <span>KPS {Number.isFinite(kps) ? kps.toFixed(2) : "0.00"}</span>
         <span>LPM {Number.isFinite(lpm) ? lpm.toFixed(1) : "0.0"}</span>
         <span>KPP {Number.isFinite(kpp) ? kpp.toFixed(2) : "0.00"}</span>
+        <span>Stack {stackPercent}%</span>
       </div>
       {feedback && <div className="mb-2 border px-2 py-1 text-xs" style={{ borderColor: feedback.tone, color: feedback.tone }}>
         <div>{feedback.text}</div>

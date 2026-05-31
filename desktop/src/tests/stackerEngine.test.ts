@@ -1552,6 +1552,67 @@ describe("stacker engine", () => {
     expect(afterSecond.lastLock).not.toBeNull();
   });
 
+  it("accrues exact grounded milliseconds after first contact within a frame", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      lockTimerMs: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2] }); // O
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 17 }; // one above floor
+    engine.activeRotation = 0;
+    engine.lockTimerMs = 0;
+
+    // L1 interval is 760ms. With 1000ms update:
+    // - first 760ms: drop to ground
+    // - remaining 240ms: grounded timer accrual
+    engine.update(1000);
+    const snap = engine.getSnapshot();
+    expect(snap.activePiece.id).toBe(2);
+    expect(snap.activePiece.y).toBe(18);
+    expect(snap.lastLock).toBeNull();
+    expect(engine.lockTimerMs).toBe(240);
+  });
+
+  it("accrues exact grounded milliseconds when contact happens on second gravity tick", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      lockTimerMs: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2] }); // O
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 16 }; // two above floor
+    engine.activeRotation = 0;
+    engine.lockTimerMs = 0;
+
+    // L1 interval 760ms:
+    // tick1 at 760ms -> y 16->17 (airborne)
+    // tick2 at 1520ms -> y 17->18 (grounded)
+    // remaining grounded time in frame: 1600 - 1520 = 80ms
+    engine.update(1600);
+    const snap = engine.getSnapshot();
+    expect(snap.activePiece.id).toBe(2);
+    expect(snap.activePiece.y).toBe(18);
+    expect(snap.lastLock).toBeNull();
+    expect(engine.lockTimerMs).toBe(80);
+  });
+
   it("counts only post-contact grounded segment when one update spans multiple gravity ticks", () => {
     const engine = new StackerEngine("endless") as unknown as {
       board: number[][];
@@ -1639,6 +1700,196 @@ describe("stacker engine", () => {
     expect(snap.lastLock).not.toBeNull();
     expect(snap.activePiece.id).toBe(1);
     expect(snap.activePiece.y).toBe(0);
+  });
+
+  it("emits exactly one lock event for a single huge grounded update", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2, 1, 3] }); // O, I, T
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 18 }; // grounded
+    engine.activeRotation = 0;
+
+    engine.update(10_000);
+    const afterFirst = engine.getSnapshot();
+    expect(afterFirst.lastLock).not.toBeNull();
+    const firstLockId = afterFirst.lastLock?.id ?? -1;
+    expect(afterFirst.activePiece.id).toBe(1); // only one spawn consumed
+    expect(afterFirst.activePiece.y).toBe(0);
+
+    // A zero update must not create another lock event.
+    engine.update(0);
+    const afterSecond = engine.getSnapshot();
+    expect(afterSecond.lastLock?.id).toBe(firstLockId);
+    expect(afterSecond.activePiece.id).toBe(1);
+  });
+
+  it("preserves timer-lock outcome with grounded fast-path on huge frame deltas", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2, 1] }); // O then I
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 18 }; // grounded
+    engine.activeRotation = 0;
+
+    // Large frame should lock current piece by timer and spawn exactly once.
+    engine.update(5000);
+    const snap = engine.getSnapshot();
+    expect(snap.lastLock).not.toBeNull();
+    expect(snap.lastLock?.pieceId).toBe(2);
+    expect(snap.activePiece.id).toBe(1);
+    expect(snap.activePiece.y).toBe(0);
+
+    // Follow-up tiny frame should not retroactively emit another lock.
+    const lockId = snap.lastLock?.id ?? -1;
+    engine.update(1);
+    const after = engine.getSnapshot();
+    expect(after.lastLock?.id).toBe(lockId);
+  });
+
+  it("keeps drop accumulator normalized after grounded fast-path huge updates", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      board: number[][];
+      activePiece: { id: number; matrix: number[][]; x: number; y: number };
+      activeRotation: number;
+      dropAccumulator: number;
+      getDropIntervalMs: () => number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+    };
+
+    engine.restart({ openerPieceIds: [2, 1] });
+    engine.start();
+    engine.board = Array.from({ length: 20 }, () => Array(10).fill(0));
+    engine.activePiece = { id: 2, matrix: [[1, 1], [1, 1]], x: 4, y: 18 }; // grounded
+    engine.activeRotation = 0;
+
+    const interval = engine.getDropIntervalMs();
+    engine.update(20_000);
+    expect(engine.dropAccumulator).toBeGreaterThanOrEqual(0);
+    expect(engine.dropAccumulator).toBeLessThan(interval);
+  });
+
+  it("ignores non-finite update delta values safely", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [2] }); // O piece
+    engine.start();
+
+    const before = engine.getSnapshot();
+
+    engine.update(Number.NaN);
+    let after = engine.getSnapshot();
+    expect(after.activePiece.id).toBe(before.activePiece.id);
+    expect(after.activePiece.x).toBe(before.activePiece.x);
+    expect(after.activePiece.y).toBe(before.activePiece.y);
+    expect(after.lastLock).toBeNull();
+
+    engine.update(Number.POSITIVE_INFINITY);
+    after = engine.getSnapshot();
+    expect(after.activePiece.id).toBe(before.activePiece.id);
+    expect(after.activePiece.x).toBe(before.activePiece.x);
+    expect(after.activePiece.y).toBe(before.activePiece.y);
+    expect(after.lastLock).toBeNull();
+  });
+
+  it("keeps gravity cadence stable across split frames", () => {
+    const engineA = new StackerEngine("endless");
+    const engineB = new StackerEngine("endless");
+    engineA.restart({ openerPieceIds: [2] });
+    engineB.restart({ openerPieceIds: [2] });
+    engineA.start();
+    engineB.start();
+
+    // Level 1 interval is 760ms. Split updates should match combined update.
+    engineA.update(380);
+    engineA.update(380);
+    engineB.update(760);
+
+    const a = engineA.getSnapshot().activePiece;
+    const b = engineB.getSnapshot().activePiece;
+    expect(a.id).toBe(b.id);
+    expect(a.x).toBe(b.x);
+    expect(a.y).toBe(b.y);
+  });
+
+  it("does not mutate gravity accumulator on invalid update deltas", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      dropAccumulator: number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+      getSnapshot: () => ReturnType<StackerEngine["getSnapshot"]>;
+    };
+
+    engine.restart({ openerPieceIds: [2] });
+    engine.start();
+    engine.update(120);
+    const beforeAccumulator = engine.dropAccumulator;
+    const beforeY = engine.getSnapshot().activePiece.y;
+
+    engine.update(Number.NaN);
+    engine.update(Number.POSITIVE_INFINITY);
+    engine.update(-999);
+
+    const afterAccumulator = engine.dropAccumulator;
+    const afterY = engine.getSnapshot().activePiece.y;
+    expect(afterAccumulator).toBe(beforeAccumulator);
+    expect(afterY).toBe(beforeY);
+  });
+
+  it("keeps gravity accumulator bounded across mixed update sizes", () => {
+    const engine = new StackerEngine("endless") as unknown as {
+      dropAccumulator: number;
+      getDropIntervalMs: () => number;
+      restart: (opts?: { openerPieceIds?: number[] }) => void;
+      start: () => void;
+      update: (deltaMs: number) => void;
+    };
+
+    engine.restart({ openerPieceIds: [2] });
+    engine.start();
+    const interval = engine.getDropIntervalMs();
+
+    const samples = [16, 17, 33, 1000, 760, 761, 0, Number.NaN, Number.POSITIVE_INFINITY, -25, 5000];
+    for (const dt of samples) {
+      engine.update(dt);
+      expect(engine.dropAccumulator).toBeGreaterThanOrEqual(0);
+      expect(engine.dropAccumulator).toBeLessThan(interval);
+    }
+  });
+
+  it("ignores negative update delta values safely", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ openerPieceIds: [2] });
+    engine.start();
+
+    const before = engine.getSnapshot();
+    engine.update(-1000);
+    const after = engine.getSnapshot();
+
+    expect(after.activePiece.id).toBe(before.activePiece.id);
+    expect(after.activePiece.x).toBe(before.activePiece.x);
+    expect(after.activePiece.y).toBe(before.activePiece.y);
+    expect(after.lastLock).toBeNull();
   });
 
   it("grounded soft-drop input does not reset lock delay timer", () => {
@@ -2082,6 +2333,39 @@ describe("stacker engine", () => {
 
     for (let i = 0; i < 1200; i += 1) {
       actions[Math.floor(next() * actions.length)]();
+      const snap = engine.getSnapshot();
+      if (snap.isGameOver) break;
+      expect(canPlaceSnapshotPiece(snap.board, snap.activePiece)).toBe(true);
+    }
+  });
+
+  it("keeps active piece legal under deterministic mixed actions and variable frame deltas", () => {
+    const engine = new StackerEngine("endless");
+    engine.restart({ seed: 424242, openerPieceIds: [1, 2, 3, 4, 5, 6, 7] });
+    engine.start();
+
+    let rng = 246813579;
+    const nextRandom = () => {
+      rng = (rng * 1664525 + 1013904223) >>> 0;
+      return rng / 0x100000000;
+    };
+
+    const frameDeltas = [0, 1, 2, 8, 16, 17, 33, 50, 80, 120, 250, 500, 760, 1000];
+
+    for (let i = 0; i < 1200; i += 1) {
+      const roll = nextRandom();
+      if (roll < 0.12) engine.moveLeft();
+      else if (roll < 0.24) engine.moveRight();
+      else if (roll < 0.36) engine.rotateClockwise();
+      else if (roll < 0.46) engine.rotateCounterClockwise();
+      else if (roll < 0.54) engine.rotate180();
+      else if (roll < 0.62) engine.softDrop();
+      else if (roll < 0.67) engine.hold();
+      else if (roll < 0.7) engine.hardDrop();
+
+      const dt = frameDeltas[Math.floor(nextRandom() * frameDeltas.length)] ?? 16;
+      engine.update(dt);
+
       const snap = engine.getSnapshot();
       if (snap.isGameOver) break;
       expect(canPlaceSnapshotPiece(snap.board, snap.activePiece)).toBe(true);
