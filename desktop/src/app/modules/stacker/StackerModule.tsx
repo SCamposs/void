@@ -413,6 +413,7 @@ export function StackerModule() {
   const [runPieces, setRunPieces] = useState(0);
   const [runInputs, setRunInputs] = useState(0);
   const [runFinessePlus, setRunFinessePlus] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; detail: string; tone: string; untilMs: number } | null>(null);
   const [clearTrail, setClearTrail] = useState<Array<{ id: number; label: string; tone: string; untilMs: number }>>([]);
   const [lockTrail, setLockTrail] = useState<Array<{ id: number; label: string; detail: string; tone: string }>>([]);
@@ -744,6 +745,7 @@ export function StackerModule() {
       const eg = engineRef.current;
       let countedInput = false;
       if (e.key === "ArrowLeft") {
+        e.preventDefault();
         keyHeld.current.left = true;
         horizontalPriority.current = "left";
         moveRepeat.current.left = dasMs;
@@ -751,20 +753,22 @@ export function StackerModule() {
         countedInput = true;
       }
       if (e.key === "ArrowRight") {
+        e.preventDefault();
         keyHeld.current.right = true;
         horizontalPriority.current = "right";
         moveRepeat.current.right = dasMs;
         eg.moveRight();
         countedInput = true;
       }
-      if (e.key === "ArrowDown") keyHeld.current.down = true;
       if (e.key === "ArrowDown") {
+        e.preventDefault();
+        keyHeld.current.down = true;
         if (sdfMs <= 0) runSoftDropBurst();
         else eg.softDrop();
         moveRepeat.current.down = Math.max(0, sdfMs);
         countedInput = true;
       }
-      if (e.key === "ArrowUp") { eg.rotateClockwise(); applyDasCut(); countedInput = true; }
+      if (e.key === "ArrowUp") { e.preventDefault(); eg.rotateClockwise(); applyDasCut(); countedInput = true; }
       if (e.key === "z" || e.key === "Z") { eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
       if (e.key === "Control" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
       if (e.key === "a" || e.key === "A") { eg.rotate180(); applyDasCut(); countedInput = true; }
@@ -807,9 +811,9 @@ export function StackerModule() {
       setState(snapshot);
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") keyHeld.current.left = false;
-      if (e.key === "ArrowRight") keyHeld.current.right = false;
-      if (e.key === "ArrowDown") keyHeld.current.down = false;
+      if (e.key === "ArrowLeft") { e.preventDefault(); keyHeld.current.left = false; }
+      if (e.key === "ArrowRight") { e.preventDefault(); keyHeld.current.right = false; }
+      if (e.key === "ArrowDown") { e.preventDefault(); keyHeld.current.down = false; }
     };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -929,181 +933,216 @@ export function StackerModule() {
   const shakeY = shakeBase > 0 ? Math.cos(fxNow * 0.17) * shakeBase * 0.65 : 0;
   const flashOpacity = flashRemaining > 0 ? Math.min(0.22, (flashRemaining / 280) * 0.22) * clearFxStrength : 0;
 
-  return <div className="grid gap-3 lg:grid-cols-[1fr_260px]">
-    <div className="panel p-3">
-      <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-        <button className="border px-2" onClick={start}>Start</button>
-        <button className="border px-2" onClick={restart}>Restart</button>
+  return <section className="stacker-shell panel relative flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
+      <div>
+        <h1 className="text-lg font-semibold tracking-[-0.02em]">Stacker</h1>
+        <p className="text-xs text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>
+      </div>
+      <div className="flex items-center gap-2 text-sm">
+        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={start}>Start</button>
+        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={restart}>Restart</button>
         <button
-          className="border px-2 disabled:opacity-40"
+          className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)] disabled:opacity-40"
           onClick={togglePause}
           disabled={mode === "sprint"}
           title={mode === "sprint" ? "Sprint runs do not pause." : "Pause or resume"}
         >
           {state.isPaused ? "Resume" : "Pause"}
         </button>
-        <button className="border px-2" onClick={toggleMode}>Mode: {mode}</button>
-        <span>Score {state.score}</span><span>Lines {state.lines}</span><span>Lv {state.level}</span>
-        {mode === "sprint" && <span>Time {formatMs(sprintElapsedMs)}</span>}
-        {mode === "sprint" && <span>Left {sprintLinesLeft}</span>}
-        <span>Pieces {runPieces}</span>
-        <span>Inputs {runInputs}</span>
-        <span>F+ {runFinessePlus}</span>
-        <span>PPS {Number.isFinite(pps) ? pps.toFixed(2) : "0.00"}</span>
-        <span>KPS {Number.isFinite(kps) ? kps.toFixed(2) : "0.00"}</span>
-        <span>LPM {Number.isFinite(lpm) ? lpm.toFixed(1) : "0.0"}</span>
-        <span>KPP {Number.isFinite(kpp) ? kpp.toFixed(2) : "0.00"}</span>
-        <span>Stack {stackPercent}%</span>
-      </div>
-      {feedback && <div className="mb-2 border px-2 py-1 text-xs" style={{ borderColor: feedback.tone, color: feedback.tone }}>
-        <div>{feedback.text}</div>
-        {feedback.detail && <div className="text-[10px] text-[var(--subtle)]">{feedback.detail}</div>}
-      </div>}
-      <div className="mb-2 flex items-center gap-2 text-xs text-[var(--muted)]">
-        <span>Piece {pieceLabel(state.activePiece.id)}</span>
-        <span>Combo {state.combo > 1 ? `x${state.combo}` : "-"}</span>
-        <span>B2B {state.b2bStreak >= 2 ? `x${state.b2bStreak - 1}` : "-"}</span>
-      </div>
-      {(state.isGameOver || doneSprint) && <div className="mb-2 border border-[var(--border)] px-2 py-1 text-xs">{doneSprint ? "SPRINT CLEAR" : "GAME OVER"}</div>}
-      <div className="relative">
-        <div className="relative grid transition-transform" style={{ gridTemplateColumns: `repeat(${W}, ${CELL}px)`, gap: GAP, width: BOARD_PIXEL_W, transform: `translate(${shakeX}px, ${shakeY}px)` }}>
-          {grid.flatMap((r, y) => r.map((c, x) => {
-            const bg = c === 0 ? "#171713" : c === 8 ? `rgba(232,228,218,${ghostOpacity})` : pieceShade(c);
-            return <div key={`${x}-${y}`} className="h-[22px] w-[22px] border border-[#2a2a25]" style={{ background: bg }} />;
-          }))}
-          {particlesRef.current.map((particle) => {
-            const alpha = Math.max(0, particle.lifeMs / particle.maxLifeMs) * 0.9;
-            return (
-              <div
-                key={particle.id}
-                className="pointer-events-none absolute rounded-[1px]"
-                style={{
-                  left: Math.round(particle.x),
-                  top: Math.round(particle.y),
-                  width: particle.size,
-                  height: particle.size,
-                  background: particle.tone,
-                  opacity: alpha,
-                  boxShadow: `0 0 4px rgba(232,228,218,${Math.min(0.35, alpha)})`,
-                }}
-              />
-            );
-          })}
-        </div>
-        {flashOpacity > 0 && <div className="pointer-events-none absolute inset-0 border border-[#dcd8cf]" style={{ background: `rgba(232,228,218,${flashOpacity})` }} />}
+        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>Mode: {mode}</button>
+        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={() => setSettingsOpen((value) => !value)}>
+          Settings
+        </button>
       </div>
     </div>
-    <aside className="panel p-3 text-sm">
-      <div className="text-[var(--muted)]">Hold {state.canHold ? "" : "(LOCKED)"}</div>
-      <div className="mb-2 text-xs">{state.holdPiece ? pieceLabel(state.holdPiece.id) : "-"}</div>
-      <div style={{ opacity: state.canHold ? 1 : 0.45 }}>
-        <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} />
-      </div>
-      <div className="text-[var(--muted)]">Next Queue</div>
-      <div className="mb-3 mt-1 space-y-1">
-        {state.nextQueue.slice(0, 5).map((p, i) => (
-          <div key={`q-${i}`}>
-            <div className="mb-0.5 text-[10px] text-[var(--subtle)]">{pieceLabel(p.id)}</div>
-            <MiniPiece matrix={p.matrix} pieceId={p.id} active={i === 0} />
+
+    <div className="grid min-h-0 flex-1 place-items-center gap-4 overflow-hidden p-4 xl:grid-cols-[160px_auto_170px]">
+      <aside className="hidden w-full self-center xl:block">
+        <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
+          <div className="text-sm text-[var(--muted)]">Hold {state.canHold ? "" : "(locked)"}</div>
+          <div className="mb-2 text-xs">{state.holdPiece ? pieceLabel(state.holdPiece.id) : "-"}</div>
+          <div style={{ opacity: state.canHold ? 1 : 0.45 }}>
+            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} />
           </div>
-        ))}
-      </div>
-      <div style={{ color: comboTierTone(state.combo) }}>Combo {state.combo > 1 ? `x${state.combo}` : "-"}</div>
-      <div style={{ color: b2bTierTone(state.b2bStreak) }}>B2B {state.b2bStreak >= 2 ? `x${state.b2bStreak - 1}` : "-"}</div>
-      <div className="mt-1 h-2 overflow-hidden border border-[var(--border)] bg-[var(--surface2)]">
-        <div
-          className="h-full"
-          style={{
-            width: `${Math.min(100, (state.combo / 8) * 100)}%`,
-            background: comboTierTone(state.combo),
-          }}
-        />
-      </div>
-      <div className="mt-1 h-2 overflow-hidden border border-[var(--border)] bg-[var(--surface2)]">
-        <div
-          className="h-full"
-          style={{
-            width: `${Math.min(100, ((state.b2bStreak >= 2 ? state.b2bStreak - 1 : 0) / 8) * 100)}%`,
-            background: b2bTierTone(state.b2bStreak),
-          }}
-        />
-      </div>
-      <div className="mt-3 text-[var(--muted)]">Input Tuning</div>
-      <div className="mb-1 flex gap-1 text-[10px]">
-        <button className="border px-1.5 py-0.5" onClick={() => applyPreset("balanced")}>Balanced</button>
-        <button className="border px-1.5 py-0.5" onClick={() => applyPreset("competitive")}>Competitive</button>
-        <button className="border px-1.5 py-0.5" onClick={() => applyPreset("instant")}>ARR0</button>
-      </div>
-      <div className="mb-2 grid grid-cols-[1fr_1fr_auto] gap-1 text-[10px]">
-        <input
-          value={seedInput}
-          onChange={(e) => setSeedInput(e.target.value)}
-          placeholder="Seed"
-          className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--foreground)]"
-        />
-        <input
-          value={openerInput}
-          onChange={(e) => setOpenerInput(e.target.value.toUpperCase())}
-          placeholder="Opener (IOT...)"
-          className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--foreground)]"
-        />
-        <button className="border px-1.5 py-0.5" onClick={restart}>Apply</button>
-      </div>
-      <label className="block text-xs">DAS {dasMs}ms <input type="range" min={50} max={220} step={5} value={dasMs} onChange={(e) => setDasMs(Number(e.target.value))} /></label>
-      <label className="block text-xs">ARR {arrMs}ms <input type="range" min={0} max={50} step={1} value={arrMs} onChange={(e) => setArrMs(Number(e.target.value))} /></label>
-      <label className="block text-xs">DCD {dcdMs}ms <input type="range" min={0} max={80} step={1} value={dcdMs} onChange={(e) => setDcdMs(Number(e.target.value))} /></label>
-      <label className="block text-xs">SDF {sdfMs}ms <input type="range" min={0} max={80} step={1} value={sdfMs} onChange={(e) => setSdfMs(Number(e.target.value))} /></label>
-      <label className="block text-xs">Lock {lockDelayMs}ms <input type="range" min={0} max={900} step={10} value={lockDelayMs} onChange={(e) => setLockDelayMs(Number(e.target.value))} /></label>
-      <label className="block text-xs">Resets {lockResetLimit} <input type="range" min={0} max={20} step={1} value={lockResetLimit} onChange={(e) => setLockResetLimit(Number(e.target.value))} /></label>
-      <label className="block text-xs">Clear FX {Math.round(clearFxStrength * 100)} <input type="range" min={0} max={1} step={0.01} value={clearFxStrength} onChange={(e) => setClearFxStrength(Number(e.target.value))} /></label>
-      <label className="block text-xs">Shake {Math.round(shakeStrength * 100)} <input type="range" min={0} max={1.5} step={0.01} value={shakeStrength} onChange={(e) => setShakeStrength(Number(e.target.value))} /></label>
-      <label className="block text-xs"><input type="checkbox" checked={showParticles} onChange={(e) => setShowParticles(e.target.checked)} /> Particles on clear</label>
-      <label className="block text-xs"><input type="checkbox" checked={showGhost} onChange={(e) => setShowGhost(e.target.checked)} /> Ghost</label>
-      <label className="block text-xs">Ghost Opacity {Math.round(ghostOpacity * 100)} <input type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(e) => setGhostOpacity(Number(e.target.value))} /></label>
-      <label className="block text-xs"><input type="checkbox" checked={hearNextPieces} onChange={(e) => setHearNextPieces(e.target.checked)} /> Hear Next</label>
-      <label className="block text-xs">Volume {Math.round(volume * 100)} <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></label>
-      <div className="mt-3 text-[var(--muted)]">Recent Locks</div>
-      <div className="mt-1 space-y-1 text-[10px]">
-        {lockTrail.length === 0 ? <div className="text-[var(--subtle)]">-</div> : lockTrail.map((entry) => (
-          <div key={entry.id} className="border border-[var(--border)] px-1 py-0.5" style={{ color: entry.tone }}>
-            <div>{entry.label}</div>
-            <div className="text-[var(--subtle)]">{entry.detail}</div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 text-[var(--muted)]">Clear Chain</div>
-      <div className="mt-1 space-y-1 text-[10px]">
-        {clearTrail.length === 0 ? <div className="text-[var(--subtle)]">-</div> : clearTrail.map((entry) => (
-          <div key={entry.id} className="border border-[var(--border)] px-1 py-0.5" style={{ color: entry.tone }}>
-            {entry.label}
-          </div>
-        ))}
-      </div>
-      {mode === "sprint" && <>
-        <div className="mt-3 text-[var(--muted)]">Sprint 40L</div>
-        <div className="text-xs">PB {sprintBestMs !== null ? formatMs(sprintBestMs) : "--:--.--"}</div>
-        <div className="text-xs">Waste {sprintWastePieces}p</div>
-        <div className="mt-1 space-y-1 text-[10px]">
-          {sprintHistory.length === 0 ? <div className="text-[var(--subtle)]">-</div> : sprintHistory.slice(0, 5).map((entry, idx) => (
-            <div key={`${entry.at}-${idx}`} className="border border-[var(--border)] px-1 py-0.5">
-              <div>{formatMs(entry.ms)}</div>
-              <div className="text-[var(--subtle)]">{new Date(entry.at).toLocaleString()}</div>
-            </div>
-          ))}
         </div>
-      </>}
-      <div className="mt-3 text-[var(--muted)]">Run Archive</div>
-      <div className="text-xs">Best Score {bestScore ?? 0}</div>
-      <div className="mt-1 space-y-1 text-[10px]">
-        {runHistory.length === 0 ? <div className="text-[var(--subtle)]">-</div> : runHistory.slice(0, 5).map((entry, idx) => (
-          <div key={`${entry.at}-${idx}`} className="border border-[var(--border)] px-1 py-0.5">
-            <div>{entry.mode.toUpperCase()} S{entry.score} L{entry.lines}</div>
-            <div className="text-[var(--subtle)]">{formatMs(entry.ms)} | {entry.pieces}p | {entry.inputs > 0 && entry.pieces > 0 ? (entry.inputs / entry.pieces).toFixed(2) : "0.00"}kpp | F+ {entry.finessePlus}</div>
+        <div className="mt-3 border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--muted)]">
+          <div>Piece {pieceLabel(state.activePiece.id)}</div>
+          <div style={{ color: comboTierTone(state.combo) }}>Combo {state.combo > 1 ? `x${state.combo}` : "-"}</div>
+          <div style={{ color: b2bTierTone(state.b2bStreak) }}>B2B {state.b2bStreak >= 2 ? `x${state.b2bStreak - 1}` : "-"}</div>
+        </div>
+      </aside>
+
+      <main className="flex min-h-0 flex-col items-center">
+        <div className="mb-3 grid w-full max-w-[520px] grid-cols-4 gap-2 text-center text-xs">
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Score</div><div>{state.score}</div></div>
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Lines</div><div>{state.lines}</div></div>
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Timer</div><div>{formatMs(mode === "sprint" ? sprintElapsedMs : runElapsedMs)}</div></div>
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Level</div><div>{state.level}</div></div>
+        </div>
+
+        <div className="mb-3 flex gap-3 xl:hidden">
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-2 text-xs">
+            <div className="mb-1 text-[var(--muted)]">Hold</div>
+            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} />
           </div>
-        ))}
-      </div>
-      <div className="mt-3 text-[var(--subtle)]">Keys: Left/Right move, Down soft drop, Up/Z/A rotate, Space hard drop, C hold, P pause (endless only).</div>
-    </aside>
-  </div>;
+          <div className="border border-[var(--border)] bg-[var(--surface)] p-2 text-xs">
+            <div className="mb-1 text-[var(--muted)]">Next</div>
+            <MiniPiece matrix={state.nextQueue[0]?.matrix ?? null} pieceId={state.nextQueue[0]?.id} active />
+          </div>
+        </div>
+
+        {feedback && <div className="mb-2 min-h-9 border px-3 py-1 text-center text-xs" style={{ borderColor: feedback.tone, color: feedback.tone }}>
+          <div>{feedback.text}</div>
+          {feedback.detail && <div className="text-[10px] text-[var(--subtle)]">{feedback.detail}</div>}
+        </div>}
+        {(state.isGameOver || doneSprint) && <div className="mb-2 border border-[var(--border)] px-3 py-1 text-xs">{doneSprint ? "SPRINT CLEAR" : "GAME OVER"}</div>}
+
+        <div className="relative border border-[var(--border)] bg-[#080807] p-2 shadow-[0_0_18px_rgba(255,255,255,0.08)]">
+          <div className="relative grid transition-transform" style={{ gridTemplateColumns: `repeat(${W}, ${CELL}px)`, gap: GAP, width: BOARD_PIXEL_W, transform: `translate(${shakeX}px, ${shakeY}px)` }}>
+            {grid.flatMap((row, y) => row.map((cell, x) => {
+              const bg = cell === 0 ? "#171713" : cell === 8 ? `rgba(232,228,218,${ghostOpacity})` : pieceShade(cell);
+              return <div key={`${x}-${y}`} className="h-[22px] w-[22px] border border-[#2a2a25]" style={{ background: bg }} />;
+            }))}
+            {particlesRef.current.map((particle) => {
+              const alpha = Math.max(0, particle.lifeMs / particle.maxLifeMs) * 0.9;
+              return (
+                <div
+                  key={particle.id}
+                  className="pointer-events-none absolute rounded-[1px]"
+                  style={{
+                    left: Math.round(particle.x),
+                    top: Math.round(particle.y),
+                    width: particle.size,
+                    height: particle.size,
+                    background: particle.tone,
+                    opacity: alpha,
+                    boxShadow: `0 0 4px rgba(232,228,218,${Math.min(0.35, alpha)})`,
+                  }}
+                />
+              );
+            })}
+          </div>
+          {flashOpacity > 0 && <div className="pointer-events-none absolute inset-2 border border-[#dcd8cf]" style={{ background: `rgba(232,228,218,${flashOpacity})` }} />}
+        </div>
+
+        <div className="mt-3 text-center text-xs text-[var(--muted)]">
+          Down soft drop, Space hard drop, C hold, P pause. {mode === "sprint" && `Left ${sprintLinesLeft}.`}
+        </div>
+      </main>
+
+      <aside className="hidden w-full self-center xl:block">
+        <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
+          <div className="text-sm text-[var(--muted)]">Next queue</div>
+          <div className="mt-2 space-y-2">
+            {state.nextQueue.slice(0, 5).map((piece, index) => (
+              <div key={`q-${index}`}>
+                <div className="mb-0.5 text-[10px] text-[var(--subtle)]">{pieceLabel(piece.id)}</div>
+                <MiniPiece matrix={piece.matrix} pieceId={piece.id} active={index === 0} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    {settingsOpen && <div className="absolute inset-0 z-10 bg-black/45" onClick={() => setSettingsOpen(false)}>
+      <aside className="absolute right-0 top-0 h-full w-[360px] max-w-[92vw] overflow-auto border-l border-[var(--border)] bg-[var(--surface)] p-4 text-sm" onClick={(event) => event.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold">Stacker settings</h2>
+            <p className="text-xs text-[var(--muted)]">Tuning, replay setup, effects, and run details.</p>
+          </div>
+          <button className="border border-[var(--border)] px-2 py-1 text-xs" onClick={() => setSettingsOpen(false)}>Close</button>
+        </div>
+
+        <details className="mb-3 border border-[var(--border)] p-3" open>
+          <summary className="cursor-pointer text-[var(--muted)]">Input tuning</summary>
+          <div className="mt-3 space-y-2">
+            <div className="flex gap-1 text-[10px]">
+              <button className="border px-1.5 py-0.5" onClick={() => applyPreset("balanced")}>Balanced</button>
+              <button className="border px-1.5 py-0.5" onClick={() => applyPreset("competitive")}>Competitive</button>
+              <button className="border px-1.5 py-0.5" onClick={() => applyPreset("instant")}>Instant</button>
+            </div>
+            <label className="block text-xs">DAS {dasMs}ms <input className="w-full" type="range" min={50} max={220} step={5} value={dasMs} onChange={(e) => setDasMs(Number(e.target.value))} /></label>
+            <label className="block text-xs">ARR {arrMs}ms <input className="w-full" type="range" min={0} max={50} step={1} value={arrMs} onChange={(e) => setArrMs(Number(e.target.value))} /></label>
+            <label className="block text-xs">DCD {dcdMs}ms <input className="w-full" type="range" min={0} max={80} step={1} value={dcdMs} onChange={(e) => setDcdMs(Number(e.target.value))} /></label>
+            <label className="block text-xs">SDF {sdfMs}ms <input className="w-full" type="range" min={0} max={80} step={1} value={sdfMs} onChange={(e) => setSdfMs(Number(e.target.value))} /></label>
+            <label className="block text-xs">Lock {lockDelayMs}ms <input className="w-full" type="range" min={0} max={900} step={10} value={lockDelayMs} onChange={(e) => setLockDelayMs(Number(e.target.value))} /></label>
+            <label className="block text-xs">Resets {lockResetLimit} <input className="w-full" type="range" min={0} max={20} step={1} value={lockResetLimit} onChange={(e) => setLockResetLimit(Number(e.target.value))} /></label>
+          </div>
+        </details>
+
+        <details className="mb-3 border border-[var(--border)] p-3">
+          <summary className="cursor-pointer text-[var(--muted)]">Seed and opener</summary>
+          <div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-1 text-[10px]">
+            <input value={seedInput} onChange={(e) => setSeedInput(e.target.value)} placeholder="Seed" className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--text)]" />
+            <input value={openerInput} onChange={(e) => setOpenerInput(e.target.value.toUpperCase())} placeholder="Opener" className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--text)]" />
+            <button className="border px-1.5 py-0.5" onClick={restart}>Apply</button>
+          </div>
+        </details>
+
+        <details className="mb-3 border border-[var(--border)] p-3">
+          <summary className="cursor-pointer text-[var(--muted)]">Effects and sound</summary>
+          <div className="mt-3 space-y-2">
+            <label className="block text-xs">Clear FX {Math.round(clearFxStrength * 100)} <input className="w-full" type="range" min={0} max={1} step={0.01} value={clearFxStrength} onChange={(e) => setClearFxStrength(Number(e.target.value))} /></label>
+            <label className="block text-xs">Shake {Math.round(shakeStrength * 100)} <input className="w-full" type="range" min={0} max={1.5} step={0.01} value={shakeStrength} onChange={(e) => setShakeStrength(Number(e.target.value))} /></label>
+            <label className="block text-xs"><input type="checkbox" checked={showParticles} onChange={(e) => setShowParticles(e.target.checked)} /> Particles on clear</label>
+            <label className="block text-xs"><input type="checkbox" checked={showGhost} onChange={(e) => setShowGhost(e.target.checked)} /> Ghost</label>
+            <label className="block text-xs">Ghost opacity {Math.round(ghostOpacity * 100)} <input className="w-full" type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(e) => setGhostOpacity(Number(e.target.value))} /></label>
+            <label className="block text-xs"><input type="checkbox" checked={hearNextPieces} onChange={(e) => setHearNextPieces(e.target.checked)} /> Hear next</label>
+            <label className="block text-xs">Volume {Math.round(volume * 100)} <input className="w-full" type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></label>
+          </div>
+        </details>
+
+        <details className="mb-3 border border-[var(--border)] p-3">
+          <summary className="cursor-pointer text-[var(--muted)]">Run details</summary>
+          <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+            <div>Pieces {runPieces}</div>
+            <div>Inputs {runInputs}</div>
+            <div>F+ {runFinessePlus}</div>
+            <div>PPS {Number.isFinite(pps) ? pps.toFixed(2) : "0.00"}</div>
+            <div>KPS {Number.isFinite(kps) ? kps.toFixed(2) : "0.00"}</div>
+            <div>LPM {Number.isFinite(lpm) ? lpm.toFixed(1) : "0.0"}</div>
+            <div>KPP {Number.isFinite(kpp) ? kpp.toFixed(2) : "0.00"}</div>
+            <div>Stack {stackPercent}%</div>
+            {mode === "sprint" && <div>Waste {sprintWastePieces}p</div>}
+            {mode === "sprint" && <div>PB {sprintBestMs !== null ? formatMs(sprintBestMs) : "--:--.--"}</div>}
+            <div>Best score {bestScore ?? 0}</div>
+          </div>
+        </details>
+
+        <details className="mb-3 border border-[var(--border)] p-3">
+          <summary className="cursor-pointer text-[var(--muted)]">Recent locks and archive</summary>
+          <div className="mt-3 space-y-3 text-[10px]">
+            <div>
+              <div className="mb-1 text-xs text-[var(--muted)]">Recent locks</div>
+              {lockTrail.length === 0 ? <div className="text-[var(--subtle)]">-</div> : lockTrail.map((entry) => (
+                <div key={entry.id} className="mb-1 border border-[var(--border)] px-1 py-0.5" style={{ color: entry.tone }}>
+                  <div>{entry.label}</div>
+                  <div className="text-[var(--subtle)]">{entry.detail}</div>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className="mb-1 text-xs text-[var(--muted)]">Clear chain</div>
+              {clearTrail.length === 0 ? <div className="text-[var(--subtle)]">-</div> : clearTrail.map((entry) => (
+                <div key={entry.id} className="mb-1 border border-[var(--border)] px-1 py-0.5" style={{ color: entry.tone }}>{entry.label}</div>
+              ))}
+            </div>
+            <div>
+              <div className="mb-1 text-xs text-[var(--muted)]">Run archive</div>
+              {runHistory.length === 0 ? <div className="text-[var(--subtle)]">-</div> : runHistory.slice(0, 5).map((entry, index) => (
+                <div key={`${entry.at}-${index}`} className="mb-1 border border-[var(--border)] px-1 py-0.5">
+                  <div>{entry.mode.toUpperCase()} S{entry.score} L{entry.lines}</div>
+                  <div className="text-[var(--subtle)]">{formatMs(entry.ms)} | {entry.pieces}p | {entry.inputs > 0 && entry.pieces > 0 ? (entry.inputs / entry.pieces).toFixed(2) : "0.00"}kpp | F+ {entry.finessePlus}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </details>
+      </aside>
+    </div>}
+  </section>;
 }
 
