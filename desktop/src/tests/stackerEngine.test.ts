@@ -336,7 +336,7 @@ describe("stacker engine", () => {
     }
   });
 
-  it("uses TETR.IO-style base values for Spin Zero and Mini Spin Zero scoring", () => {
+  it("uses custom base values for Spin Zero and Mini Spin Zero scoring", () => {
     const engine = new StackerEngine("endless") as unknown as {
       scoreForClear: (
         linesCleared: number,
@@ -350,7 +350,7 @@ describe("stacker engine", () => {
     expect(engine.scoreForClear(0, "mini", false, false)).toBe(100);
   });
 
-  it("matches TETR.IO custom-solo scoring matrix for key actions", () => {
+  it("matches the custom solo scoring matrix for key actions", () => {
     const engine = new StackerEngine("endless") as unknown as {
       combo: number;
       scoreForClear: (
@@ -617,7 +617,7 @@ describe("stacker engine", () => {
       isDifficultClear: (lines: number, kind: "none" | "mini" | "full") => boolean;
     };
 
-    // Difficulty rule invariant (TETR.IO/Guideline style): T-spin clear or quad.
+    // Difficulty rule invariant: spin clear or quad.
     expect(engine.isDifficultClear(4, "none")).toBe(true);
     expect(engine.isDifficultClear(1, "full")).toBe(true);
     expect(engine.isDifficultClear(1, "mini")).toBe(true);

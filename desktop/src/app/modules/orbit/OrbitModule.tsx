@@ -129,12 +129,16 @@ export function OrbitModule() {
       const cx = width / 2;
       const cy = height / 2;
       const minSide = Math.min(width, height);
-      const baseRadius = minSide * 0.24;
+      const baseRadius = minSide * 0.275;
       const orbRadius = baseRadius * (1 + amplitude * 0.22 * intensity);
       const pointCount = 180;
 
       context.clearRect(0, 0, width, height);
-      context.fillStyle = "#070706";
+      const background = context.createRadialGradient(cx, cy, 0, cx, cy, minSide * 0.72);
+      background.addColorStop(0, "#10100e");
+      background.addColorStop(0.46, "#080807");
+      background.addColorStop(1, "#040403");
+      context.fillStyle = background;
       context.fillRect(0, 0, width, height);
 
       const halo = context.createRadialGradient(cx, cy, orbRadius * 0.25, cx, cy, orbRadius * (2.25 + amplitude));
@@ -145,6 +149,22 @@ export function OrbitModule() {
       context.beginPath();
       context.arc(cx, cy, orbRadius * (2.4 + amplitude), 0, Math.PI * 2);
       context.fill();
+
+      context.save();
+      context.globalCompositeOperation = "lighter";
+      for (let filament = 0; filament < 18; filament += 1) {
+        const orbit = time * (0.00008 + filament * 0.000004) + filament * 0.72;
+        const stretch = 1.18 + Math.sin(filament * 2.1) * 0.18 + high * 0.28;
+        const alpha = 0.025 + amplitude * 0.05 + (filament % 3) * 0.006;
+        context.beginPath();
+        context.ellipse(cx, cy, orbRadius * stretch, orbRadius * (0.34 + bass * 0.24), orbit, 0, Math.PI * 2);
+        context.strokeStyle = `rgba(248, 246, 238, ${alpha})`;
+        context.lineWidth = (0.7 + high * 1.2) * scale;
+        context.shadowColor = "rgba(248, 246, 238, 0.42)";
+        context.shadowBlur = (12 + amplitude * 24) * scale;
+        context.stroke();
+      }
+      context.restore();
 
       for (let layer = 4; layer >= 0; layer -= 1) {
         const layerShift = layer * 0.56;
@@ -180,7 +200,7 @@ export function OrbitModule() {
       context.arc(cx, cy, orbRadius * 0.96, 0, Math.PI * 2);
       context.fill();
 
-      context.globalAlpha = 0.18 + high * 0.35;
+      context.globalAlpha = 0.16 + high * 0.35;
       context.strokeStyle = "#f7f5ee";
       context.lineWidth = scale;
       for (let ring = 0; ring < 5; ring += 1) {
@@ -214,42 +234,42 @@ export function OrbitModule() {
 
   return (
     <section className="orbit-shell panel flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] px-4 py-2.5">
         <div>
-          <h1 className="text-lg font-semibold tracking-[-0.02em]">Orbit</h1>
-          <p className="text-xs text-[var(--muted)]">Audio-reactive presence, ice-white signal on old black.</p>
+          <h1 className="text-base font-semibold tracking-[-0.02em]">Orbit</h1>
+          <p className="text-[11px] text-[var(--muted)]">Audio-reactive presence, ice-white signal on old black.</p>
         </div>
-        <div className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">
-          {modeLabel} · {permissionLabel}
+        <div className="shrink-0 border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">
+          {modeLabel} / {permissionLabel}
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 p-4 xl:grid-cols-[1fr_260px]">
-        <div className="relative min-h-[360px] overflow-hidden border border-[var(--border)] bg-[#070706]">
-          <canvas ref={canvasRef} className="h-full min-h-[360px] w-full" />
-          <div className="pointer-events-none absolute inset-x-5 bottom-5 flex items-center justify-between text-xs text-[var(--muted)]">
+      <div className="grid min-h-0 flex-1 gap-3 p-3 xl:grid-cols-[1fr_248px]">
+        <div className="orbit-stage relative min-h-[420px] overflow-hidden bg-[#070706]">
+          <canvas ref={canvasRef} className="h-full min-h-[420px] w-full" />
+          <div className="pointer-events-none absolute inset-x-5 bottom-5 flex items-center justify-between gap-4 text-[11px] text-[var(--muted)]">
             <span>source: {status === "listening" ? "microphone" : "procedural idle"}</span>
-            <span>gain {intensity.toFixed(1)} · smooth {smoothing.toFixed(2)}</span>
+            <span>gain {intensity.toFixed(1)} / smooth {smoothing.toFixed(2)}</span>
           </div>
         </div>
 
         <aside className="flex min-h-0 flex-col gap-3 overflow-auto">
           <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
-            <div className="mb-3 text-sm text-[var(--muted)]">Audio controls</div>
+            <div className="mb-3 text-sm text-[var(--muted)]">Audio</div>
             <div className="grid gap-2">
-              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)]" onClick={startListening}>
+              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={startListening} disabled={status === "listening"}>
                 Start listening
               </button>
-              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)]" onClick={stopListening}>
+              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={stopListening} disabled={status !== "listening"}>
                 Stop listening
               </button>
-              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)]" onClick={() => setFrozen((value) => !value)}>
+              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={() => setFrozen((value) => !value)}>
                 {frozen ? "Resume reaction" : "Freeze reaction"}
               </button>
             </div>
           </div>
 
-          <details className="border border-[var(--border)] bg-[var(--surface)] p-3" open>
+          <details className="border border-[var(--border)] bg-[var(--surface)] p-3">
             <summary className="cursor-pointer text-sm text-[var(--muted)]">Visual tuning</summary>
             <div className="mt-3 space-y-3 text-xs">
               <label className="block">
@@ -264,7 +284,7 @@ export function OrbitModule() {
                 Intensity {intensity.toFixed(2)}
                 <input className="w-full" type="range" min={0.35} max={1.8} step={0.05} value={intensity} onChange={(event) => setIntensity(Number(event.target.value))} />
               </label>
-              <button className="w-full border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)]" onClick={() => {
+              <button className="w-full border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={() => {
                 setSensitivity(1.15);
                 setSmoothing(0.78);
                 setIntensity(1);

@@ -61,8 +61,9 @@ export function App() {
     { id: "typing", label: "Typing", icon: "T" },
     { id: "orbit", label: "Orbit", icon: "O" },
     { id: "stacker", label: "Stacker", icon: "S" },
-    { id: "settings", label: "Settings", icon: "⚙" },
+    { id: "settings", label: "Settings", icon: "*" },
   ];
+  const focusedModule = module === "orbit" || module === "stacker";
 
   return <div
     className={`relative flex h-screen flex-col overflow-hidden ${theme.scanlines ? "crt" : ""} boot`}
@@ -74,30 +75,36 @@ export function App() {
       ["--accentMix" as string]: String(theme.accentIntensity),
     }}
   >
-    <header className="panel z-10 flex h-11 shrink-0 items-center justify-between px-3">
+    <header className="panel z-10 flex h-10 shrink-0 items-center justify-between px-3">
       <div className="flex items-center gap-3">
-        <button className="border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--surface2)]" onClick={toggleSidebar} title="Collapse sidebar">
-          {sidebarCollapsed ? ">>" : "<<"}
+        <button
+          className="inline-flex h-7 w-7 items-center justify-center border border-[var(--border)] text-xs hover:bg-[var(--surface2)]"
+          onClick={toggleSidebar}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? ">" : "<"}
         </button>
         <strong className="tracking-[0.12em]">VOID</strong>
       </div>
-      <span className="text-xs text-[var(--muted)]">Desktop · {module}</span>
+      <span className="text-xs text-[var(--muted)]">Desktop / {module}</span>
     </header>
-    <div className={`grid min-h-0 flex-1 ${sidebarCollapsed ? "grid-cols-[56px_1fr]" : theme.dense ? "grid-cols-[156px_1fr]" : "grid-cols-[196px_1fr]"}`}>
+    <div className={`grid min-h-0 flex-1 ${sidebarCollapsed ? "grid-cols-[52px_1fr]" : theme.dense ? "grid-cols-[152px_1fr]" : "grid-cols-[184px_1fr]"}`}>
       <aside className="panel min-h-0 space-y-2 overflow-hidden p-2">
         {moduleItems.map((item) => (
           <button
             key={item.id}
-            className={`flex w-full items-center gap-2 border border-[var(--border)] px-2 py-2 text-left text-sm hover:bg-[var(--surface2)] ${module === item.id ? "bg-[var(--surface2)] text-[var(--accent)]" : "text-[var(--muted)]"}`}
+            className={`flex w-full items-center gap-2 border border-[var(--border)] px-2 py-2 text-left text-sm hover:bg-[var(--surface2)] ${sidebarCollapsed ? "justify-center" : ""} ${module === item.id ? "bg-[var(--surface2)] text-[var(--accent)]" : "text-[var(--muted)]"}`}
             onClick={() => setModule(item.id)}
             title={item.label}
+            aria-label={item.label}
           >
-            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center border border-[var(--border)] text-[10px]">{item.icon}</span>
+            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center border border-[var(--border)] text-[10px]" aria-hidden="true">{item.icon}</span>
             {!sidebarCollapsed && <span>{item.label}</span>}
           </button>
         ))}
       </aside>
-      <main className="min-h-0 overflow-hidden p-3">{content}</main>
+      <main className={`min-h-0 overflow-hidden ${focusedModule ? "p-2" : "p-3"}`}>{content}</main>
     </div>
     <footer className="panel flex h-6 shrink-0 items-center justify-between px-3 text-xs"><span>Ctrl+K command palette</span><span>status: operational</span></footer>
 

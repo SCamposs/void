@@ -87,7 +87,7 @@ const JLSTZ_KICKS: KickTable = {
 };
 
 const I_KICKS: KickTable = {
-  // SRS+-style I kicks (TETR.IO-default family), keeping JLSTZ kicks standard.
+  // Extended I kicks keep JLSTZ kicks standard.
   "0>1": [[0,0],[-2,0],[1,0],[1,2],[-2,-1]],
   "1>0": [[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
   "1>2": [[0,0],[-1,0],[2,0],[-1,2],[2,-1]],
@@ -305,7 +305,7 @@ export class StackerEngine {
       this.activeRotation === 2 ? [[pivotX - 1, pivotY + 1],[pivotX + 1, pivotY + 1]] :
       [[pivotX - 1, pivotY - 1],[pivotX - 1, pivotY + 1]];
     const frontBlocked = fronts.reduce((c, [x, y]) => c + (this.isCellBlocked(x, y) ? 1 : 0), 0);
-    // TETR.IO-style scoring distinguishes Spin Zero and Mini Spin Zero.
+    // Custom scoring distinguishes Spin Zero and Mini Spin Zero.
     // We classify front-light cases as mini for both zero- and single-line outcomes.
     if (frontBlocked < 2) return "mini";
     return "full";
@@ -321,7 +321,7 @@ export class StackerEngine {
     isPerfectClear: boolean,
     wasBackToBack: boolean,
   ): number {
-    // Approximate TETR.IO solo scoring profile:
+    // Approximate solo scoring profile:
     // - line clear table (100/300/500/800)
     // - spin tables (mini/full)
     // - B2B difficult clear multiplier (x1.5)

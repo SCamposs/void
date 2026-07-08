@@ -8,6 +8,7 @@ const GAP = 1;
 const H = 20;
 const BOARD_PIXEL_W = W * CELL + (W - 1) * GAP;
 const BOARD_PIXEL_H = H * CELL + (H - 1) * GAP;
+const PLAY_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "z", "Z", "a", "A", "c", "C", "p", "P", "r", "R", "F4"]);
 const PIECE_SHADES: Record<number, string> = {
   1: "#e6e1d7",
   2: "#d9d4ca",
@@ -158,6 +159,12 @@ function formatMs(ms: number): string {
   const seconds = Math.floor((clamped % 60000) / 1000);
   const centis = Math.floor((clamped % 1000) / 10);
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(centis).padStart(2, "0")}`;
+}
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
 }
 
 type SprintHistoryEntry = { at: number; ms: number };
@@ -740,7 +747,12 @@ export function StackerModule() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
+      const isPlayKey = PLAY_KEYS.has(e.key) || e.code === "Space" || e.key === "Control" || e.key === "Shift";
+      if (isTextEntryTarget(e.target)) return;
+      if (e.repeat) {
+        if (isPlayKey) e.preventDefault();
+        return;
+      }
       ensureAudioReady();
       const eg = engineRef.current;
       let countedInput = false;
@@ -769,14 +781,15 @@ export function StackerModule() {
         countedInput = true;
       }
       if (e.key === "ArrowUp") { e.preventDefault(); eg.rotateClockwise(); applyDasCut(); countedInput = true; }
-      if (e.key === "z" || e.key === "Z") { eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
-      if (e.key === "Control" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
-      if (e.key === "a" || e.key === "A") { eg.rotate180(); applyDasCut(); countedInput = true; }
+      if (e.key === "z" || e.key === "Z") { e.preventDefault(); eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
+      if (e.key === "Control" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
+      if (e.key === "a" || e.key === "A") { e.preventDefault(); eg.rotate180(); applyDasCut(); countedInput = true; }
       if (e.code === "Space") { e.preventDefault(); eg.hardDrop(); applyDasCut(); countedInput = true; }
-      if (e.key === "c" || e.key === "C") { eg.hold(); applyDasCut(); countedInput = true; }
-      if (e.key === "Shift" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { eg.hold(); applyDasCut(); countedInput = true; }
-      if ((e.key === "p" || e.key === "P") && mode !== "sprint") eg.togglePause();
+      if (e.key === "c" || e.key === "C") { e.preventDefault(); eg.hold(); applyDasCut(); countedInput = true; }
+      if (e.key === "Shift" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.hold(); applyDasCut(); countedInput = true; }
+      if ((e.key === "p" || e.key === "P") && mode !== "sprint") { e.preventDefault(); eg.togglePause(); }
       if (e.key === "r" || e.key === "R" || e.key === "F4") {
+        e.preventDefault();
         engineRef.current.restart(buildRestartOptions());
         lastClearId.current = 0;
         lastLockId.current = 0;
@@ -933,31 +946,34 @@ export function StackerModule() {
   const shakeY = shakeBase > 0 ? Math.cos(fxNow * 0.17) * shakeBase * 0.65 : 0;
   const flashOpacity = flashRemaining > 0 ? Math.min(0.22, (flashRemaining / 280) * 0.22) * clearFxStrength : 0;
 
-  return <section className="stacker-shell panel relative flex h-full min-h-0 flex-col overflow-hidden">
-    <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] px-4 py-3">
-      <div>
-        <h1 className="text-lg font-semibold tracking-[-0.02em]">Stacker</h1>
-        <p className="text-xs text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>
+  return <section
+    className="stacker-shell panel relative flex h-full min-h-0 flex-col overflow-hidden"
+    style={{ ["--stacker-cell" as string]: "clamp(16px, min(2.15vw, calc((100vh - 250px) / 20)), 23px)" }}
+  >
+    <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2.5">
+      <div className="min-w-[160px]">
+        <h1 className="text-base font-semibold tracking-[-0.02em]">Stacker</h1>
+        <p className="text-[11px] text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>
       </div>
-      <div className="flex items-center gap-2 text-sm">
-        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={start}>Start</button>
-        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={restart}>Restart</button>
+      <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">
+        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={start}>Start</button>
+        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={restart}>Restart</button>
         <button
-          className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)] disabled:opacity-40"
+          className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)] disabled:opacity-40"
           onClick={togglePause}
           disabled={mode === "sprint"}
           title={mode === "sprint" ? "Sprint runs do not pause." : "Pause or resume"}
         >
           {state.isPaused ? "Resume" : "Pause"}
         </button>
-        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>Mode: {mode}</button>
-        <button className="border border-[var(--border)] px-3 py-1.5 hover:bg-[var(--surface2)]" onClick={() => setSettingsOpen((value) => !value)}>
+        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>{mode}</button>
+        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={() => setSettingsOpen((value) => !value)}>
           Settings
         </button>
       </div>
     </div>
 
-    <div className="grid min-h-0 flex-1 place-items-center gap-4 overflow-hidden p-4 xl:grid-cols-[160px_auto_170px]">
+    <div className="grid min-h-0 flex-1 place-items-center gap-3 overflow-hidden px-3 py-3 xl:grid-cols-[152px_auto_160px]">
       <aside className="hidden w-full self-center xl:block">
         <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
           <div className="text-sm text-[var(--muted)]">Hold {state.canHold ? "" : "(locked)"}</div>
@@ -973,12 +989,12 @@ export function StackerModule() {
         </div>
       </aside>
 
-      <main className="flex min-h-0 flex-col items-center">
-        <div className="mb-3 grid w-full max-w-[520px] grid-cols-4 gap-2 text-center text-xs">
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Score</div><div>{state.score}</div></div>
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Lines</div><div>{state.lines}</div></div>
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Timer</div><div>{formatMs(mode === "sprint" ? sprintElapsedMs : runElapsedMs)}</div></div>
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-2"><div className="text-[var(--muted)]">Level</div><div>{state.level}</div></div>
+      <main className="flex min-h-0 flex-col items-center justify-center">
+        <div className="mb-2 grid w-full max-w-[500px] grid-cols-4 gap-1.5 text-center text-[11px]">
+          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Score</div><div className="truncate">{state.score}</div></div>
+          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Lines</div><div>{state.lines}</div></div>
+          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Timer</div><div>{formatMs(mode === "sprint" ? sprintElapsedMs : runElapsedMs)}</div></div>
+          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Level</div><div>{state.level}</div></div>
         </div>
 
         <div className="mb-3 flex gap-3 xl:hidden">
@@ -999,10 +1015,10 @@ export function StackerModule() {
         {(state.isGameOver || doneSprint) && <div className="mb-2 border border-[var(--border)] px-3 py-1 text-xs">{doneSprint ? "SPRINT CLEAR" : "GAME OVER"}</div>}
 
         <div className="relative border border-[var(--border)] bg-[#080807] p-2 shadow-[0_0_18px_rgba(255,255,255,0.08)]">
-          <div className="relative grid transition-transform" style={{ gridTemplateColumns: `repeat(${W}, ${CELL}px)`, gap: GAP, width: BOARD_PIXEL_W, transform: `translate(${shakeX}px, ${shakeY}px)` }}>
+          <div className="relative grid transition-transform" style={{ gridTemplateColumns: `repeat(${W}, var(--stacker-cell))`, gap: GAP, width: `calc(var(--stacker-cell) * ${W} + ${W - 1}px)`, transform: `translate(${shakeX}px, ${shakeY}px)` }}>
             {grid.flatMap((row, y) => row.map((cell, x) => {
               const bg = cell === 0 ? "#171713" : cell === 8 ? `rgba(232,228,218,${ghostOpacity})` : pieceShade(cell);
-              return <div key={`${x}-${y}`} className="h-[22px] w-[22px] border border-[#2a2a25]" style={{ background: bg }} />;
+              return <div key={`${x}-${y}`} className="border border-[#2a2a25]" style={{ background: bg, width: "var(--stacker-cell)", height: "var(--stacker-cell)" }} />;
             }))}
             {particlesRef.current.map((particle) => {
               const alpha = Math.max(0, particle.lifeMs / particle.maxLifeMs) * 0.9;
@@ -1026,7 +1042,7 @@ export function StackerModule() {
           {flashOpacity > 0 && <div className="pointer-events-none absolute inset-2 border border-[#dcd8cf]" style={{ background: `rgba(232,228,218,${flashOpacity})` }} />}
         </div>
 
-        <div className="mt-3 text-center text-xs text-[var(--muted)]">
+        <div className="mt-2 text-center text-[11px] text-[var(--muted)]">
           Down soft drop, Space hard drop, C hold, P pause. {mode === "sprint" && `Left ${sprintLinesLeft}.`}
         </div>
       </main>
