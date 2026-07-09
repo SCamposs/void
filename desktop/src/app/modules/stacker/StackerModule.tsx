@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StackerEngine, type LastClearEvent, type Snapshot } from "./engine";
 
 const CELL = 22;
@@ -98,48 +98,71 @@ function clearSubtitle(clear: LastClearEvent): string {
 }
 
 function sfx(clear: LastClearEvent): Array<[number, number, number, OscillatorType]> {
-  if (clear.isPerfectClear) return [[392,70,0.06,"triangle"],[523,90,0.07,"triangle"],[784,130,0.09,"triangle"]];
-  if (clear.isTSpin) return [[294,55,0.05,"square"],[392,80,0.07,"triangle"],[587,110,0.075,"triangle"]];
-  if (clear.lines === 4) return [[196,45,0.05,"sawtooth"],[294,70,0.06,"square"],[440,120,0.08,"triangle"]];
-  if (clear.lines === 3) return [[220,35,0.05,"triangle"],[330,80,0.06,"triangle"]];
-  if (clear.lines === 2) return [[196,35,0.045,"triangle"],[277,65,0.055,"triangle"]];
-  return [[240,55,0.04,"triangle"]];
+  if (clear.isPerfectClear) return [[196, 110, 0.045, "sine"], [247, 140, 0.05, "triangle"], [392, 220, 0.055, "sine"]];
+  if (clear.isTSpin) return [[147, 80, 0.04, "triangle"], [220, 120, 0.05, "sine"], [330, 180, 0.052, "triangle"]];
+  if (clear.lines === 4) return [[98, 90, 0.04, "sine"], [196, 130, 0.05, "triangle"], [294, 190, 0.052, "sine"]];
+  if (clear.lines === 3) return [[123, 90, 0.036, "triangle"], [185, 150, 0.044, "sine"]];
+  if (clear.lines === 2) return [[110, 75, 0.032, "sine"], [165, 130, 0.04, "triangle"]];
+  return [[131, 120, 0.034, "sine"]];
 }
 
 function pieceCue(pieceId: number): Array<[number, number, number, OscillatorType]> {
   const freq: Record<number, number> = {
-    1: 196,
-    2: 220,
-    3: 247,
-    4: 262,
-    5: 294,
-    6: 330,
-    7: 349,
+    1: 98,
+    2: 110,
+    3: 123,
+    4: 131,
+    5: 147,
+    6: 165,
+    7: 175,
   };
-  return [[freq[pieceId] ?? 262, 36, 0.028, "triangle"]];
+  return [[freq[pieceId] ?? 131, 58, 0.018, "sine"]];
 }
 
 function lockCue(lockCause: "gravity" | "soft-drop" | "hard-drop"): Array<[number, number, number, OscillatorType]> {
-  if (lockCause === "hard-drop") return [[164, 24, 0.024, "square"]];
-  if (lockCause === "soft-drop") return [[176, 22, 0.022, "triangle"]];
-  return [[152, 20, 0.018, "triangle"]];
+  if (lockCause === "hard-drop") return [[82, 44, 0.024, "triangle"]];
+  if (lockCause === "soft-drop") return [[92, 38, 0.018, "sine"]];
+  return [[73, 34, 0.015, "sine"]];
 }
 
 function playSeq(audio: AudioContext, seq: Array<[number, number, number, OscillatorType]>, volume = 0.7): void {
   if (audio.state !== "running") return;
   let t = audio.currentTime;
+  const filter = audio.createBiquadFilter();
+  const delay = audio.createDelay(0.4);
+  const echo = audio.createGain();
+  const dry = audio.createGain();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(1250, t);
+  filter.Q.setValueAtTime(0.7, t);
+  delay.delayTime.setValueAtTime(0.115, t);
+  echo.gain.setValueAtTime(0.16 * volume, t);
+  dry.gain.setValueAtTime(0.88, t);
+  filter.connect(dry);
+  filter.connect(delay);
+  delay.connect(echo);
+  echo.connect(delay);
+  dry.connect(audio.destination);
+  echo.connect(audio.destination);
   for (const [freq, durMs, gain, wave] of seq) {
     const o = audio.createOscillator();
     const g = audio.createGain();
     o.type = wave;
     o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.985), t + durMs / 1000);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * volume), t + 0.012);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * volume), t + 0.018);
     g.gain.exponentialRampToValueAtTime(0.0001, t + durMs / 1000);
-    o.connect(g); g.connect(audio.destination);
+    o.connect(g); g.connect(filter);
     o.start(t); o.stop(t + durMs / 1000 + 0.01);
     t += durMs / 1000;
   }
+  window.setTimeout(() => {
+    filter.disconnect();
+    delay.disconnect();
+    echo.disconnect();
+    dry.disconnect();
+  }, Math.max(500, (t - audio.currentTime) * 1000 + 480));
 }
 
 function pieceLabel(id: number): string {
@@ -194,6 +217,27 @@ type ClearParticle = {
 const STACKER_RUNS_KEY = "void_stacker_runs_v1";
 const SEED_KEY = "void_stacker_seed";
 const OPENER_KEY = "void_stacker_opener";
+
+function SettingRow({ label, value, children }: { label: string; value?: string; children: ReactNode }) {
+  return (
+    <label className="block border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
+      <span className="mb-1 flex items-center justify-between gap-3">
+        <span className="text-[var(--muted)]">{label}</span>
+        {value && <span className="text-[var(--subtle)]">{value}</span>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function ToggleRow({ checked, onChange, children }: { checked: boolean; onChange: (checked: boolean) => void; children: ReactNode }) {
+  return (
+    <label className="flex items-center justify-between gap-3 border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
+      <span className="text-[var(--muted)]">{children}</span>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    </label>
+  );
+}
 
 function readNumberSetting(key: string, fallback: number, min?: number, max?: number): number {
   if (typeof window === "undefined") return fallback;
@@ -427,7 +471,6 @@ export function StackerModule() {
   const lastLockId = useRef(0);
   const lastActivePieceId = useRef<number>(engineRef.current.getSnapshot().activePiece.id);
   const shakeUntilRef = useRef(0);
-  const flashUntilRef = useRef(0);
   const sprintRunningRef = useRef(false);
   const sprintStartMsRef = useRef(0);
   const sprintElapsedRef = useRef(0);
@@ -669,10 +712,7 @@ export function StackerModule() {
         ].slice(0, 8));
         const shakeDuration =
           clear.isPerfectClear ? 360 : clear.lines >= 4 || clear.isTSpin ? 280 : 170;
-        const flashDuration =
-          clear.isPerfectClear ? 280 : clear.lines >= 4 ? 210 : 140;
         shakeUntilRef.current = Math.max(shakeUntilRef.current, now + shakeDuration);
-        flashUntilRef.current = Math.max(flashUntilRef.current, now + flashDuration);
         if (showParticles) {
           const spawned: ClearParticle[] = [];
           const burstCount = Math.min(42, 10 + clear.lines * 7 + (clear.isPerfectClear ? 8 : 0));
@@ -940,11 +980,9 @@ export function StackerModule() {
   const sprintWastePieces = mode === "sprint" ? Math.max(0, runPieces - 100) : 0;
   const fxNow = performance.now();
   const shakeRemaining = Math.max(0, shakeUntilRef.current - fxNow);
-  const flashRemaining = Math.max(0, flashUntilRef.current - fxNow);
   const shakeBase = shakeRemaining > 0 ? Math.min(4.5, (shakeRemaining / 360) * 4.5) * clearFxStrength * Math.max(0, shakeStrength) : 0;
   const shakeX = shakeBase > 0 ? Math.sin(fxNow * 0.13) * shakeBase : 0;
   const shakeY = shakeBase > 0 ? Math.cos(fxNow * 0.17) * shakeBase * 0.65 : 0;
-  const flashOpacity = flashRemaining > 0 ? Math.min(0.22, (flashRemaining / 280) * 0.22) * clearFxStrength : 0;
 
   return <section
     className="stacker-shell panel relative flex h-full min-h-0 flex-col overflow-hidden"
@@ -1039,7 +1077,6 @@ export function StackerModule() {
               );
             })}
           </div>
-          {flashOpacity > 0 && <div className="pointer-events-none absolute inset-2 border border-[#dcd8cf]" style={{ background: `rgba(232,228,218,${flashOpacity})` }} />}
         </div>
 
         <div className="mt-2 text-center text-[11px] text-[var(--muted)]">
@@ -1080,12 +1117,12 @@ export function StackerModule() {
               <button className="border px-1.5 py-0.5" onClick={() => applyPreset("competitive")}>Competitive</button>
               <button className="border px-1.5 py-0.5" onClick={() => applyPreset("instant")}>Instant</button>
             </div>
-            <label className="block text-xs">DAS {dasMs}ms <input className="w-full" type="range" min={50} max={220} step={5} value={dasMs} onChange={(e) => setDasMs(Number(e.target.value))} /></label>
-            <label className="block text-xs">ARR {arrMs}ms <input className="w-full" type="range" min={0} max={50} step={1} value={arrMs} onChange={(e) => setArrMs(Number(e.target.value))} /></label>
-            <label className="block text-xs">DCD {dcdMs}ms <input className="w-full" type="range" min={0} max={80} step={1} value={dcdMs} onChange={(e) => setDcdMs(Number(e.target.value))} /></label>
-            <label className="block text-xs">SDF {sdfMs}ms <input className="w-full" type="range" min={0} max={80} step={1} value={sdfMs} onChange={(e) => setSdfMs(Number(e.target.value))} /></label>
-            <label className="block text-xs">Lock {lockDelayMs}ms <input className="w-full" type="range" min={0} max={900} step={10} value={lockDelayMs} onChange={(e) => setLockDelayMs(Number(e.target.value))} /></label>
-            <label className="block text-xs">Resets {lockResetLimit} <input className="w-full" type="range" min={0} max={20} step={1} value={lockResetLimit} onChange={(e) => setLockResetLimit(Number(e.target.value))} /></label>
+            <SettingRow label="DAS" value={`${dasMs}ms`}><input className="w-full" type="range" min={50} max={220} step={5} value={dasMs} onChange={(e) => setDasMs(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="ARR" value={`${arrMs}ms`}><input className="w-full" type="range" min={0} max={50} step={1} value={arrMs} onChange={(e) => setArrMs(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="DCD" value={`${dcdMs}ms`}><input className="w-full" type="range" min={0} max={80} step={1} value={dcdMs} onChange={(e) => setDcdMs(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="SDF" value={`${sdfMs}ms`}><input className="w-full" type="range" min={0} max={80} step={1} value={sdfMs} onChange={(e) => setSdfMs(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="Lock delay" value={`${lockDelayMs}ms`}><input className="w-full" type="range" min={0} max={900} step={10} value={lockDelayMs} onChange={(e) => setLockDelayMs(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="Lock resets" value={String(lockResetLimit)}><input className="w-full" type="range" min={0} max={20} step={1} value={lockResetLimit} onChange={(e) => setLockResetLimit(Number(e.target.value))} /></SettingRow>
           </div>
         </details>
 
@@ -1099,15 +1136,19 @@ export function StackerModule() {
         </details>
 
         <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Effects and sound</summary>
+          <summary className="cursor-pointer text-[var(--muted)]">Motion and sound</summary>
           <div className="mt-3 space-y-2">
-            <label className="block text-xs">Clear FX {Math.round(clearFxStrength * 100)} <input className="w-full" type="range" min={0} max={1} step={0.01} value={clearFxStrength} onChange={(e) => setClearFxStrength(Number(e.target.value))} /></label>
-            <label className="block text-xs">Shake {Math.round(shakeStrength * 100)} <input className="w-full" type="range" min={0} max={1.5} step={0.01} value={shakeStrength} onChange={(e) => setShakeStrength(Number(e.target.value))} /></label>
-            <label className="block text-xs"><input type="checkbox" checked={showParticles} onChange={(e) => setShowParticles(e.target.checked)} /> Particles on clear</label>
-            <label className="block text-xs"><input type="checkbox" checked={showGhost} onChange={(e) => setShowGhost(e.target.checked)} /> Ghost</label>
-            <label className="block text-xs">Ghost opacity {Math.round(ghostOpacity * 100)} <input className="w-full" type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(e) => setGhostOpacity(Number(e.target.value))} /></label>
-            <label className="block text-xs"><input type="checkbox" checked={hearNextPieces} onChange={(e) => setHearNextPieces(e.target.checked)} /> Hear next</label>
-            <label className="block text-xs">Volume {Math.round(volume * 100)} <input className="w-full" type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></label>
+            <div className="border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
+              <div className="text-[var(--muted)]">Sound profile</div>
+              <div className="mt-1 text-[var(--subtle)]">VOID room, low tones, short echo</div>
+            </div>
+            <SettingRow label="Clear motion" value={`${Math.round(clearFxStrength * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={clearFxStrength} onChange={(e) => setClearFxStrength(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="Board shake" value={`${Math.round(shakeStrength * 100)}%`}><input className="w-full" type="range" min={0} max={1.5} step={0.01} value={shakeStrength} onChange={(e) => setShakeStrength(Number(e.target.value))} /></SettingRow>
+            <ToggleRow checked={showParticles} onChange={setShowParticles}>Clear particles</ToggleRow>
+            <ToggleRow checked={showGhost} onChange={setShowGhost}>Ghost piece</ToggleRow>
+            <SettingRow label="Ghost opacity" value={`${Math.round(ghostOpacity * 100)}%`}><input className="w-full" type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(e) => setGhostOpacity(Number(e.target.value))} /></SettingRow>
+            <ToggleRow checked={hearNextPieces} onChange={setHearNextPieces}>Next-piece tone</ToggleRow>
+            <SettingRow label="Volume" value={`${Math.round(volume * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></SettingRow>
           </div>
         </details>
 

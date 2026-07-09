@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore, type ModuleId } from "./store/appStore";
 import { TypingModule } from "./modules/typing/TypingModule";
 import { OrbitModule } from "./modules/orbit/OrbitModule";
@@ -9,22 +9,70 @@ function SettingsModule() {
   const { theme, updateTheme } = useAppStore();
   return <div className="panel max-w-3xl p-5">
     <h1 className="mb-1 text-lg font-semibold tracking-[-0.02em]">Interface settings</h1>
-    <p className="mb-5 text-sm text-[var(--muted)]">Keep the CRT texture present without letting it crowd the modules.</p>
+    <p className="mb-5 text-sm text-[var(--muted)]">Keep the monitor texture present without letting it crowd the modules.</p>
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Scanlines <input type="checkbox" checked={theme.scanlines} onChange={(e) => updateTheme({ scanlines: e.target.checked })} /></label>
       <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Dense layout <input type="checkbox" checked={theme.dense} onChange={(e) => updateTheme({ dense: e.target.checked })} /></label>
       <label className="block border border-[var(--border)] p-3">Noise <input className="mt-2 w-full" type="range" min={0} max={0.35} step={0.01} value={theme.noise} onChange={(e) => updateTheme({ noise: Number(e.target.value) })} /></label>
       <label className="block border border-[var(--border)] p-3">Glow <input className="mt-2 w-full" type="range" min={0} max={0.4} step={0.01} value={theme.glow} onChange={(e) => updateTheme({ glow: Number(e.target.value) })} /></label>
-      <label className="block border border-[var(--border)] p-3">Flicker <input className="mt-2 w-full" type="range" min={0} max={0.08} step={0.01} value={theme.flicker} onChange={(e) => updateTheme({ flicker: Number(e.target.value) })} /></label>
       <label className="block border border-[var(--border)] p-3">Font scale <input className="mt-2 w-full" type="range" min={0.85} max={1.2} step={0.05} value={theme.fontScale} onChange={(e) => updateTheme({ fontScale: Number(e.target.value) })} /></label>
     </div>
   </div>;
 }
 
-function Home() {
-  return <div className="panel max-w-3xl p-5">
-    <h1 className="mb-2 text-xl font-semibold tracking-[-0.02em]">VOID desktop shell</h1>
-    <p className="text-sm text-[var(--muted)]">Choose a module from the sidebar or press Ctrl+K. Orbit and Stacker are tuned for focused, full-window work.</p>
+function Home({ jump }: { jump: (module: ModuleId) => void }) {
+  const modules: Array<{ id: ModuleId; title: string; status: string; detail: string }> = [
+    { id: "typing", title: "Typing", status: "practice", detail: "Portuguese word drills with local stats." },
+    { id: "orbit", title: "Orbit", status: "ambient", detail: "A quiet full-window visual instrument." },
+    { id: "stacker", title: "Stacker", status: "play", detail: "Sprint and endless stacking with local run archive." },
+  ];
+
+  return <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+    <section className="panel flex min-h-0 flex-col justify-between p-5">
+      <div>
+        <div className="mb-4 text-xs tracking-[0.22em] text-[var(--subtle)]">LOCAL DESKTOP SHELL</div>
+        <h1 className="mb-3 text-2xl font-semibold tracking-[-0.02em]">VOID</h1>
+        <p className="max-w-[62ch] text-sm leading-6 text-[var(--muted)]">
+          A compact tool surface for focused modules, tuned around charcoal panels, ice-white signal, and stable monitor texture.
+        </p>
+      </div>
+      <div className="mt-8 grid gap-2 text-xs sm:grid-cols-3">
+        <div className="border border-[var(--border)] bg-[var(--surface2)] p-3">
+          <div className="text-[var(--subtle)]">mode</div>
+          <div>local-first</div>
+        </div>
+        <div className="border border-[var(--border)] bg-[var(--surface2)] p-3">
+          <div className="text-[var(--subtle)]">texture</div>
+          <div>steady CRT</div>
+        </div>
+        <div className="border border-[var(--border)] bg-[var(--surface2)] p-3">
+          <div className="text-[var(--subtle)]">input</div>
+          <div>keyboard ready</div>
+        </div>
+      </div>
+    </section>
+
+    <section className="panel min-h-0 p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Modules</h2>
+        <span className="text-xs text-[var(--muted)]">Ctrl+K opens palette</span>
+      </div>
+      <div className="space-y-2">
+        {modules.map((item) => (
+          <button
+            key={item.id}
+            className="w-full border border-[var(--border)] bg-[var(--surface)] p-3 text-left hover:border-[var(--accent)] hover:bg-[var(--surface2)]"
+            onClick={() => jump(item.id)}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-medium">{item.title}</span>
+              <span className="text-[10px] text-[var(--subtle)]">{item.status}</span>
+            </div>
+            <div className="mt-1 text-xs text-[var(--muted)]">{item.detail}</div>
+          </button>
+        ))}
+      </div>
+    </section>
   </div>;
 }
 
@@ -32,6 +80,7 @@ export function App() {
   const { module, setModule, theme, sidebarCollapsed, toggleSidebar } = useAppStore();
   const [showIntro, setShowIntro] = useState(true);
   const [showPalette, setShowPalette] = useState(false);
+  const jump = useCallback((m: ModuleId) => { setModule(m); setShowPalette(false); }, [setModule]);
 
   useEffect(() => {
     const t = setTimeout(() => setShowIntro(false), 3600);
@@ -51,10 +100,8 @@ export function App() {
     if (module === "orbit") return <OrbitModule />;
     if (module === "stacker") return <StackerModule />;
     if (module === "settings") return <SettingsModule />;
-    return <Home />;
-  }, [module]);
-
-  const jump = (m: ModuleId) => { setModule(m); setShowPalette(false); };
+    return <Home jump={jump} />;
+  }, [jump, module]);
 
   const moduleItems: Array<{ id: ModuleId; label: string; icon: string }> = [
     { id: "home", label: "Home", icon: "H" },
@@ -71,7 +118,6 @@ export function App() {
       fontSize: `${theme.fontScale}rem`,
       ["--glowStrength" as string]: String(theme.glow),
       ["--noiseStrength" as string]: String(theme.noise),
-      ["--flickerStrength" as string]: String(theme.flicker),
       ["--accentMix" as string]: String(theme.accentIntensity),
     }}
   >

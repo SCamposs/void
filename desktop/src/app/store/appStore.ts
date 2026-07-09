@@ -6,7 +6,6 @@ type ThemeSettings = {
   scanlines: boolean;
   noise: number;
   glow: number;
-  flicker: number;
   dense: boolean;
   accentIntensity: number;
   fontScale: number;
@@ -23,7 +22,7 @@ type AppState = {
 
 const storageKey = "void-desktop-theme";
 const sidebarStorageKey = "void-sidebar-collapsed";
-const defaults: ThemeSettings = { scanlines: true, noise: 0.08, glow: 0.12, flicker: 0.03, dense: false, accentIntensity: 1, fontScale: 1 };
+const defaults: ThemeSettings = { scanlines: true, noise: 0.08, glow: 0.12, dense: false, accentIntensity: 1, fontScale: 1 };
 const loaded = (() => {
   try {
     const raw = localStorage.getItem(storageKey);
