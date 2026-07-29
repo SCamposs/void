@@ -8,6 +8,11 @@ wheels/
 .pytest_cache/
 .ruff_cache/
 *.db
+*.msi
+*.msix
+*.exe
+*.exe.sha256
+*.tsbuildinfo
 
 # Virtual environments
 .venv

@@ -1,0 +1,98 @@
+name: Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to package (for example v0.1.1-alpha)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    name: Validate and package Windows
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Install frontend dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Validate frontend
+        working-directory: desktop
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run test
+          npm run build
+
+      - name: Build NSIS installer
+        working-directory: desktop
+        run: npm run tauri -- build --bundles nsis
+
+      - name: Prepare stable release assets
+        id: assets
+        shell: pwsh
+        run: |
+          $source = Get-ChildItem -Path "desktop/src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" -File |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $source) {
+            throw "Tauri did not produce an NSIS setup executable."
+          }
+
+          New-Item -ItemType Directory -Path "release-assets" -Force | Out-Null
+          $installer = Join-Path "release-assets" "VOID-Windows-x64-setup.exe"
+          Copy-Item -LiteralPath $source.FullName -Destination $installer
+          $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  VOID-Windows-x64-setup.exe" |
+            Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
+
+      - name: Preserve workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: VOID-Windows-x64
+          path: release-assets/*
+          if-no-files-found: error
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          generate_release_notes: true
+          prerelease: ${{ contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
+          files: |
+            release-assets/VOID-Windows-x64-setup.exe
+            release-assets/VOID-Windows-x64-setup.exe.sha256
