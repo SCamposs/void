@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StackerEngine, type LastClearEvent, type Snapshot } from "./engine";
+import {
+  playStackerSound,
+  type StackerSoundEvent,
+  type StackerSoundPack,
+  type StackerSoundSettings,
+} from "./audio";
 
 const CELL = 22;
 const W = 10;
@@ -17,6 +23,37 @@ const PIECE_SHADES: Record<number, string> = {
   5: "#b5b1aa",
   6: "#aaa79f",
   7: "#9f9c95",
+};
+type PieceSkin = "classic-mono" | "ice-glass" | "wireframe" | "solid-block" | "soft-glow";
+type PiecePalette = "mono" | "ice" | "contrast";
+type BoardBackground = "old-black" | "charcoal" | "deep-grid";
+
+const PIECE_PALETTES: Record<PiecePalette, Record<number, string>> = {
+  mono: PIECE_SHADES,
+  ice: {
+    1: "#f6f4ed",
+    2: "#e7e5df",
+    3: "#d8d9d6",
+    4: "#cacdc9",
+    5: "#bdc2bd",
+    6: "#b1b7b2",
+    7: "#a5aca7",
+  },
+  contrast: {
+    1: "#f7f4eb",
+    2: "#d8d2c5",
+    3: "#eee9de",
+    4: "#bfc3be",
+    5: "#d4ccc0",
+    6: "#aeb6b4",
+    7: "#c7c2b8",
+  },
+};
+
+const BOARD_BACKGROUNDS: Record<BoardBackground, string> = {
+  "old-black": "#080807",
+  charcoal: "#10100e",
+  "deep-grid": "#050505",
 };
 
 function canPlaceAt(state: Snapshot, x: number, y: number): boolean {
@@ -95,74 +132,6 @@ function clearSubtitle(clear: LastClearEvent): string {
   if (clear.tSpinKind === "mini") detail.push("MINI");
   if (clear.isPerfectClear) detail.push("PC");
   return detail.join(" ");
-}
-
-function sfx(clear: LastClearEvent): Array<[number, number, number, OscillatorType]> {
-  if (clear.isPerfectClear) return [[196, 110, 0.045, "sine"], [247, 140, 0.05, "triangle"], [392, 220, 0.055, "sine"]];
-  if (clear.isTSpin) return [[147, 80, 0.04, "triangle"], [220, 120, 0.05, "sine"], [330, 180, 0.052, "triangle"]];
-  if (clear.lines === 4) return [[98, 90, 0.04, "sine"], [196, 130, 0.05, "triangle"], [294, 190, 0.052, "sine"]];
-  if (clear.lines === 3) return [[123, 90, 0.036, "triangle"], [185, 150, 0.044, "sine"]];
-  if (clear.lines === 2) return [[110, 75, 0.032, "sine"], [165, 130, 0.04, "triangle"]];
-  return [[131, 120, 0.034, "sine"]];
-}
-
-function pieceCue(pieceId: number): Array<[number, number, number, OscillatorType]> {
-  const freq: Record<number, number> = {
-    1: 98,
-    2: 110,
-    3: 123,
-    4: 131,
-    5: 147,
-    6: 165,
-    7: 175,
-  };
-  return [[freq[pieceId] ?? 131, 58, 0.018, "sine"]];
-}
-
-function lockCue(lockCause: "gravity" | "soft-drop" | "hard-drop"): Array<[number, number, number, OscillatorType]> {
-  if (lockCause === "hard-drop") return [[82, 44, 0.024, "triangle"]];
-  if (lockCause === "soft-drop") return [[92, 38, 0.018, "sine"]];
-  return [[73, 34, 0.015, "sine"]];
-}
-
-function playSeq(audio: AudioContext, seq: Array<[number, number, number, OscillatorType]>, volume = 0.7): void {
-  if (audio.state !== "running") return;
-  let t = audio.currentTime;
-  const filter = audio.createBiquadFilter();
-  const delay = audio.createDelay(0.4);
-  const echo = audio.createGain();
-  const dry = audio.createGain();
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(1250, t);
-  filter.Q.setValueAtTime(0.7, t);
-  delay.delayTime.setValueAtTime(0.115, t);
-  echo.gain.setValueAtTime(0.16 * volume, t);
-  dry.gain.setValueAtTime(0.88, t);
-  filter.connect(dry);
-  filter.connect(delay);
-  delay.connect(echo);
-  echo.connect(delay);
-  dry.connect(audio.destination);
-  echo.connect(audio.destination);
-  for (const [freq, durMs, gain, wave] of seq) {
-    const o = audio.createOscillator();
-    const g = audio.createGain();
-    o.type = wave;
-    o.frequency.setValueAtTime(freq, t);
-    o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.985), t + durMs / 1000);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, gain * volume), t + 0.018);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + durMs / 1000);
-    o.connect(g); g.connect(filter);
-    o.start(t); o.stop(t + durMs / 1000 + 0.01);
-    t += durMs / 1000;
-  }
-  window.setTimeout(() => {
-    filter.disconnect();
-    delay.disconnect();
-    echo.disconnect();
-    dry.disconnect();
-  }, Math.max(500, (t - audio.currentTime) * 1000 + 480));
 }
 
 function pieceLabel(id: number): string {
@@ -326,14 +295,14 @@ function parseOpener(input: string): number[] {
     .filter((id) => Number.isFinite(id));
 }
 
-function pieceShade(id: number): string {
-  return PIECE_SHADES[id] ?? "#dcd8cf";
+function pieceShade(id: number, palette: PiecePalette = "mono"): string {
+  return PIECE_PALETTES[palette][id] ?? "#dcd8cf";
 }
 
-function MiniPiece({ matrix, pieceId, active }: { matrix: number[][] | null; pieceId?: number; active?: boolean }) {
+function MiniPiece({ matrix, pieceId, active, palette = "mono" }: { matrix: number[][] | null; pieceId?: number; active?: boolean; palette?: PiecePalette }) {
   const rows = Math.max(2, matrix?.length ?? 0);
   const cols = Math.max(4, matrix?.[0]?.length ?? 0);
-  const onColor = pieceShade(pieceId ?? 1);
+  const onColor = pieceShade(pieceId ?? 1, palette);
   return (
     <div
       className={`grid border border-[var(--border)] p-1 ${active ? "bg-[var(--surface2)]" : "bg-[var(--surface)]"}`}
@@ -385,6 +354,28 @@ export function StackerModule() {
   const [seedInput, setSeedInput] = useState<string>(() => readStringSetting(SEED_KEY, ""));
   const [openerInput, setOpenerInput] = useState<string>(() => readStringSetting(OPENER_KEY, ""));
   const [volume, setVolume] = useState<number>(() => readNumberSetting("void_stacker_volume", 0.7, 0, 1));
+  const [sfxEnabled, setSfxEnabled] = useState<boolean>(() => readBoolSetting("void_stacker_sfx", true));
+  const [uiSoundEnabled, setUiSoundEnabled] = useState<boolean>(() => readBoolSetting("void_stacker_ui_sound", true));
+  const [soundPack, setSoundPack] = useState<StackerSoundPack>(() => {
+    const saved = readStringSetting("void_stacker_sound_pack", "void-soft");
+    return saved === "glass" || saved === "mechanical" || saved === "muted" ? saved : "void-soft";
+  });
+  const [impactIntensity, setImpactIntensity] = useState<number>(() => readNumberSetting("void_stacker_impact", 1, 0.25, 1.75));
+  const [pieceSkin, setPieceSkin] = useState<PieceSkin>(() => {
+    const saved = readStringSetting("void_stacker_piece_skin", "ice-glass");
+    return saved === "classic-mono" || saved === "wireframe" || saved === "solid-block" || saved === "soft-glow" ? saved : "ice-glass";
+  });
+  const [piecePalette, setPiecePalette] = useState<PiecePalette>(() => {
+    const saved = readStringSetting("void_stacker_palette", "ice");
+    return saved === "mono" || saved === "contrast" ? saved : "ice";
+  });
+  const [boardBackground, setBoardBackground] = useState<BoardBackground>(() => {
+    const saved = readStringSetting("void_stacker_board_background", "old-black");
+    return saved === "charcoal" || saved === "deep-grid" ? saved : "old-black";
+  });
+  const [gridIntensity, setGridIntensity] = useState<number>(() => readNumberSetting("void_stacker_grid_intensity", 0.35, 0, 1));
+  const [particleIntensity, setParticleIntensity] = useState<number>(() => readNumberSetting("void_stacker_particle_intensity", 0.7, 0, 1));
+  const [focusMode, setFocusMode] = useState<boolean>(() => readBoolSetting("void_stacker_focus_mode", false));
   const applyPreset = (preset: "balanced" | "competitive" | "instant") => {
     if (preset === "balanced") {
       setDasMs(125);
@@ -451,6 +442,16 @@ export function StackerModule() {
   useEffect(() => { localStorage.setItem(SEED_KEY, seedInput); }, [seedInput]);
   useEffect(() => { localStorage.setItem(OPENER_KEY, openerInput); }, [openerInput]);
   useEffect(() => { localStorage.setItem("void_stacker_volume", String(volume)); }, [volume]);
+  useEffect(() => { localStorage.setItem("void_stacker_sfx", sfxEnabled ? "1" : "0"); }, [sfxEnabled]);
+  useEffect(() => { localStorage.setItem("void_stacker_ui_sound", uiSoundEnabled ? "1" : "0"); }, [uiSoundEnabled]);
+  useEffect(() => { localStorage.setItem("void_stacker_sound_pack", soundPack); }, [soundPack]);
+  useEffect(() => { localStorage.setItem("void_stacker_impact", String(impactIntensity)); }, [impactIntensity]);
+  useEffect(() => { localStorage.setItem("void_stacker_piece_skin", pieceSkin); }, [pieceSkin]);
+  useEffect(() => { localStorage.setItem("void_stacker_palette", piecePalette); }, [piecePalette]);
+  useEffect(() => { localStorage.setItem("void_stacker_board_background", boardBackground); }, [boardBackground]);
+  useEffect(() => { localStorage.setItem("void_stacker_grid_intensity", String(gridIntensity)); }, [gridIntensity]);
+  useEffect(() => { localStorage.setItem("void_stacker_particle_intensity", String(particleIntensity)); }, [particleIntensity]);
+  useEffect(() => { localStorage.setItem("void_stacker_focus_mode", focusMode ? "1" : "0"); }, [focusMode]);
   useEffect(() => {
     engineRef.current.setHandling({ lockDelayMs, lockResetLimit });
   }, [lockDelayMs, lockResetLimit]);
@@ -487,6 +488,7 @@ export function StackerModule() {
   const runSavedRef = useRef(false);
   const particlesRef = useRef<ClearParticle[]>([]);
   const particleIdRef = useRef(0);
+  const wasGameOverRef = useRef(false);
 
   const buildRestartOptions = useCallback(() => {
     const parsedSeed = Number(seedInput);
@@ -509,6 +511,28 @@ export function StackerModule() {
     if (now - lastAudioResumeAttemptRef.current < 1500) return;
     lastAudioResumeAttemptRef.current = now;
     void audio.current.resume();
+  }, []);
+  const soundSettings = useMemo<StackerSoundSettings>(() => ({
+    enabled: sfxEnabled,
+    uiEnabled: uiSoundEnabled,
+    volume,
+    impact: impactIntensity,
+    pack: soundPack,
+  }), [impactIntensity, sfxEnabled, soundPack, uiSoundEnabled, volume]);
+  const emitSound = useCallback((event: StackerSoundEvent, detail = 0) => {
+    if (!soundSettings.enabled || typeof window === "undefined" || !window.AudioContext) return;
+    if (!audio.current) audio.current = new window.AudioContext();
+    const context = audio.current;
+    if (context.state === "suspended") {
+      void context.resume().then(() => playStackerSound(context, event, soundSettings, detail));
+      return;
+    }
+    playStackerSound(context, event, soundSettings, detail);
+  }, [soundSettings]);
+
+  useEffect(() => () => {
+    if (audio.current) void audio.current.close();
+    audio.current = null;
   }, []);
 
   useEffect(() => {
@@ -541,7 +565,6 @@ export function StackerModule() {
   useEffect(() => {
     let raf = 0;
     const tick = (now: number) => {
-      ensureAudioReady(now);
       const dt = Math.min(42, now - lastFrame.current);
       lastFrame.current = now;
 
@@ -622,6 +645,8 @@ export function StackerModule() {
           .filter((particle) => particle.lifeMs > 0);
       }
       const snap = engineRef.current.getSnapshot();
+      if (snap.isGameOver && !wasGameOverRef.current) emitSound("game-over");
+      wasGameOverRef.current = snap.isGameOver;
       if (snap.isPaused && !wasPausedRef.current) {
         pausedAtMsRef.current = now;
         wasPausedRef.current = true;
@@ -686,9 +711,7 @@ export function StackerModule() {
       }
       if (snap.activePiece.id !== lastActivePieceId.current) {
         lastActivePieceId.current = snap.activePiece.id;
-        if (hearNextPieces && audio.current) {
-          playSeq(audio.current, pieceCue(snap.activePiece.id), volume);
-        }
+        if (hearNextPieces) emitSound("menu", snap.activePiece.id);
       }
       if (snap.lastClear && snap.lastClear.id !== lastClearId.current) {
         const clear = snap.lastClear;
@@ -715,7 +738,9 @@ export function StackerModule() {
         shakeUntilRef.current = Math.max(shakeUntilRef.current, now + shakeDuration);
         if (showParticles) {
           const spawned: ClearParticle[] = [];
-          const burstCount = Math.min(42, 10 + clear.lines * 7 + (clear.isPerfectClear ? 8 : 0));
+          const burstCount = Math.round(
+            Math.min(42, 10 + clear.lines * 7 + (clear.isPerfectClear ? 8 : 0)) * particleIntensity,
+          );
           for (let i = 0; i < burstCount; i += 1) {
             spawned.push({
               id: ++particleIdRef.current,
@@ -731,8 +756,8 @@ export function StackerModule() {
           }
           particlesRef.current = [...particlesRef.current, ...spawned].slice(-130);
         }
-        const chainBoost = Math.min(1.15, 0.92 + Math.max(0, clear.combo - 1) * 0.03);
-        if (audio.current) playSeq(audio.current, sfx(clear), Math.min(1, volume * chainBoost));
+        emitSound("line-clear", clear.lines);
+        if (clear.combo > 1) emitSound("combo", clear.combo);
       }
       setFeedback((current) => (current && current.untilMs <= now ? null : current));
       setClearTrail((current) => current.filter((entry) => entry.untilMs > now));
@@ -745,9 +770,7 @@ export function StackerModule() {
           pieceInputsRef.current = 0;
           setRunPieces(runPiecesRef.current);
           setRunFinessePlus(runFinessePlusRef.current);
-          if (audio.current && lock.lines === 0) {
-            playSeq(audio.current, lockCue(lock.lockCause), volume * 0.75);
-          }
+          if (lock.lines === 0 && lock.lockCause !== "hard-drop") emitSound("lock");
         }
         setLockTrail((current) => {
           if (current.length > 0 && current[0].id === lock.id) return current;
@@ -783,10 +806,17 @@ export function StackerModule() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [applyDasCut, arrMs, ensureAudioReady, hearNextPieces, mode, runSoftDropBurst, sdfMs, showParticles, volume]);
+  }, [applyDasCut, arrMs, emitSound, hearNextPieces, mode, particleIntensity, runSoftDropBurst, sdfMs, showParticles]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (settingsOpen) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setSettingsOpen(false);
+        }
+        return;
+      }
       const isPlayKey = PLAY_KEYS.has(e.key) || e.code === "Space" || e.key === "Control" || e.key === "Shift";
       if (isTextEntryTarget(e.target)) return;
       if (e.repeat) {
@@ -802,6 +832,7 @@ export function StackerModule() {
         horizontalPriority.current = "left";
         moveRepeat.current.left = dasMs;
         eg.moveLeft();
+        emitSound("move");
         countedInput = true;
       }
       if (e.key === "ArrowRight") {
@@ -810,6 +841,7 @@ export function StackerModule() {
         horizontalPriority.current = "right";
         moveRepeat.current.right = dasMs;
         eg.moveRight();
+        emitSound("move");
         countedInput = true;
       }
       if (e.key === "ArrowDown") {
@@ -817,17 +849,18 @@ export function StackerModule() {
         keyHeld.current.down = true;
         if (sdfMs <= 0) runSoftDropBurst();
         else eg.softDrop();
+        emitSound("soft-drop");
         moveRepeat.current.down = Math.max(0, sdfMs);
         countedInput = true;
       }
-      if (e.key === "ArrowUp") { e.preventDefault(); eg.rotateClockwise(); applyDasCut(); countedInput = true; }
-      if (e.key === "z" || e.key === "Z") { e.preventDefault(); eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
-      if (e.key === "Control" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.rotateCounterClockwise(); applyDasCut(); countedInput = true; }
-      if (e.key === "a" || e.key === "A") { e.preventDefault(); eg.rotate180(); applyDasCut(); countedInput = true; }
-      if (e.code === "Space") { e.preventDefault(); eg.hardDrop(); applyDasCut(); countedInput = true; }
-      if (e.key === "c" || e.key === "C") { e.preventDefault(); eg.hold(); applyDasCut(); countedInput = true; }
-      if (e.key === "Shift" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.hold(); applyDasCut(); countedInput = true; }
-      if ((e.key === "p" || e.key === "P") && mode !== "sprint") { e.preventDefault(); eg.togglePause(); }
+      if (e.key === "ArrowUp") { e.preventDefault(); eg.rotateClockwise(); emitSound("rotate"); applyDasCut(); countedInput = true; }
+      if (e.key === "z" || e.key === "Z") { e.preventDefault(); eg.rotateCounterClockwise(); emitSound("rotate"); applyDasCut(); countedInput = true; }
+      if (e.key === "Control" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.rotateCounterClockwise(); emitSound("rotate"); applyDasCut(); countedInput = true; }
+      if (e.key === "a" || e.key === "A") { e.preventDefault(); eg.rotate180(); emitSound("rotate"); applyDasCut(); countedInput = true; }
+      if (e.code === "Space") { e.preventDefault(); eg.hardDrop(); emitSound("hard-drop"); applyDasCut(); countedInput = true; }
+      if (e.key === "c" || e.key === "C") { e.preventDefault(); eg.hold(); emitSound("hold"); applyDasCut(); countedInput = true; }
+      if (e.key === "Shift" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.hold(); emitSound("hold"); applyDasCut(); countedInput = true; }
+      if ((e.key === "p" || e.key === "P") && mode !== "sprint") { e.preventDefault(); eg.togglePause(); emitSound(eg.getSnapshot().isPaused ? "pause" : "resume"); }
       if (e.key === "r" || e.key === "R" || e.key === "F4") {
         e.preventDefault();
         engineRef.current.restart(buildRestartOptions());
@@ -868,13 +901,20 @@ export function StackerModule() {
       if (e.key === "ArrowRight") { e.preventDefault(); keyHeld.current.right = false; }
       if (e.key === "ArrowDown") { e.preventDefault(); keyHeld.current.down = false; }
     };
+    const releaseHeldKeys = () => {
+      keyHeld.current = { left: false, right: false, down: false };
+      moveRepeat.current = { left: 0, right: 0, down: 0 };
+    };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", releaseHeldKeys);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", releaseHeldKeys);
+      releaseHeldKeys();
     };
-  }, [applyDasCut, buildRestartOptions, dasMs, ensureAudioReady, mode, runSoftDropBurst, sdfMs]);
+  }, [applyDasCut, buildRestartOptions, dasMs, emitSound, ensureAudioReady, mode, runSoftDropBurst, sdfMs, settingsOpen]);
 
   const grid = useMemo(() => (showGhost ? overlay(state) : (() => {
     const out = state.board.map((r) => [...r]);
@@ -889,11 +929,13 @@ export function StackerModule() {
 
   const start = () => {
     ensureAudioReady();
+    emitSound("apply");
     engineRef.current.start();
     setState(engineRef.current.getSnapshot());
   };
 
   const restart = () => {
+    emitSound("apply");
     engineRef.current.restart(buildRestartOptions());
     sprintRunningRef.current = false;
     sprintElapsedRef.current = 0;
@@ -928,10 +970,13 @@ export function StackerModule() {
   const togglePause = () => {
     if (mode === "sprint") return;
     engineRef.current.togglePause();
-    setState(engineRef.current.getSnapshot());
+    const snapshot = engineRef.current.getSnapshot();
+    emitSound(snapshot.isPaused ? "pause" : "resume");
+    setState(snapshot);
   };
 
   const toggleMode = () => {
+    emitSound("menu");
     const next = mode === "endless" ? "sprint" : "endless";
     setMode(next);
     engineRef.current.setMode(next);
@@ -991,7 +1036,7 @@ export function StackerModule() {
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2.5">
       <div className="min-w-[160px]">
         <h1 className="text-base font-semibold tracking-[-0.02em]">Stacker</h1>
-        <p className="text-[11px] text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>
+        {!focusMode && <p className="text-[11px] text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">
         <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={start}>Start</button>
@@ -1005,7 +1050,10 @@ export function StackerModule() {
           {state.isPaused ? "Resume" : "Pause"}
         </button>
         <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>{mode}</button>
-        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={() => setSettingsOpen((value) => !value)}>
+        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={() => {
+          emitSound("menu");
+          setSettingsOpen((value) => !value);
+        }}>
           Settings
         </button>
       </div>
@@ -1017,14 +1065,14 @@ export function StackerModule() {
           <div className="text-sm text-[var(--muted)]">Hold {state.canHold ? "" : "(locked)"}</div>
           <div className="mb-2 text-xs">{state.holdPiece ? pieceLabel(state.holdPiece.id) : "-"}</div>
           <div style={{ opacity: state.canHold ? 1 : 0.45 }}>
-            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} />
+            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} palette={piecePalette} />
           </div>
         </div>
-        <div className="mt-3 border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--muted)]">
+        {!focusMode && <div className="mt-3 border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--muted)]">
           <div>Piece {pieceLabel(state.activePiece.id)}</div>
           <div style={{ color: comboTierTone(state.combo) }}>Combo {state.combo > 1 ? `x${state.combo}` : "-"}</div>
           <div style={{ color: b2bTierTone(state.b2bStreak) }}>B2B {state.b2bStreak >= 2 ? `x${state.b2bStreak - 1}` : "-"}</div>
-        </div>
+        </div>}
       </aside>
 
       <main className="flex min-h-0 flex-col items-center justify-center">
@@ -1038,11 +1086,11 @@ export function StackerModule() {
         <div className="mb-3 flex gap-3 xl:hidden">
           <div className="border border-[var(--border)] bg-[var(--surface)] p-2 text-xs">
             <div className="mb-1 text-[var(--muted)]">Hold</div>
-            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} />
+            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} palette={piecePalette} />
           </div>
           <div className="border border-[var(--border)] bg-[var(--surface)] p-2 text-xs">
             <div className="mb-1 text-[var(--muted)]">Next</div>
-            <MiniPiece matrix={state.nextQueue[0]?.matrix ?? null} pieceId={state.nextQueue[0]?.id} active />
+            <MiniPiece matrix={state.nextQueue[0]?.matrix ?? null} pieceId={state.nextQueue[0]?.id} active palette={piecePalette} />
           </div>
         </div>
 
@@ -1052,11 +1100,31 @@ export function StackerModule() {
         </div>}
         {(state.isGameOver || doneSprint) && <div className="mb-2 border border-[var(--border)] px-3 py-1 text-xs">{doneSprint ? "SPRINT CLEAR" : "GAME OVER"}</div>}
 
-        <div className="relative border border-[var(--border)] bg-[#080807] p-2 shadow-[0_0_18px_rgba(255,255,255,0.08)]">
+        <div className="relative border border-[var(--border)] p-2 shadow-[0_0_8px_rgba(255,255,255,0.08)]" style={{ background: BOARD_BACKGROUNDS[boardBackground] }}>
           <div className="relative grid transition-transform" style={{ gridTemplateColumns: `repeat(${W}, var(--stacker-cell))`, gap: GAP, width: `calc(var(--stacker-cell) * ${W} + ${W - 1}px)`, transform: `translate(${shakeX}px, ${shakeY}px)` }}>
             {grid.flatMap((row, y) => row.map((cell, x) => {
-              const bg = cell === 0 ? "#171713" : cell === 8 ? `rgba(232,228,218,${ghostOpacity})` : pieceShade(cell);
-              return <div key={`${x}-${y}`} className="border border-[#2a2a25]" style={{ background: bg, width: "var(--stacker-cell)", height: "var(--stacker-cell)" }} />;
+              const tone = pieceShade(cell, piecePalette);
+              const empty = cell === 0;
+              const ghost = cell === 8;
+              const background = empty
+                ? `rgba(23,23,19,${0.38 + gridIntensity * 0.32})`
+                : ghost
+                  ? `rgba(232,228,218,${ghostOpacity})`
+                  : pieceSkin === "ice-glass"
+                    ? `linear-gradient(145deg, ${tone}, rgba(142,148,144,0.72))`
+                    : pieceSkin === "wireframe"
+                      ? "transparent"
+                      : tone;
+              return <div
+                key={`${x}-${y}`}
+                style={{
+                  background,
+                  width: "var(--stacker-cell)",
+                  height: "var(--stacker-cell)",
+                  border: `1px solid ${!empty && pieceSkin === "wireframe" ? tone : `rgba(226,222,213,${0.08 + gridIntensity * 0.28})`}`,
+                  boxShadow: !empty && !ghost && pieceSkin === "soft-glow" ? `0 0 6px ${tone}` : pieceSkin === "ice-glass" && !empty && !ghost ? "inset 0 0 4px rgba(255,255,255,0.34)" : "none",
+                }}
+              />;
             }))}
             {particlesRef.current.map((particle) => {
               const alpha = Math.max(0, particle.lifeMs / particle.maxLifeMs) * 0.9;
@@ -1079,19 +1147,19 @@ export function StackerModule() {
           </div>
         </div>
 
-        <div className="mt-2 text-center text-[11px] text-[var(--muted)]">
+        {!focusMode && <div className="mt-2 text-center text-[11px] text-[var(--muted)]">
           Down soft drop, Space hard drop, C hold, P pause. {mode === "sprint" && `Left ${sprintLinesLeft}.`}
-        </div>
+        </div>}
       </main>
 
       <aside className="hidden w-full self-center xl:block">
         <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
           <div className="text-sm text-[var(--muted)]">Next queue</div>
           <div className="mt-2 space-y-2">
-            {state.nextQueue.slice(0, 5).map((piece, index) => (
+            {state.nextQueue.slice(0, focusMode ? 3 : 5).map((piece, index) => (
               <div key={`q-${index}`}>
                 <div className="mb-0.5 text-[10px] text-[var(--subtle)]">{pieceLabel(piece.id)}</div>
-                <MiniPiece matrix={piece.matrix} pieceId={piece.id} active={index === 0} />
+                <MiniPiece matrix={piece.matrix} pieceId={piece.id} active={index === 0} palette={piecePalette} />
               </div>
             ))}
           </div>
@@ -1109,7 +1177,7 @@ export function StackerModule() {
           <button className="border border-[var(--border)] px-2 py-1 text-xs" onClick={() => setSettingsOpen(false)}>Close</button>
         </div>
 
-        <details className="mb-3 border border-[var(--border)] p-3" open>
+        <details className="mb-3 border border-[var(--border)] p-3">
           <summary className="cursor-pointer text-[var(--muted)]">Input tuning</summary>
           <div className="mt-3 space-y-2">
             <div className="flex gap-1 text-[10px]">
@@ -1135,20 +1203,69 @@ export function StackerModule() {
           </div>
         </details>
 
-        <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Motion and sound</summary>
+        <details className="mb-3 border border-[var(--border)] p-3" open>
+          <summary className="cursor-pointer text-[var(--muted)]">Appearance</summary>
           <div className="mt-3 space-y-2">
-            <div className="border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
-              <div className="text-[var(--muted)]">Sound profile</div>
-              <div className="mt-1 text-[var(--subtle)]">VOID room, low tones, short echo</div>
-            </div>
+            <SettingRow label="Piece skin">
+              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={pieceSkin} onChange={(event) => setPieceSkin(event.target.value as PieceSkin)}>
+                <option value="classic-mono">Classic mono</option>
+                <option value="ice-glass">Ice glass</option>
+                <option value="wireframe">Wireframe</option>
+                <option value="solid-block">Solid block</option>
+                <option value="soft-glow">Soft glow</option>
+              </select>
+            </SettingRow>
+            <SettingRow label="Piece palette">
+              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={piecePalette} onChange={(event) => setPiecePalette(event.target.value as PiecePalette)}>
+                <option value="mono">Mono</option>
+                <option value="ice">Ice</option>
+                <option value="contrast">Contrast</option>
+              </select>
+            </SettingRow>
+            <SettingRow label="Board background">
+              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={boardBackground} onChange={(event) => setBoardBackground(event.target.value as BoardBackground)}>
+                <option value="old-black">Old black</option>
+                <option value="charcoal">Charcoal</option>
+                <option value="deep-grid">Deep grid</option>
+              </select>
+            </SettingRow>
+            <SettingRow label="Grid intensity" value={`${Math.round(gridIntensity * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={gridIntensity} onChange={(event) => setGridIntensity(Number(event.target.value))} /></SettingRow>
+            <ToggleRow checked={showGhost} onChange={setShowGhost}>Ghost piece</ToggleRow>
+            <SettingRow label="Ghost opacity" value={`${Math.round(ghostOpacity * 100)}%`}><input className="w-full" type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(event) => setGhostOpacity(Number(event.target.value))} /></SettingRow>
+            <ToggleRow checked={focusMode} onChange={setFocusMode}>Compact focus mode</ToggleRow>
+          </div>
+        </details>
+
+        <details className="mb-3 border border-[var(--border)] p-3">
+          <summary className="cursor-pointer text-[var(--muted)]">Audio</summary>
+          <div className="mt-3 space-y-2">
+            <ToggleRow checked={sfxEnabled} onChange={setSfxEnabled}>Sound effects</ToggleRow>
+            <ToggleRow checked={uiSoundEnabled} onChange={setUiSoundEnabled}>UI sounds</ToggleRow>
+            <SettingRow label="Sound pack">
+              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={soundPack} onChange={(event) => {
+                setSoundPack(event.target.value as StackerSoundPack);
+                emitSound("apply");
+              }}>
+                <option value="void-soft">VOID soft</option>
+                <option value="glass">Glass</option>
+                <option value="mechanical">Mechanical</option>
+                <option value="muted">Muted</option>
+              </select>
+            </SettingRow>
+            <SettingRow label="Master volume" value={`${Math.round(volume * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={volume} onChange={(event) => setVolume(Number(event.target.value))} /></SettingRow>
+            <SettingRow label="Impact" value={`${Math.round(impactIntensity * 100)}%`}><input className="w-full" type="range" min={0.25} max={1.75} step={0.05} value={impactIntensity} onChange={(event) => setImpactIntensity(Number(event.target.value))} /></SettingRow>
+            <ToggleRow checked={hearNextPieces} onChange={setHearNextPieces}>Next-piece tone</ToggleRow>
+            <button className="w-full border border-[var(--border)] px-2.5 py-2 text-left text-xs hover:bg-[var(--surface2)]" onClick={() => emitSound("apply")}>Preview sound pack</button>
+          </div>
+        </details>
+
+        <details className="mb-3 border border-[var(--border)] p-3">
+          <summary className="cursor-pointer text-[var(--muted)]">Motion</summary>
+          <div className="mt-3 space-y-2">
             <SettingRow label="Clear motion" value={`${Math.round(clearFxStrength * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={clearFxStrength} onChange={(e) => setClearFxStrength(Number(e.target.value))} /></SettingRow>
             <SettingRow label="Board shake" value={`${Math.round(shakeStrength * 100)}%`}><input className="w-full" type="range" min={0} max={1.5} step={0.01} value={shakeStrength} onChange={(e) => setShakeStrength(Number(e.target.value))} /></SettingRow>
             <ToggleRow checked={showParticles} onChange={setShowParticles}>Clear particles</ToggleRow>
-            <ToggleRow checked={showGhost} onChange={setShowGhost}>Ghost piece</ToggleRow>
-            <SettingRow label="Ghost opacity" value={`${Math.round(ghostOpacity * 100)}%`}><input className="w-full" type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(e) => setGhostOpacity(Number(e.target.value))} /></SettingRow>
-            <ToggleRow checked={hearNextPieces} onChange={setHearNextPieces}>Next-piece tone</ToggleRow>
-            <SettingRow label="Volume" value={`${Math.round(volume * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={volume} onChange={(e) => setVolume(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="Particle intensity" value={`${Math.round(particleIntensity * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={particleIntensity} onChange={(event) => setParticleIntensity(Number(event.target.value))} /></SettingRow>
           </div>
         </details>
 
