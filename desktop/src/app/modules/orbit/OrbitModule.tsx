@@ -1,23 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-
-type AudioStatus = "idle" | "listening" | "denied" | "unavailable" | "stopped";
-
-type AudioMetrics = {
-  volume: number;
-  bass: number;
-  mid: number;
-  high: number;
-};
-
-const idleMetrics: AudioMetrics = { volume: 0, bass: 0, mid: 0, high: 0 };
-
-function averageRange(data: Uint8Array, start: number, end: number): number {
-  const safeStart = Math.max(0, Math.min(data.length - 1, start));
-  const safeEnd = Math.max(safeStart + 1, Math.min(data.length, end));
-  let total = 0;
-  for (let index = safeStart; index < safeEnd; index += 1) total += data[index];
-  return total / (safeEnd - safeStart) / 255;
-}
+import {
+  averageFrequencyRange,
+  clamp,
+  EMPTY_ORBIT_METRICS,
+  fallbackStatus,
+  normalizeAmplitude,
+  smoothMetrics,
+  type OrbitAudioMetrics,
+  type OrbitAudioStatus,
+} from "./audioMath";
 
 export function OrbitModule() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,12 +16,12 @@ export function OrbitModule() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const metricsRef = useRef<AudioMetrics>(idleMetrics);
-  const smoothedRef = useRef<AudioMetrics>(idleMetrics);
-  const [status, setStatus] = useState<AudioStatus>("idle");
-  const [sensitivity, setSensitivity] = useState(1.15);
-  const [smoothing, setSmoothing] = useState(0.78);
-  const [intensity, setIntensity] = useState(1);
+  const metricsRef = useRef<OrbitAudioMetrics>(EMPTY_ORBIT_METRICS);
+  const smoothedRef = useRef<OrbitAudioMetrics>(EMPTY_ORBIT_METRICS);
+  const [status, setStatus] = useState<OrbitAudioStatus>("idle");
+  const [sensitivity, setSensitivity] = useState(() => Number(localStorage.getItem("void.orbit.sensitivity")) || 1.15);
+  const [smoothing, setSmoothing] = useState(() => Number(localStorage.getItem("void.orbit.smoothing")) || 0.78);
+  const [intensity, setIntensity] = useState(() => Number(localStorage.getItem("void.orbit.intensity")) || 1);
   const [frozen, setFrozen] = useState(false);
 
   const stopListening = useCallback(() => {
@@ -40,7 +31,7 @@ export function OrbitModule() {
     sourceRef.current = null;
     analyserRef.current = null;
     streamRef.current = null;
-    metricsRef.current = idleMetrics;
+    metricsRef.current = EMPTY_ORBIT_METRICS;
     void audioContextRef.current?.close();
     audioContextRef.current = null;
     setStatus((current) => (current === "denied" || current === "unavailable" ? current : "stopped"));
@@ -68,14 +59,19 @@ export function OrbitModule() {
       sourceRef.current = source;
       setStatus("listening");
     } catch (error) {
-      const reason = error instanceof DOMException && error.name === "NotAllowedError" ? "denied" : "unavailable";
-      setStatus(reason);
+      setStatus(fallbackStatus(error, Boolean(window.AudioContext && navigator.mediaDevices?.getUserMedia)));
     }
   }, [smoothing, stopListening]);
 
   useEffect(() => {
-    if (analyserRef.current) analyserRef.current.smoothingTimeConstant = Math.max(0.45, Math.min(0.95, smoothing));
+    if (analyserRef.current) analyserRef.current.smoothingTimeConstant = clamp(smoothing, 0.45, 0.95);
   }, [smoothing]);
+
+  useEffect(() => {
+    localStorage.setItem("void.orbit.sensitivity", String(sensitivity));
+    localStorage.setItem("void.orbit.smoothing", String(smoothing));
+    localStorage.setItem("void.orbit.intensity", String(intensity));
+  }, [intensity, sensitivity, smoothing]);
 
   useEffect(() => {
     let raf = 0;
@@ -101,28 +97,21 @@ export function OrbitModule() {
       if (analyser && status === "listening" && !frozen) {
         analyser.getByteFrequencyData(frequencyData);
         metricsRef.current = {
-          volume: averageRange(frequencyData, 0, frequencyData.length),
-          bass: averageRange(frequencyData, 2, 12),
-          mid: averageRange(frequencyData, 12, 80),
-          high: averageRange(frequencyData, 80, 220),
+          volume: averageFrequencyRange(frequencyData, 0, frequencyData.length),
+          bass: averageFrequencyRange(frequencyData, 2, 12),
+          mid: averageFrequencyRange(frequencyData, 12, 80),
+          high: averageFrequencyRange(frequencyData, 80, 220),
         };
       } else if (!frozen) {
-        metricsRef.current = idleMetrics;
+        metricsRef.current = EMPTY_ORBIT_METRICS;
       }
 
-      const target = metricsRef.current;
-      const ease = Math.max(0.04, 1 - smoothing);
-      smoothedRef.current = {
-        volume: smoothedRef.current.volume + (target.volume - smoothedRef.current.volume) * ease,
-        bass: smoothedRef.current.bass + (target.bass - smoothedRef.current.bass) * ease,
-        mid: smoothedRef.current.mid + (target.mid - smoothedRef.current.mid) * ease,
-        high: smoothedRef.current.high + (target.high - smoothedRef.current.high) * ease,
-      };
+      smoothedRef.current = smoothMetrics(smoothedRef.current, metricsRef.current, smoothing);
 
       const metrics = smoothedRef.current;
       const reactive = status === "listening" && !frozen;
       const idleBreath = 0.5 + Math.sin(time * 0.0012) * 0.5;
-      const amplitude = reactive ? Math.min(1, metrics.volume * sensitivity * 2.35) : idleBreath * 0.1;
+      const amplitude = reactive ? normalizeAmplitude(metrics.volume, sensitivity) : idleBreath * 0.1;
       const bass = reactive ? metrics.bass * sensitivity : idleBreath * 0.08;
       const mid = reactive ? metrics.mid * sensitivity : 0.05 + idleBreath * 0.04;
       const high = reactive ? metrics.high * sensitivity : 0.04;
