@@ -4,18 +4,80 @@ import { TypingModule } from "./modules/typing/TypingModule";
 import { OrbitModule } from "./modules/orbit/OrbitModule";
 import { StackerModule } from "./modules/stacker/StackerModule";
 import { BootIntro } from "./components/intro/BootIntro";
+import { exportAppData, importAppData, resetAppData } from "./lib/persistence";
 
 function SettingsModule() {
   const { theme, updateTheme } = useAppStore();
-  return <div className="panel max-w-3xl p-5">
-    <h1 className="mb-1 text-lg font-semibold tracking-[-0.02em]">Interface settings</h1>
-    <p className="mb-5 text-sm text-[var(--muted)]">Keep the monitor texture present without letting it crowd the modules.</p>
-    <div className="grid gap-4 sm:grid-cols-2">
-      <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Scanlines <input type="checkbox" checked={theme.scanlines} onChange={(e) => updateTheme({ scanlines: e.target.checked })} /></label>
-      <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Dense layout <input type="checkbox" checked={theme.dense} onChange={(e) => updateTheme({ dense: e.target.checked })} /></label>
-      <label className="block border border-[var(--border)] p-3">Noise <input className="mt-2 w-full" type="range" min={0} max={0.35} step={0.01} value={theme.noise} onChange={(e) => updateTheme({ noise: Number(e.target.value) })} /></label>
-      <label className="block border border-[var(--border)] p-3">Glow <input className="mt-2 w-full" type="range" min={0} max={0.4} step={0.01} value={theme.glow} onChange={(e) => updateTheme({ glow: Number(e.target.value) })} /></label>
-      <label className="block border border-[var(--border)] p-3">Font scale <input className="mt-2 w-full" type="range" min={0.85} max={1.2} step={0.05} value={theme.fontScale} onChange={(e) => updateTheme({ fontScale: Number(e.target.value) })} /></label>
+  const [dataStatus, setDataStatus] = useState("");
+
+  const downloadBackup = () => {
+    const blob = new Blob([exportAppData()], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `void-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setDataStatus("Backup exported.");
+  };
+
+  return <div className="panel h-full max-w-4xl overflow-auto p-5">
+    <h1 className="mb-1 text-lg font-semibold tracking-[-0.02em]">Settings</h1>
+    <p className="mb-5 max-w-[68ch] text-sm text-[var(--muted)]">Tune the app surface and manage local data. Orbit and Stacker keep module-specific controls inside their own settings panels.</p>
+
+    <div className="space-y-3">
+      <details className="border border-[var(--border)] p-4" open>
+        <summary className="cursor-pointer font-medium">App appearance</summary>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Scanlines <input type="checkbox" checked={theme.scanlines} onChange={(event) => updateTheme({ scanlines: event.target.checked })} /></label>
+          <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Dense layout <input type="checkbox" checked={theme.dense} onChange={(event) => updateTheme({ dense: event.target.checked })} /></label>
+          <label className="block border border-[var(--border)] p-3">Scanline intensity <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.scanlineIntensity * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.35} step={0.01} value={theme.scanlineIntensity} onChange={(event) => updateTheme({ scanlineIntensity: Number(event.target.value) })} /></label>
+          <label className="block border border-[var(--border)] p-3">Noise <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.noise * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.25} step={0.01} value={theme.noise} onChange={(event) => updateTheme({ noise: Number(event.target.value) })} /></label>
+          <label className="block border border-[var(--border)] p-3">Glow <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.glow * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.35} step={0.01} value={theme.glow} onChange={(event) => updateTheme({ glow: Number(event.target.value) })} /></label>
+          <label className="block border border-[var(--border)] p-3">Flicker <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.flicker * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.12} step={0.01} value={theme.flicker} onChange={(event) => updateTheme({ flicker: Number(event.target.value) })} /></label>
+          <label className="block border border-[var(--border)] p-3">Background texture
+            <select className="mt-2 w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={theme.backgroundTexture} onChange={(event) => updateTheme({ backgroundTexture: event.target.value as typeof theme.backgroundTexture })}>
+              <option value="flat">Flat</option>
+              <option value="vignette">Vignette</option>
+              <option value="radial">Radial</option>
+            </select>
+          </label>
+          <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Subtle background motion <input type="checkbox" checked={theme.animatedBackground} onChange={(event) => updateTheme({ animatedBackground: event.target.checked })} /></label>
+          <label className="block border border-[var(--border)] p-3">Accent intensity <input className="mt-2 w-full" type="range" min={0.7} max={1.2} step={0.05} value={theme.accentIntensity} onChange={(event) => updateTheme({ accentIntensity: Number(event.target.value) })} /></label>
+          <label className="block border border-[var(--border)] p-3">Font scale <input className="mt-2 w-full" type="range" min={0.85} max={1.2} step={0.05} value={theme.fontScale} onChange={(event) => updateTheme({ fontScale: Number(event.target.value) })} /></label>
+        </div>
+      </details>
+
+      <details className="border border-[var(--border)] p-4">
+        <summary className="cursor-pointer font-medium">Local data</summary>
+        <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Export creates a portable JSON backup of VOID-owned settings and history. Import merges a valid backup and reloads the app.</p>
+        <div className="mt-3 flex flex-wrap gap-2 text-sm">
+          <button className="border border-[var(--border)] px-3 py-2 hover:bg-[var(--surface2)]" onClick={downloadBackup}>Export app data</button>
+          <label className="cursor-pointer border border-[var(--border)] px-3 py-2 hover:bg-[var(--surface2)]">
+            Import app data
+            <input className="sr-only" type="file" accept="application/json,.json" onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              try {
+                const count = importAppData(await file.text());
+                setDataStatus(`Imported ${count} entries. Reloading...`);
+                window.setTimeout(() => window.location.reload(), 450);
+              } catch (error) {
+                setDataStatus(error instanceof Error ? error.message : "Import failed.");
+              } finally {
+                event.target.value = "";
+              }
+            }} />
+          </label>
+          <button className="border border-[var(--border)] px-3 py-2 hover:bg-[var(--surface2)]" onClick={() => {
+            if (!window.confirm("Reset all VOID settings and local history? This cannot be undone without a backup.")) return;
+            const count = resetAppData();
+            setDataStatus(`Reset ${count} entries. Reloading...`);
+            window.setTimeout(() => window.location.reload(), 450);
+          }}>Reset local data</button>
+        </div>
+        {dataStatus && <p className="mt-3 text-xs text-[var(--accent)]" role="status">{dataStatus}</p>}
+      </details>
     </div>
   </div>;
 }
@@ -119,7 +181,11 @@ export function App() {
       ["--glowStrength" as string]: String(theme.glow),
       ["--noiseStrength" as string]: String(theme.noise),
       ["--accentMix" as string]: String(theme.accentIntensity),
+      ["--scanlineStrength" as string]: String(theme.scanlineIntensity),
+      ["--flickerStrength" as string]: String(theme.flicker),
     }}
+    data-background={theme.backgroundTexture}
+    data-background-motion={theme.animatedBackground ? "on" : "off"}
   >
     <header className="panel z-10 flex h-10 shrink-0 items-center justify-between px-3">
       <div className="flex items-center gap-3">

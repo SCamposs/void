@@ -24,6 +24,7 @@ body {
 
 button,
 input,
+select,
 summary {
   color: inherit;
 }
@@ -38,6 +39,7 @@ button:disabled {
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
 summary:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
@@ -66,9 +68,39 @@ body::before {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.78;
+  opacity: var(--scanlineStrength, 0.12);
   background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.03) 1px, transparent 2px, transparent 4px);
   background-size: 100% 4px;
+}
+
+.boot[data-background="vignette"] {
+  background: radial-gradient(circle at 50% 35%, #151512 0, var(--bg) 48%, #050505 100%);
+}
+
+.boot[data-background="radial"] {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(242, 239, 229, 0.045), transparent 34%),
+    radial-gradient(circle at 84% 86%, rgba(242, 239, 229, 0.03), transparent 30%),
+    var(--bg);
+}
+
+.boot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.018);
+  opacity: var(--flickerStrength, 0);
+}
+
+.boot[data-background-motion="on"]::after {
+  animation: void-background-pulse 5.5s ease-in-out infinite alternate;
+}
+
+@keyframes void-background-pulse {
+  from { opacity: calc(var(--flickerStrength, 0) * 0.35); }
+  to { opacity: var(--flickerStrength, 0); }
 }
 
 .boot { animation: bootIn 320ms ease-out; }
