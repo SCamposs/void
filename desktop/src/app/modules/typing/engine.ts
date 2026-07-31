@@ -6,6 +6,37 @@ export type SubmittedWordResult = {
   incorrectCharacters: number;
 };
 
+export type WordCharacterState = "correct" | "incorrect" | "next" | "pending";
+
+export type WordCharacterFeedback = {
+  character: string;
+  state: WordCharacterState;
+};
+
+export function getWordCharacterFeedback(
+  expected: string,
+  typed: string,
+  submitted = false,
+): WordCharacterFeedback[] {
+  const length = Math.max(expected.length, typed.length);
+  return Array.from({ length }, (_, index) => {
+    const expectedCharacter = expected[index];
+    const typedCharacter = typed[index];
+
+    if (typedCharacter !== undefined) {
+      return {
+        character: typedCharacter,
+        state: typedCharacter === expectedCharacter ? "correct" : "incorrect",
+      };
+    }
+
+    return {
+      character: expectedCharacter,
+      state: submitted ? "incorrect" : index === typed.length ? "next" : "pending",
+    };
+  });
+}
+
 export function compareWord(expected: string, typed: string): SubmittedWordResult {
   const compared = Math.min(expected.length, typed.length);
   let correct = 0;
