@@ -6,9 +6,7 @@ ice-white signal, and restrained CRT texture.
 
 ## Download
 
-[Download the latest Windows installer](https://github.com/SCamposs/void/releases/latest/download/VOID-Windows-x64-setup.exe)
-
-[View all releases](https://github.com/SCamposs/void/releases)
+[Download VOID for Windows](https://github.com/SCamposs/void/releases)
 
 > **Alpha software:** Windows builds are currently unsigned. Windows may show
 > a SmartScreen warning. Verify the adjacent SHA256 checksum before installing,
