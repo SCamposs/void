@@ -277,6 +277,20 @@ export function computeAdvancedMetrics(
   };
 }
 
+export function computeTypingAccuracy(
+  events: TypingInputEvent[],
+  traces: TypingWordTrace[],
+): number {
+  const correctKeystrokes = events.filter(
+    (event) => event.type === "character" && event.classification === "correct",
+  ).length;
+  const incorrectKeystrokes = events.filter(
+    (event) => event.type === "character" && event.classification !== "correct",
+  ).length;
+  const missedCharacters = traces.reduce((sum, trace) => sum + trace.missedCharacters, 0);
+  return computeAccuracy(correctKeystrokes, incorrectKeystrokes + missedCharacters);
+}
+
 export function computeLiveWpm(correctChars: number, elapsedSeconds: number): number {
   if (elapsedSeconds <= 0) return 0;
   return Number((((correctChars / 5) / (elapsedSeconds / 60))).toFixed(2));

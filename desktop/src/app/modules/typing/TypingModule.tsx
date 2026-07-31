@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   classifyCharacter,
-  computeAccuracy,
   computeLiveWpm,
+  computeTypingAccuracy,
   createWordTrace,
   getWordCharacterFeedback,
   getWordPageEnd,
@@ -94,12 +94,10 @@ function useTwoLinePageEnd(
 
 function scoreActiveWord(expected: string, typed: string) {
   let correct = 0;
-  let incorrect = 0;
   for (let index = 0; index < typed.length; index += 1) {
     if (index < expected.length && expected[index] === typed[index]) correct += 1;
-    else incorrect += 1;
   }
-  return { correct, incorrect };
+  return correct;
 }
 
 export function TypingModule() {
@@ -124,9 +122,8 @@ export function TypingModule() {
   const [correctWords, setCorrectWords] = useState(0);
   const [incorrectWords, setIncorrectWords] = useState(0);
   const [saved, setSaved] = useState(false);
-  const [recent, setRecent] = useState(() => typingRepo.all().slice(0, 5));
+  const [sessions, setSessions] = useState(() => typingRepo.all());
   const [traces, setTraces] = useState<TypingWordTrace[]>([]);
-  const [inputEvents, setInputEvents] = useState<TypingInputEvent[]>([]);
   const [inputFocused, setInputFocused] = useState(false);
 
   const pageEnd = useTwoLinePageEnd(words, pageStart, wordFlowRef);
@@ -174,7 +171,7 @@ export function TypingModule() {
     const session = {
       timestamp: new Date().toISOString(),
       wpm: computeLiveWpm(correctChars, duration),
-      accuracy: computeAccuracy(correctChars, incorrectChars),
+      accuracy: computeTypingAccuracy(eventsRef.current, traces),
       correctWords,
       incorrectWords,
       correctChars,
@@ -184,7 +181,7 @@ export function TypingModule() {
       mode: `word-flow-${duration}s`,
     };
     typingRepo.save(session);
-    setRecent(typingRepo.all().slice(0, 5));
+    setSessions(typingRepo.all());
     setSaved(true);
   }, [
     correctChars,
@@ -196,6 +193,7 @@ export function TypingModule() {
     language,
     locked,
     saved,
+    traces,
   ]);
 
   useEffect(() => {
@@ -207,22 +205,18 @@ export function TypingModule() {
     () => scoreActiveWord(words[index] ?? "", input),
     [index, input, words],
   );
-  const liveCorrect = correctChars + activeScore.correct;
-  const liveIncorrect = incorrectChars + activeScore.incorrect;
+  const liveCorrect = correctChars + activeScore;
   const liveWpm = useMemo(
     () => computeLiveWpm(liveCorrect, Math.max(1, elapsed)),
     [elapsed, liveCorrect],
   );
-  const liveAcc = useMemo(
-    () => computeAccuracy(liveCorrect, liveIncorrect),
-    [liveCorrect, liveIncorrect],
-  );
+  const liveAcc = computeTypingAccuracy(eventsRef.current, traces);
   const finalWpm = computeLiveWpm(correctChars, duration);
-  const finalAccuracy = computeAccuracy(correctChars, incorrectChars);
-  const allSessions = typingRepo.all();
-  const selectedSessions = allSessions.filter(
+  const finalAccuracy = computeTypingAccuracy(eventsRef.current, traces);
+  const selectedSessions = sessions.filter(
     (session) => session.durationSeconds === duration && session.language === language,
   );
+  const recent = sessions.slice(0, 5);
   const selectedBest = selectedSessions.length > 0
     ? Math.max(...selectedSessions.map((session) => session.wpm))
     : 0;
@@ -234,7 +228,6 @@ export function TypingModule() {
   const recordEvents = (events: TypingInputEvent[]) => {
     if (events.length === 0) return;
     eventsRef.current = [...eventsRef.current, ...events];
-    setInputEvents(eventsRef.current);
   };
 
   const submitWord = () => {
@@ -291,7 +284,6 @@ export function TypingModule() {
     setIncorrectWords(0);
     setSaved(false);
     setTraces([]);
-    setInputEvents([]);
     eventsRef.current = [];
     wordEventStartRef.current = 0;
     wordStartedAtRef.current = 0;
@@ -315,7 +307,6 @@ export function TypingModule() {
     setIncorrectWords(0);
     setSaved(false);
     setTraces([]);
-    setInputEvents([]);
     eventsRef.current = [];
     wordEventStartRef.current = 0;
     wordStartedAtRef.current = 0;
@@ -487,7 +478,7 @@ export function TypingModule() {
         </div>
       </> : <TypingResults
         traces={traces}
-        events={inputEvents}
+        events={eventsRef.current}
         duration={duration}
         wpm={finalWpm}
         accuracy={finalAccuracy}
@@ -516,7 +507,7 @@ export function TypingModule() {
         onClick={() => {
           if (!window.confirm("Reset typing history?")) return;
           typingRepo.reset();
-          setRecent([]);
+          setSessions([]);
         }}
       >
         Reset typing history

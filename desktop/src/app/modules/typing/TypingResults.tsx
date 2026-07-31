@@ -212,11 +212,12 @@ function InputHistory({ traces }: { traces: TypingWordTrace[] }) {
 }
 
 const paceTones = [
-  { label: "0–100", className: "text-[#f2efe5]" },
-  { label: "101–180", className: "text-[#bad0b1]" },
-  { label: "181–260", className: "text-[#d9c47a]" },
-  { label: "261–400", className: "text-[#dc935a]" },
-  { label: "401+", className: "text-[#e06a74]" },
+  { label: "0–50", className: "text-[#f2efe5]" },
+  { label: "51–100", className: "text-[#dce4d8]" },
+  { label: "101–150", className: "text-[#bad0b1]" },
+  { label: "151–200", className: "text-[#d9c47a]" },
+  { label: "201–250", className: "text-[#dc935a]" },
+  { label: "251+", className: "text-[#e06a74]" },
 ];
 
 const wpmTones = [
@@ -229,11 +230,12 @@ const wpmTones = [
 ];
 
 function getPaceTone(value: number) {
-  if (value <= 100) return paceTones[0];
-  if (value <= 180) return paceTones[1];
-  if (value <= 260) return paceTones[2];
-  if (value <= 400) return paceTones[3];
-  return paceTones[4];
+  if (value <= 50) return paceTones[0];
+  if (value <= 100) return paceTones[1];
+  if (value <= 150) return paceTones[2];
+  if (value <= 200) return paceTones[3];
+  if (value <= 250) return paceTones[4];
+  return paceTones[5];
 }
 
 function getWpmTone(value: number) {

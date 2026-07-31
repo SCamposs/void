@@ -6,6 +6,7 @@ import {
   computeAdvancedMetrics,
   computeAccuracy,
   computeLiveWpm,
+  computeTypingAccuracy,
   createWordTrace,
   getWordPageEnd,
   getWordCharacterFeedback,
@@ -139,5 +140,24 @@ describe("typing engine", () => {
     expect(metrics.spaces).toBe(1);
     expect(metrics.totalKeys).toBe(5);
     expect(metrics.rawCpm).toBe(3);
+  });
+
+  it("keeps corrected and missed mistakes in the final accuracy", () => {
+    const events: TypingInputEvent[] = [
+      { timestampMs: 100, type: "character", classification: "correct" },
+      { timestampMs: 200, type: "character", classification: "wrong" },
+      { timestampMs: 300, type: "correction", removedClassification: "wrong" },
+      { timestampMs: 400, type: "character", classification: "correct" },
+    ];
+    const trace = createWordTrace({
+      index: 0,
+      expectedWord: "oi!",
+      typedWord: "oi",
+      startedAtMs: 0,
+      submittedAtMs: 500,
+      events,
+    });
+
+    expect(computeTypingAccuracy(events, [trace])).toBe(50);
   });
 });
