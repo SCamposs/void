@@ -3,11 +3,16 @@ import { EN_WORDS, PT_BR_WORDS, generateWordSequence } from "../app/modules/typi
 
 describe("typing word pools", () => {
   it("provides an extensive, unique PT-BR vocabulary with diacritics", () => {
-    expect(PT_BR_WORDS.length).toBeGreaterThanOrEqual(200);
+    expect(PT_BR_WORDS.length).toBeGreaterThanOrEqual(375);
     expect(new Set(PT_BR_WORDS).size).toBe(PT_BR_WORDS.length);
     expect(PT_BR_WORDS).toEqual(
-      expect.arrayContaining(["ação", "código", "família", "música", "você"]),
+      expect.arrayContaining(["ação", "código", "família", "música", "não", "você"]),
     );
+  });
+
+  it("provides a broad, unique English vocabulary", () => {
+    expect(EN_WORDS.length).toBeGreaterThanOrEqual(240);
+    expect(new Set(EN_WORDS).size).toBe(EN_WORDS.length);
   });
 
   it("keeps generated sequences inside the selected language pool", () => {
