@@ -13,13 +13,29 @@ ice-white signal, and restrained CRT texture.
 > a SmartScreen warning. Verify the adjacent SHA256 checksum before installing,
 > and only download VOID from the `SCamposs/void` release page.
 
-On Debian, Ubuntu, and derivatives, install the downloaded `.deb` package. On
-other x86_64 distributions, make the AppImage executable and run it:
+### Linux
+
+Download the package and its adjacent `.sha256` file from the
+[GitHub Releases page](https://github.com/SCamposs/void/releases).
+
+On Debian, Ubuntu, and derivatives, verify and install the `.deb` package:
 
 ```sh
+sha256sum --check VOID-Linux-x64.deb.sha256
+sudo apt install ./VOID-Linux-x64.deb
+```
+
+On other x86_64 distributions, use the portable AppImage:
+
+```sh
+sha256sum --check VOID-Linux-x64.AppImage.sha256
 chmod +x VOID-Linux-x64.AppImage
 ./VOID-Linux-x64.AppImage
 ```
+
+The AppImage runs directly and does not need a system-wide installation. Its
+desktop integration depends on the distribution or the AppImage integration
+tool already used by the system.
 
 ## Desktop app
 
