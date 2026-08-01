@@ -1,8 +1,8 @@
 # VOID releases
 
-VOID packages Windows releases in GitHub Actions. Release tags are the source
-of truth, and no installer needs to be built or uploaded from a developer
-machine.
+VOID packages Windows and Linux releases in GitHub Actions. Release tags are
+the source of truth, and no installer needs to be built or uploaded from a
+developer machine.
 
 ## Create a release
 
@@ -13,12 +13,13 @@ machine.
 4. Create and push a matching version tag:
 
    ```text
-   git tag v0.1.1-alpha
-   git push origin v0.1.1-alpha
+   git tag v0.1.3-alpha
+   git push origin v0.1.3-alpha
    ```
 
-The `Windows release` workflow checks out that exact tag, validates the app,
-builds an NSIS installer, and creates the GitHub Release. Alpha, beta, and
+The `Desktop release` workflow checks out that exact tag, validates the app on
+both platforms, builds an NSIS installer plus DEB and AppImage packages, and
+creates one GitHub Release after every package succeeds. Alpha, beta, and
 release-candidate tags are marked as prereleases.
 
 The workflow can also be started manually with an existing tag through
@@ -31,49 +32,69 @@ Each release contains:
 
 - `VOID-Windows-x64-setup.exe`
 - `VOID-Windows-x64-setup.exe.sha256`
+- `VOID-Linux-x64.deb`
+- `VOID-Linux-x64.deb.sha256`
+- `VOID-Linux-x64.AppImage`
+- `VOID-Linux-x64.AppImage.sha256`
 
-The stable filenames support the latest-download link in the README. The same
-files are retained as a workflow artifact for diagnostics.
+The stable filenames keep links and automation predictable. The same files are
+retained as workflow artifacts for diagnostics.
 
 Find releases at:
 
 https://github.com/SCamposs/void/releases
 
-## Unsigned build warning
+## Package verification
 
 VOID installers are currently unsigned. Windows SmartScreen may warn before
 launching the installer. Do not bypass or weaken Windows security globally.
 Download only from the official release page and compare the installer's
 SHA256 hash with the `.sha256` file.
 
-PowerShell verification:
+PowerShell verification (Windows):
 
 ```powershell
 Get-FileHash .\VOID-Windows-x64-setup.exe -Algorithm SHA256
 Get-Content .\VOID-Windows-x64-setup.exe.sha256
 ```
 
+SHA256 verification (Linux):
+
+```sh
+sha256sum --check VOID-Linux-x64.deb.sha256
+sha256sum --check VOID-Linux-x64.AppImage.sha256
+```
+
 ## Local validation and build
 
 From `desktop/`:
 
-```text
-npm.cmd ci
-npm.cmd run lint
-npm.cmd run typecheck
-npm.cmd run test
-npm.cmd run build
-npm.cmd run tauri -- build --bundles nsis
+```sh
+npm ci
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Package for the current platform:
+
+```sh
+# Windows (PowerShell or cmd.exe)
+npm run tauri -- build --bundles nsis
+
+# Linux
+npm run tauri -- build --bundles deb,appimage
 ```
 
 The local installer is written beneath
-`desktop/src-tauri/target/release/bundle/nsis/`. Generated build output and
-installers must not be committed.
+`desktop/src-tauri/target/release/bundle/`. Generated build output and packages
+must not be committed.
 
 ## Troubleshooting
 
 - **The workflow cannot find an installer:** inspect the Tauri build step and
-  confirm NSIS is enabled and the runner is Windows.
+  confirm the requested bundle is supported by its runner.
 - **The manual workflow fails during checkout:** the supplied version tag must
   already exist on the remote.
 - **The latest-download link returns 404:** confirm the release completed and
@@ -81,5 +102,5 @@ installers must not be committed.
 - **A version mismatch is reported:** keep the frontend and Tauri configuration
   versions aligned before tagging.
 - **Rust or native build errors occur locally:** install the stable Rust
-  toolchain plus the Windows MSVC and SDK build tools. The hosted Windows runner
-  already includes the required system toolchain.
+  toolchain plus the platform dependencies listed in the Tauri prerequisites.
+  The hosted runners install or provide the required system toolchains.
