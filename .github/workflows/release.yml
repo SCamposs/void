@@ -27,12 +27,12 @@ jobs:
 
     steps:
       - name: Check out release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -81,7 +81,7 @@ jobs:
             Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
 
       - name: Preserve workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: VOID-Windows-x64
           path: release-assets/*
@@ -95,7 +95,7 @@ jobs:
 
     steps:
       - name: Check out release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
 
@@ -109,7 +109,7 @@ jobs:
             patchelf
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -156,7 +156,7 @@ jobs:
           sha256sum VOID-Linux-x64.AppImage > VOID-Linux-x64.AppImage.sha256
 
       - name: Preserve workflow artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: VOID-Linux-x64
           path: release-assets/*
@@ -171,7 +171,7 @@ jobs:
 
     steps:
       - name: Download packaged applications
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: VOID-*
           path: release-assets
