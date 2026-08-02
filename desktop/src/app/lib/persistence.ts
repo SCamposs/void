@@ -18,12 +18,13 @@ export type TypingSummary = {
   averageAccuracy: number;
 };
 
-export const STORAGE_SCHEMA_VERSION = 2;
+export const STORAGE_SCHEMA_VERSION = 3;
 export const storageKeys = {
   schema: "void.storage.schema",
   theme: "void.app.theme.v2",
   sidebar: "void.app.sidebar.v2",
   typingSessions: "void.typing.sessions.v2",
+  mindState: "void.mind.state.v1",
 } as const;
 
 const LEGACY_KEYS: Record<string, string> = {
