@@ -50,8 +50,12 @@ export function migrateMindState(value: unknown): MindPersistedState {
     activeChatId: typeof value.activeChatId === "string" ? value.activeChatId : null,
     chats: validChats(value.chats),
     models: models.filter((model): model is MindPersistedState["models"][number] => {
-      if (!isRecord(model) || !isRecord(model.manifest)) return false;
-      return typeof model.id === "string" && model.manifest.schema_version === "1.0.0";
+      if (!isRecord(model)) return false;
+      return (
+        typeof model.id === "string" &&
+        typeof model.displayName === "string" &&
+        typeof model.version === "string"
+      );
     }),
     selectedModelId: typeof value.selectedModelId === "string" ? value.selectedModelId : null,
     profile:

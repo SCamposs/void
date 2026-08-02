@@ -72,19 +72,40 @@ export function parseLlamaEvent(data: string): ProviderChunk {
 
 type FetchLike = typeof fetch;
 
+function timeoutSignal(externalSignal?: AbortSignal, duration = 5_000) {
+  const controller = new AbortController();
+  const abortFromExternal = () => controller.abort(externalSignal?.reason);
+  if (externalSignal?.aborted) abortFromExternal();
+  else externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
+  const timer = globalThis.setTimeout(
+    () => controller.abort(new DOMException("Runtime check timed out.", "TimeoutError")),
+    duration,
+  );
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      globalThis.clearTimeout(timer);
+      externalSignal?.removeEventListener("abort", abortFromExternal);
+    },
+  };
+}
+
 export class LlamaServerProvider implements MindProvider {
   readonly endpoint: string;
+  private readonly fetcher: FetchLike;
 
-  constructor(endpoint: string, private readonly fetcher: FetchLike = fetch) {
+  constructor(endpoint: string, fetcher?: FetchLike) {
     this.endpoint = normalizeLoopbackEndpoint(endpoint);
+    this.fetcher = fetcher ?? globalThis.fetch.bind(globalThis);
   }
 
   async health(signal?: AbortSignal): Promise<ProviderHealth> {
+    const timed = timeoutSignal(signal);
     try {
-      const response = await this.fetcher(`${this.endpoint}/health`, { signal });
+      const response = await this.fetcher(`${this.endpoint}/health`, { signal: timed.signal });
       if (response.status === 503) return { ok: false, status: "loading", detail: "Model is loading." };
       if (!response.ok) return { ok: false, status: "offline", detail: `HTTP ${response.status}` };
-      const models = await this.fetcher(`${this.endpoint}/v1/models`, { signal });
+      const models = await this.fetcher(`${this.endpoint}/v1/models`, { signal: timed.signal });
       const payload = models.ok
         ? ((await models.json()) as { data?: Array<{ id?: string }> })
         : undefined;
@@ -95,6 +116,8 @@ export class LlamaServerProvider implements MindProvider {
         status: "offline",
         detail: error instanceof Error ? error.message : "Runtime is unavailable.",
       };
+    } finally {
+      timed.cleanup();
     }
   }
 

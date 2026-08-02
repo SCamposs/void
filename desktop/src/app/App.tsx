@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore, type ModuleId } from "./store/appStore";
 import { TypingModule } from "./modules/typing/TypingModule";
 import { OrbitModule } from "./modules/orbit/OrbitModule";
 import { StackerModule } from "./modules/stacker/StackerModule";
 import { BootIntro } from "./components/intro/BootIntro";
 import { exportAppData, importAppData, resetAppData } from "./lib/persistence";
+
+const MindModule = lazy(() =>
+  import("./modules/mind/MindModule").then((module) => ({ default: module.MindModule })),
+);
 
 function SettingsModule() {
   const { theme, updateTheme } = useAppStore();
@@ -84,6 +88,7 @@ function SettingsModule() {
 
 function Home({ jump }: { jump: (module: ModuleId) => void }) {
   const modules: Array<{ id: ModuleId; title: string; status: string; detail: string }> = [
+    { id: "mind", title: "Mind", status: "local AI", detail: "Private conversations with a local GGUF model." },
     { id: "typing", title: "Typing", status: "practice", detail: "Portuguese word drills with local stats." },
     { id: "orbit", title: "Orbit", status: "ambient", detail: "A quiet full-window visual instrument." },
     { id: "stacker", title: "Stacker", status: "play", detail: "Sprint and endless stacking with local run archive." },
@@ -159,6 +164,7 @@ export function App() {
 
   const content = useMemo(() => {
     if (module === "typing") return <TypingModule />;
+    if (module === "mind") return <Suspense fallback={<div className="panel flex h-full items-center justify-center text-sm text-[var(--muted)]">Loading Mind surface…</div>}><MindModule /></Suspense>;
     if (module === "orbit") return <OrbitModule />;
     if (module === "stacker") return <StackerModule />;
     if (module === "settings") return <SettingsModule />;
@@ -167,12 +173,13 @@ export function App() {
 
   const moduleItems: Array<{ id: ModuleId; label: string; icon: string }> = [
     { id: "home", label: "Home", icon: "H" },
+    { id: "mind", label: "Mind", icon: "M" },
     { id: "typing", label: "Typing", icon: "T" },
     { id: "orbit", label: "Orbit", icon: "O" },
     { id: "stacker", label: "Stacker", icon: "S" },
     { id: "settings", label: "Settings", icon: "*" },
   ];
-  const focusedModule = module === "orbit" || module === "stacker";
+  const focusedModule = module === "mind" || module === "orbit" || module === "stacker";
 
   return <div
     className={`relative flex h-screen flex-col overflow-hidden ${theme.scanlines ? "crt" : ""} boot`}
@@ -201,8 +208,8 @@ export function App() {
       </div>
       <span className="text-xs text-[var(--muted)]">Desktop / {module}</span>
     </header>
-    <div className={`grid min-h-0 flex-1 ${sidebarCollapsed ? "grid-cols-[52px_1fr]" : theme.dense ? "grid-cols-[152px_1fr]" : "grid-cols-[184px_1fr]"}`}>
-      <aside className="panel min-h-0 space-y-2 overflow-hidden p-2">
+    <div className={`app-shell-grid grid min-h-0 flex-1 ${sidebarCollapsed ? "grid-cols-[52px_1fr]" : theme.dense ? "grid-cols-[152px_1fr]" : "grid-cols-[184px_1fr]"}`}>
+      <aside className="app-sidebar panel min-h-0 space-y-2 overflow-hidden p-2">
         {moduleItems.map((item) => (
           <button
             key={item.id}
@@ -212,7 +219,7 @@ export function App() {
             aria-label={item.label}
           >
             <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center border border-[var(--border)] text-[10px]" aria-hidden="true">{item.icon}</span>
-            {!sidebarCollapsed && <span>{item.label}</span>}
+            {!sidebarCollapsed && <span className="app-sidebar-label">{item.label}</span>}
           </button>
         ))}
       </aside>
@@ -225,6 +232,7 @@ export function App() {
         <div className="mb-2 text-sm text-[var(--muted)]">Command Palette</div>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <button className="border p-2 text-left" onClick={() => jump("home")}>Open Home</button>
+          <button className="border p-2 text-left" onClick={() => jump("mind")}>Open Mind</button>
           <button className="border p-2 text-left" onClick={() => jump("typing")}>Open Typing</button>
           <button className="border p-2 text-left" onClick={() => jump("orbit")}>Open Orbit</button>
           <button className="border p-2 text-left" onClick={() => jump("stacker")}>Open Stacker</button>

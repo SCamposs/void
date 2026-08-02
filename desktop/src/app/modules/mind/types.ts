@@ -90,10 +90,15 @@ export type ModelManifest = {
 export type MindModel = {
   id: string;
   displayName: string;
+  version: `A${number}`;
+  serverModelId?: string;
   modelPath?: string;
   manifestPath?: string;
   importedAt: string;
-  manifest: ModelManifest;
+  context: number;
+  quantization?: string;
+  languages: string[];
+  manifest?: ModelManifest;
 };
 
 export type MindRuntimeConfig = {
