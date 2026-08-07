@@ -4,6 +4,10 @@ VOID is a local-first desktop app built with Tauri, React, and TypeScript. It
 combines focused tools with a quiet old-monitor identity: charcoal surfaces,
 ice-white signal, and restrained CRT texture.
 
+Installed builds check the official GitHub updater feed when VOID opens and
+every two hours. Downloads and installation only begin after the user selects
+the available update.
+
 ## Download and install
 
 - [Download VOID for Windows](https://github.com/SCamposs/void/releases) (`.exe`)
@@ -56,10 +60,10 @@ Tauri (Windows MSVC/SDK build tools or Linux WebKitGTK development libraries).
 
 ## Releases
 
-Pushing a version tag such as `v0.1.3-alpha` validates the desktop app, builds
+Pushing a version tag such as `v0.1.4-alpha` validates the desktop app, builds
 the Windows NSIS installer and Linux DEB/AppImage packages, creates a GitHub
-Release, and uploads every package plus its SHA256 checksum using stable
-filenames. See [RELEASES.md](RELEASES.md) for the release procedure and
+Release, uploads every package plus its SHA256 checksum and updater signature,
+then refreshes the static updater feed. See [RELEASES.md](RELEASES.md) for the release procedure and
 troubleshooting.
 
 ## Legacy Python/Textual reference

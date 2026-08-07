@@ -24,6 +24,7 @@ jobs:
     runs-on: windows-latest
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
 
     steps:
       - name: Check out release tag
@@ -40,6 +41,13 @@ jobs:
 
       - name: Set up stable Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify updater signing key
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY is required to publish signed app updates."
+          }
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -72,10 +80,12 @@ jobs:
           if (-not $source) {
             throw "Tauri did not produce an NSIS setup executable."
           }
+          $signature = Get-Item -LiteralPath "$($source.FullName).sig" -ErrorAction Stop
 
           New-Item -ItemType Directory -Path "release-assets" -Force | Out-Null
           $installer = Join-Path "release-assets" "VOID-Windows-x64-setup.exe"
           Copy-Item -LiteralPath $source.FullName -Destination $installer
+          Copy-Item -LiteralPath $signature.FullName -Destination "$installer.sig"
           $hash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  VOID-Windows-x64-setup.exe" |
             Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
@@ -92,6 +102,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
 
     steps:
       - name: Check out release tag
@@ -117,6 +128,9 @@ jobs:
 
       - name: Set up stable Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Verify updater signing key
+        run: test -n "$TAURI_SIGNING_PRIVATE_KEY"
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -150,6 +164,7 @@ jobs:
           mkdir -p release-assets
           cp "$deb_source" release-assets/VOID-Linux-x64.deb
           cp "$appimage_source" release-assets/VOID-Linux-x64.AppImage
+          cp "$appimage_source.sig" release-assets/VOID-Linux-x64.AppImage.sig
           chmod +x release-assets/VOID-Linux-x64.AppImage
           cd release-assets
           sha256sum VOID-Linux-x64.deb > VOID-Linux-x64.deb.sha256
@@ -170,12 +185,26 @@ jobs:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
     steps:
+      - name: Check out release scripts
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          path: source
+
       - name: Download packaged applications
         uses: actions/download-artifact@v8
         with:
           pattern: VOID-*
           path: release-assets
           merge-multiple: true
+
+      - name: Create updater manifest
+        shell: pwsh
+        run: |
+          ./source/.github/scripts/create-updater-manifest.ps1 `
+            -Tag $env:RELEASE_TAG `
+            -Repository "${{ github.repository }}" `
+            -AssetDirectory "release-assets"
 
       - name: Create GitHub Release and upload assets
         uses: softprops/action-gh-release@v2
@@ -184,3 +213,24 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
           files: release-assets/*
+
+      - name: Check out updater feed
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: updater-feed
+
+      - name: Publish updater feed
+        shell: bash
+        run: |
+          mkdir -p updater-feed/updater
+          cp release-assets/latest.json updater-feed/updater/latest.json
+          cd updater-feed
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add updater/latest.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore(release): update updater feed to $RELEASE_TAG"
+          git push origin HEAD:main
