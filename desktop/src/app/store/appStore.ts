@@ -8,9 +8,7 @@ type ThemeSettings = {
   scanlineIntensity: number;
   noise: number;
   glow: number;
-  flicker: number;
   backgroundTexture: "flat" | "vignette" | "radial";
-  animatedBackground: boolean;
   dense: boolean;
   accentIntensity: number;
   fontScale: number;
@@ -30,14 +28,16 @@ const defaults: ThemeSettings = {
   scanlineIntensity: 0.12,
   noise: 0.08,
   glow: 0.12,
-  flicker: 0,
   backgroundTexture: "vignette",
-  animatedBackground: false,
   dense: false,
   accentIntensity: 1,
   fontScale: 1,
 };
-const loaded = { ...defaults, ...readStoredJson<Partial<ThemeSettings>>(storageKeys.theme, {}) };
+const storedTheme = readStoredJson<Partial<ThemeSettings> & { animatedBackground?: unknown; flicker?: unknown }>(storageKeys.theme, {});
+delete storedTheme.animatedBackground;
+delete storedTheme.flicker;
+const loaded = { ...defaults, ...storedTheme };
+writeStoredJson(storageKeys.theme, loaded);
 
 export const useAppStore = create<AppState>((set) => ({
   module: "home",

@@ -53,6 +53,34 @@ input[type="checkbox"] {
   accent-color: var(--accent);
 }
 
+.update-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 5px rgba(242, 239, 229, 0.48);
+}
+
+progress {
+  appearance: none;
+  border: 0;
+  background: var(--surface2);
+}
+
+progress::-webkit-progress-bar {
+  background: var(--surface2);
+}
+
+progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -82,25 +110,6 @@ body::before {
     radial-gradient(circle at 18% 12%, rgba(242, 239, 229, 0.045), transparent 34%),
     radial-gradient(circle at 84% 86%, rgba(242, 239, 229, 0.03), transparent 30%),
     var(--bg);
-}
-
-.boot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 30;
-  pointer-events: none;
-  background: rgba(255, 255, 255, 0.018);
-  opacity: var(--flickerStrength, 0);
-}
-
-.boot[data-background-motion="on"]::after {
-  animation: void-background-pulse 5.5s ease-in-out infinite alternate;
-}
-
-@keyframes void-background-pulse {
-  from { opacity: calc(var(--flickerStrength, 0) * 0.35); }
-  to { opacity: var(--flickerStrength, 0); }
 }
 
 .boot { animation: bootIn 320ms ease-out; }

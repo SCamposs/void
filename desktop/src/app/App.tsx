@@ -5,6 +5,8 @@ import { OrbitModule } from "./modules/orbit/OrbitModule";
 import { StackerModule } from "./modules/stacker/StackerModule";
 import { BootIntro } from "./components/intro/BootIntro";
 import { exportAppData, importAppData, resetAppData } from "./lib/persistence";
+import { UpdateDot, UpdatePanel } from "./modules/updater/UpdatePanel";
+import { scheduleUpdateChecks, useUpdateStore } from "./modules/updater/updateStore";
 
 const MindModule = lazy(() =>
   import("./modules/mind/MindModule").then((module) => ({ default: module.MindModule })),
@@ -30,6 +32,8 @@ function SettingsModule() {
     <p className="mb-5 max-w-[68ch] text-sm text-[var(--muted)]">Tune the app surface and manage local data. Orbit and Stacker keep module-specific controls inside their own settings panels.</p>
 
     <div className="space-y-3">
+      <UpdatePanel />
+
       <details className="border border-[var(--border)] p-4" open>
         <summary className="cursor-pointer font-medium">App appearance</summary>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -38,7 +42,6 @@ function SettingsModule() {
           <label className="block border border-[var(--border)] p-3">Scanline intensity <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.scanlineIntensity * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.35} step={0.01} value={theme.scanlineIntensity} onChange={(event) => updateTheme({ scanlineIntensity: Number(event.target.value) })} /></label>
           <label className="block border border-[var(--border)] p-3">Noise <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.noise * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.25} step={0.01} value={theme.noise} onChange={(event) => updateTheme({ noise: Number(event.target.value) })} /></label>
           <label className="block border border-[var(--border)] p-3">Glow <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.glow * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.35} step={0.01} value={theme.glow} onChange={(event) => updateTheme({ glow: Number(event.target.value) })} /></label>
-          <label className="block border border-[var(--border)] p-3">Flicker <span className="float-right text-xs text-[var(--muted)]">{Math.round(theme.flicker * 100)}%</span><input className="mt-2 w-full" type="range" min={0} max={0.12} step={0.01} value={theme.flicker} onChange={(event) => updateTheme({ flicker: Number(event.target.value) })} /></label>
           <label className="block border border-[var(--border)] p-3">Background texture
             <select className="mt-2 w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={theme.backgroundTexture} onChange={(event) => updateTheme({ backgroundTexture: event.target.value as typeof theme.backgroundTexture })}>
               <option value="flat">Flat</option>
@@ -46,7 +49,6 @@ function SettingsModule() {
               <option value="radial">Radial</option>
             </select>
           </label>
-          <label className="flex items-center justify-between gap-3 border border-[var(--border)] p-3">Subtle background motion <input type="checkbox" checked={theme.animatedBackground} onChange={(event) => updateTheme({ animatedBackground: event.target.checked })} /></label>
           <label className="block border border-[var(--border)] p-3">Accent intensity <input className="mt-2 w-full" type="range" min={0.7} max={1.2} step={0.05} value={theme.accentIntensity} onChange={(event) => updateTheme({ accentIntensity: Number(event.target.value) })} /></label>
           <label className="block border border-[var(--border)] p-3">Font scale <input className="mt-2 w-full" type="range" min={0.85} max={1.2} step={0.05} value={theme.fontScale} onChange={(event) => updateTheme({ fontScale: Number(event.target.value) })} /></label>
         </div>
@@ -145,6 +147,9 @@ function Home({ jump }: { jump: (module: ModuleId) => void }) {
 
 export function App() {
   const { module, setModule, theme, sidebarCollapsed, toggleSidebar } = useAppStore();
+  const updateAvailable = useUpdateStore((state) => state.status === "available");
+  const updateVersion = useUpdateStore((state) => state.candidate?.version);
+  const checkForUpdates = useUpdateStore((state) => state.checkForUpdates);
   const [showIntro, setShowIntro] = useState(true);
   const [showPalette, setShowPalette] = useState(false);
   const jump = useCallback((m: ModuleId) => { setModule(m); setShowPalette(false); }, [setModule]);
@@ -153,6 +158,7 @@ export function App() {
     const t = setTimeout(() => setShowIntro(false), 3600);
     return () => clearTimeout(t);
   }, []);
+  useEffect(() => scheduleUpdateChecks(checkForUpdates), [checkForUpdates]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key.toLowerCase() === "k") { e.preventDefault(); setShowPalette((v) => !v); }
@@ -189,10 +195,8 @@ export function App() {
       ["--noiseStrength" as string]: String(theme.noise),
       ["--accentMix" as string]: String(theme.accentIntensity),
       ["--scanlineStrength" as string]: String(theme.scanlineIntensity),
-      ["--flickerStrength" as string]: String(theme.flicker),
     }}
     data-background={theme.backgroundTexture}
-    data-background-motion={theme.animatedBackground ? "on" : "off"}
   >
     <header className="panel z-10 flex h-10 shrink-0 items-center justify-between px-3">
       <div className="flex items-center gap-3">
@@ -206,7 +210,17 @@ export function App() {
         </button>
         <strong className="tracking-[0.12em]">VOID</strong>
       </div>
-      <span className="text-xs text-[var(--muted)]">Desktop / {module}</span>
+      <div className="flex items-center gap-3">
+        {updateAvailable && <button
+          className="inline-flex items-center gap-2 border border-[var(--border)] px-2 py-1 text-xs hover:border-[var(--accent)] hover:bg-[var(--surface2)]"
+          onClick={() => setModule("settings")}
+          aria-label={`Update ${updateVersion ?? "available"}`}
+        >
+          <UpdateDot />
+          <span>Update v{updateVersion}</span>
+        </button>}
+        <span className="text-xs text-[var(--muted)]">Desktop / {module}</span>
+      </div>
     </header>
     <div className={`app-shell-grid grid min-h-0 flex-1 ${sidebarCollapsed ? "grid-cols-[52px_1fr]" : theme.dense ? "grid-cols-[152px_1fr]" : "grid-cols-[184px_1fr]"}`}>
       <aside className="app-sidebar panel min-h-0 space-y-2 overflow-hidden p-2">
@@ -218,7 +232,10 @@ export function App() {
             title={item.label}
             aria-label={item.label}
           >
-            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center border border-[var(--border)] text-[10px]" aria-hidden="true">{item.icon}</span>
+            <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center border border-[var(--border)] text-[10px]" aria-hidden="true">
+              {item.icon}
+              {item.id === "settings" && updateAvailable && <span className="update-dot absolute -right-1 -top-1" />}
+            </span>
             {!sidebarCollapsed && <span className="app-sidebar-label">{item.label}</span>}
           </button>
         ))}
