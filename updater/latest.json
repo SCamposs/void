@@ -1,0 +1,15 @@
+{
+  "version": "0.1.4-alpha",
+  "notes": "See the GitHub release notes for v0.1.4-alpha.",
+  "pub_date": "2026-08-07T15:09:01.0363455Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb2VvRzBZRCswYU8xWFJKeFNOanhSZk1IM1RIRDdqT0ZYaTBxaE8vR1ZyOExWdFNvU1U3NVBOSkxNdEdJaTRENFFUQTBRcnpVM04vcEFNMjVXS2QxcFFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTE1MjI2CWZpbGU6Vk9JRF8wLjEuNC1hbHBoYV94NjQtc2V0dXAuZXhlCjhWbm1aT0V2Y1hudkJ4d3AzdjViZXZhRm1LWlhiM09UeWVpaVM3VkJwOGVHWndYMFR6T3NlRXNzOEFvMGlNK0xDNmlDdkJONXVFeVAxdDNTRktvTEFnPT0K",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.1.4-alpha/VOID-Windows-x64-setup.exe"
+    },
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1I4T0FDYTB2bmxqZllVNCt0SnBOeFdpSm1vU0swN3VEaWVaM1FUeVJ3cWlKL3p5S2pLTmc5dWpxWHhSUE5xaUxIOEZUN2hFRTFDVmF4NjVnMXgwZkFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MTE0OTY3CWZpbGU6Vk9JRF8wLjEuNC1hbHBoYV9hbWQ2NC5BcHBJbWFnZQpqYmVEWVdSdG5CRmNDMXFFK1dSTXVjVXI0d1JvdUh3TGlnTjlvZU9xNlZCSG1NNlZ3T0hUYTEyTFlsTEsyQ2sxUVQyL0YrdUVSK0R0VkVwaVVGNGFEUT09Cg==",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.1.4-alpha/VOID-Linux-x64.AppImage"
+    }
+  }
+}
