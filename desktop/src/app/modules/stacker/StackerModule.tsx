@@ -6,6 +6,12 @@ import {
   type StackerSoundPack,
   type StackerSoundSettings,
 } from "./audio";
+import {
+  STACKER_COUNTDOWN_GO_MS,
+  STACKER_COUNTDOWN_INTERVAL_MS,
+  STACKER_COUNTDOWN_STEPS,
+  type StackerCountdownStep,
+} from "./countdown";
 
 const CELL = 22;
 const W = 10;
@@ -489,6 +495,9 @@ export function StackerModule() {
   const particlesRef = useRef<ClearParticle[]>([]);
   const particleIdRef = useRef(0);
   const wasGameOverRef = useRef(false);
+  const countdownTimeoutsRef = useRef<number[]>([]);
+  const countdownActiveRef = useRef(false);
+  const [countdownStep, setCountdownStep] = useState<StackerCountdownStep | null>(null);
 
   const buildRestartOptions = useCallback(() => {
     const parsedSeed = Number(seedInput);
@@ -530,7 +539,46 @@ export function StackerModule() {
     playStackerSound(context, event, soundSettings, detail);
   }, [soundSettings]);
 
+  const cancelCountdown = useCallback(() => {
+    for (const timeout of countdownTimeoutsRef.current) window.clearTimeout(timeout);
+    countdownTimeoutsRef.current = [];
+    countdownActiveRef.current = false;
+    setCountdownStep(null);
+  }, []);
+
+  const beginCountdown = useCallback(() => {
+    const snapshot = engineRef.current.getSnapshot();
+    if (countdownActiveRef.current || !snapshot.isPaused || snapshot.isGameOver) return;
+
+    ensureAudioReady();
+    countdownActiveRef.current = true;
+    setCountdownStep(STACKER_COUNTDOWN_STEPS[0]);
+    emitSound("countdown-tick", STACKER_COUNTDOWN_STEPS[0]);
+
+    STACKER_COUNTDOWN_STEPS.slice(1).forEach((step, index) => {
+      const timeout = window.setTimeout(() => {
+        setCountdownStep(step);
+        emitSound("countdown-tick", step);
+      }, STACKER_COUNTDOWN_INTERVAL_MS * (index + 1));
+      countdownTimeoutsRef.current.push(timeout);
+    });
+
+    const goTimeout = window.setTimeout(() => {
+      engineRef.current.start();
+      setState(engineRef.current.getSnapshot());
+      setCountdownStep("GO");
+      emitSound("countdown-go");
+    }, STACKER_COUNTDOWN_INTERVAL_MS * STACKER_COUNTDOWN_STEPS.length);
+    const finishTimeout = window.setTimeout(() => {
+      countdownTimeoutsRef.current = [];
+      countdownActiveRef.current = false;
+      setCountdownStep(null);
+    }, STACKER_COUNTDOWN_INTERVAL_MS * STACKER_COUNTDOWN_STEPS.length + STACKER_COUNTDOWN_GO_MS);
+    countdownTimeoutsRef.current.push(goTimeout, finishTimeout);
+  }, [emitSound, ensureAudioReady]);
+
   useEffect(() => () => {
+    for (const timeout of countdownTimeoutsRef.current) window.clearTimeout(timeout);
     if (audio.current) void audio.current.close();
     audio.current = null;
   }, []);
@@ -819,12 +867,21 @@ export function StackerModule() {
       }
       const isPlayKey = PLAY_KEYS.has(e.key) || e.code === "Space" || e.key === "Control" || e.key === "Shift";
       if (isTextEntryTarget(e.target)) return;
+      if (countdownActiveRef.current) {
+        if (isPlayKey) e.preventDefault();
+        return;
+      }
       if (e.repeat) {
         if (isPlayKey) e.preventDefault();
         return;
       }
       ensureAudioReady();
       const eg = engineRef.current;
+      if (e.code === "Space" && eg.getSnapshot().isPaused && !eg.getSnapshot().isGameOver) {
+        e.preventDefault();
+        beginCountdown();
+        return;
+      }
       let countedInput = false;
       if (e.key === "ArrowLeft") {
         e.preventDefault();
@@ -863,6 +920,7 @@ export function StackerModule() {
       if ((e.key === "p" || e.key === "P") && mode !== "sprint") { e.preventDefault(); eg.togglePause(); emitSound(eg.getSnapshot().isPaused ? "pause" : "resume"); }
       if (e.key === "r" || e.key === "R" || e.key === "F4") {
         e.preventDefault();
+        cancelCountdown();
         engineRef.current.restart(buildRestartOptions());
         lastClearId.current = 0;
         lastLockId.current = 0;
@@ -914,7 +972,7 @@ export function StackerModule() {
       window.removeEventListener("blur", releaseHeldKeys);
       releaseHeldKeys();
     };
-  }, [applyDasCut, buildRestartOptions, dasMs, emitSound, ensureAudioReady, mode, runSoftDropBurst, sdfMs, settingsOpen]);
+  }, [applyDasCut, beginCountdown, buildRestartOptions, cancelCountdown, dasMs, emitSound, ensureAudioReady, mode, runSoftDropBurst, sdfMs, settingsOpen]);
 
   const grid = useMemo(() => (showGhost ? overlay(state) : (() => {
     const out = state.board.map((r) => [...r]);
@@ -927,14 +985,8 @@ export function StackerModule() {
     return out;
   })()), [showGhost, state]);
 
-  const start = () => {
-    ensureAudioReady();
-    emitSound("apply");
-    engineRef.current.start();
-    setState(engineRef.current.getSnapshot());
-  };
-
   const restart = () => {
+    cancelCountdown();
     emitSound("apply");
     engineRef.current.restart(buildRestartOptions());
     sprintRunningRef.current = false;
@@ -968,7 +1020,7 @@ export function StackerModule() {
   };
 
   const togglePause = () => {
-    if (mode === "sprint") return;
+    if (mode === "sprint" || countdownActiveRef.current) return;
     engineRef.current.togglePause();
     const snapshot = engineRef.current.getSnapshot();
     emitSound(snapshot.isPaused ? "pause" : "resume");
@@ -976,6 +1028,7 @@ export function StackerModule() {
   };
 
   const toggleMode = () => {
+    cancelCountdown();
     emitSound("menu");
     const next = mode === "endless" ? "sprint" : "endless";
     setMode(next);
@@ -1039,12 +1092,18 @@ export function StackerModule() {
         {!focusMode && <p className="text-[11px] text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">
-        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={start}>Start</button>
+        <button
+          className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)] disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={beginCountdown}
+          disabled={countdownStep !== null || !state.isPaused || state.isGameOver}
+        >
+          {countdownStep ?? "Start"}
+        </button>
         <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={restart}>Restart</button>
         <button
           className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)] disabled:opacity-40"
           onClick={togglePause}
-          disabled={mode === "sprint"}
+          disabled={mode === "sprint" || countdownStep !== null}
           title={mode === "sprint" ? "Sprint runs do not pause." : "Pause or resume"}
         >
           {state.isPaused ? "Resume" : "Pause"}
@@ -1100,7 +1159,7 @@ export function StackerModule() {
         </div>}
         {(state.isGameOver || doneSprint) && <div className="mb-2 border border-[var(--border)] px-3 py-1 text-xs">{doneSprint ? "SPRINT CLEAR" : "GAME OVER"}</div>}
 
-        <div className="relative border border-[var(--border)] p-2 shadow-[0_0_8px_rgba(255,255,255,0.08)]" style={{ background: BOARD_BACKGROUNDS[boardBackground] }}>
+        <div className={`relative border border-[var(--border)] p-2 shadow-[0_0_8px_rgba(255,255,255,0.08)] ${countdownStep !== null ? "stacker-countdown-board" : ""}`} style={{ background: BOARD_BACKGROUNDS[boardBackground] }}>
           <div className="relative grid transition-transform" style={{ gridTemplateColumns: `repeat(${W}, var(--stacker-cell))`, gap: GAP, width: `calc(var(--stacker-cell) * ${W} + ${W - 1}px)`, transform: `translate(${shakeX}px, ${shakeY}px)` }}>
             {grid.flatMap((row, y) => row.map((cell, x) => {
               const tone = pieceShade(cell, piecePalette);
@@ -1145,10 +1204,24 @@ export function StackerModule() {
               );
             })}
           </div>
+          {state.isPaused && !state.isGameOver && countdownStep === null && <div className="absolute inset-2 z-[2] grid place-items-center border border-white/10 bg-black/55 text-center">
+            <div>
+              <div className="text-sm font-semibold tracking-[0.22em] text-[var(--text)]">READY</div>
+              <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">Press Space or Start</div>
+            </div>
+          </div>}
+          {countdownStep !== null && <div key={countdownStep} className={`stacker-countdown-overlay absolute inset-2 z-[3] grid place-items-center border ${countdownStep === "GO" ? "is-go" : ""}`}>
+            <div className="text-center">
+              <div className="stacker-countdown-number font-black leading-none">{countdownStep}</div>
+              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
+                {countdownStep === "GO" ? "Stack" : "Get ready"}
+              </div>
+            </div>
+          </div>}
         </div>
 
         {!focusMode && <div className="mt-2 text-center text-[11px] text-[var(--muted)]">
-          Down soft drop, Space hard drop, C hold, P pause. {mode === "sprint" && `Left ${sprintLinesLeft}.`}
+          Space starts the run, then hard drops. Down soft drops, C holds, P pauses. {mode === "sprint" && `Left ${sprintLinesLeft}.`}
         </div>}
       </main>
 

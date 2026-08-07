@@ -11,6 +11,8 @@ export type StackerSoundEvent =
   | "combo"
   | "pause"
   | "resume"
+  | "countdown-tick"
+  | "countdown-go"
   | "game-over"
   | "menu"
   | "apply";
@@ -83,6 +85,16 @@ function eventTones(event: StackerSoundEvent, detail = 0): Tone[] {
       return [{ frequency: 180, durationMs: 90, gain: 0.035, wave: "sine", endFrequency: 92 }];
     case "resume":
       return [{ frequency: 92, durationMs: 90, gain: 0.035, wave: "sine", endFrequency: 180 }];
+    case "countdown-tick":
+      return [
+        { frequency: 196 + Math.max(0, detail) * 14, durationMs: 82, gain: 0.045, wave: "triangle", endFrequency: 154 },
+        { frequency: 98, durationMs: 46, gain: 0.022, wave: "sine", offsetMs: 18, endFrequency: 72 },
+      ];
+    case "countdown-go":
+      return [
+        { frequency: 146, durationMs: 125, gain: 0.06, wave: "triangle", endFrequency: 292 },
+        { frequency: 292, durationMs: 155, gain: 0.052, wave: "sine", offsetMs: 42, endFrequency: 438 },
+      ];
     case "game-over":
       return [
         { frequency: 164, durationMs: 130, gain: 0.05, wave: "triangle", endFrequency: 122 },
