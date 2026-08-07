@@ -10,6 +10,7 @@ import {
   createWordTrace,
   getWordPageEnd,
   getWordCharacterFeedback,
+  getTypingInactivityDelay,
   type TypingInputEvent,
 } from "../app/modules/typing/engine";
 
@@ -33,6 +34,19 @@ describe("typing engine", () => {
       { character: "s", state: "correct" },
       { character: "a", state: "next" },
     ]);
+  });
+
+  it("keeps the caret visible after the expected word is complete", () => {
+    const complete = getWordCharacterFeedback("casa", "casa");
+    const extra = getWordCharacterFeedback("casa", "casaa");
+    expect(complete[complete.length - 1]).toEqual({
+      character: "",
+      state: "next",
+    });
+    expect(extra[extra.length - 1]).toEqual({
+      character: "",
+      state: "next",
+    });
   });
 
   it("shows the actual incorrect character while the word remains editable", () => {
@@ -96,6 +110,12 @@ describe("typing engine", () => {
     const words = ["aaaa", "bbbb", "cc", "dddd", "eeee"];
     expect(getWordPageEnd(words, 0, 100, (word) => word.length * 10, 10, 2)).toBe(4);
     expect(getWordPageEnd(words, 4, 100, (word) => word.length * 10, 10, 2)).toBe(5);
+  });
+
+  it("resets inactivity from the most recent typing action", () => {
+    expect(getTypingInactivityDelay(10_000, 12_000)).toBe(3_000);
+    expect(getTypingInactivityDelay(10_000, 15_000)).toBe(0);
+    expect(getTypingInactivityDelay(10_000, 18_000)).toBe(0);
   });
 
   it("builds per-second WPM, error, modification, and ms/c samples", () => {

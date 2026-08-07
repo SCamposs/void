@@ -68,13 +68,15 @@ export type WordCharacterFeedback = {
   state: WordCharacterState;
 };
 
+export const TYPING_INACTIVITY_MS = 5_000;
+
 export function getWordCharacterFeedback(
   expected: string,
   typed: string,
   submitted = false,
 ): WordCharacterFeedback[] {
   const length = Math.max(expected.length, typed.length);
-  return Array.from({ length }, (_, index) => {
+  const feedback: WordCharacterFeedback[] = Array.from({ length }, (_, index) => {
     const expectedCharacter = expected[index];
     const typedCharacter = typed[index];
 
@@ -90,6 +92,20 @@ export function getWordCharacterFeedback(
       state: submitted ? "incorrect" : index === typed.length ? "next" : "pending",
     };
   });
+
+  if (!submitted && typed.length >= expected.length) {
+    feedback.push({ character: "", state: "next" });
+  }
+
+  return feedback;
+}
+
+export function getTypingInactivityDelay(
+  lastActivityAt: number,
+  now: number,
+  timeoutMs = TYPING_INACTIVITY_MS,
+): number {
+  return Math.max(0, timeoutMs - Math.max(0, now - lastActivityAt));
 }
 
 export function compareWord(expected: string, typed: string): SubmittedWordResult {

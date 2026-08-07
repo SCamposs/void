@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   classifyCharacter,
   computeLiveWpm,
@@ -6,6 +6,7 @@ import {
   createWordTrace,
   getWordCharacterFeedback,
   getWordPageEnd,
+  getTypingInactivityDelay,
   type TypingInputEvent,
   type TypingWordTrace,
   type WordCharacterState,
@@ -45,7 +46,10 @@ function WordFeedback({
       {characters.map((character, characterIndex) => (
         <span
           key={`${characterIndex}-${character.character}`}
-          className={`inline-block min-w-[0.58ch] text-center ${characterClasses[character.state]}`}
+          className={character.character.length === 0
+            ? "inline-block h-[1.05em] w-[2px] shrink-0 self-center bg-[var(--accent)] shadow-[0_0_7px_rgba(232,228,218,0.55)]"
+            : `inline-block min-w-[0.58ch] text-center ${characterClasses[character.state]}`}
+          aria-hidden={character.character.length === 0 ? "true" : undefined}
         >
           {character.character}
         </span>
@@ -54,12 +58,15 @@ function WordFeedback({
   );
 }
 
-function useTwoLinePageEnd(
+function useTwoLineWordWindow(
   words: string[],
   pageStart: number,
   flowRef: RefObject<HTMLDivElement>,
 ) {
-  const [pageEnd, setPageEnd] = useState(() => Math.min(words.length, pageStart + 18));
+  const [windowEnd, setWindowEnd] = useState(() => ({
+    firstLineEnd: Math.min(words.length, pageStart + 9),
+    pageEnd: Math.min(words.length, pageStart + 18),
+  }));
 
   useEffect(() => {
     const flow = flowRef.current;
@@ -72,7 +79,15 @@ function useTwoLinePageEnd(
       if (!context) return;
       context.font = style.font || `${style.fontSize} ${style.fontFamily}`;
       const gapWidth = context.measureText(" ").width * 0.72;
-      const nextEnd = getWordPageEnd(
+      const firstLineEnd = getWordPageEnd(
+        words,
+        pageStart,
+        flow.clientWidth,
+        (word) => context.measureText(word).width,
+        gapWidth,
+        1,
+      );
+      const pageEnd = getWordPageEnd(
         words,
         pageStart,
         flow.clientWidth,
@@ -80,7 +95,10 @@ function useTwoLinePageEnd(
         gapWidth,
         2,
       );
-      setPageEnd(Math.max(pageStart + 1, nextEnd));
+      setWindowEnd({
+        firstLineEnd: Math.max(pageStart + 1, firstLineEnd),
+        pageEnd: Math.max(pageStart + 1, pageEnd),
+      });
     };
 
     measure();
@@ -89,7 +107,10 @@ function useTwoLinePageEnd(
     return () => observer.disconnect();
   }, [flowRef, pageStart, words]);
 
-  return Math.min(words.length, pageEnd);
+  return {
+    firstLineEnd: Math.min(words.length, windowEnd.firstLineEnd),
+    pageEnd: Math.min(words.length, windowEnd.pageEnd),
+  };
 }
 
 function scoreActiveWord(expected: string, typed: string) {
@@ -125,8 +146,10 @@ export function TypingModule() {
   const [sessions, setSessions] = useState(() => typingRepo.all());
   const [traces, setTraces] = useState<TypingWordTrace[]>([]);
   const [inputFocused, setInputFocused] = useState(false);
+  const [lastActivityAt, setLastActivityAt] = useState<number | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const pageEnd = useTwoLinePageEnd(words, pageStart, wordFlowRef);
+  const { firstLineEnd, pageEnd } = useTwoLineWordWindow(words, pageStart, wordFlowRef);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -196,11 +219,6 @@ export function TypingModule() {
     traces,
   ]);
 
-  useEffect(() => {
-    if (index < pageEnd) return;
-    setPageStart(index);
-  }, [index, pageEnd]);
-
   const activeScore = useMemo(
     () => scoreActiveWord(words[index] ?? "", input),
     [index, input, words],
@@ -233,6 +251,8 @@ export function TypingModule() {
   const submitWord = () => {
     if (locked || (input.length === 0 && startedAt === null)) return;
     const now = Date.now();
+    setLastActivityAt(now);
+    setNotice(null);
     const origin = startedAt ?? now;
     if (startedAt === null) {
       setStartedAt(origin);
@@ -265,11 +285,11 @@ export function TypingModule() {
 
     const nextIndex = index + 1;
     setIndex(nextIndex);
-    if (nextIndex >= pageEnd) setPageStart(pageEnd);
+    if (nextIndex >= firstLineEnd) setPageStart(firstLineEnd);
     setInput("");
   };
 
-  const reset = () => {
+  const reset = useCallback((reason: "manual" | "inactivity" = "manual") => {
     setWords(generateWordSequence(600, language));
     setIndex(0);
     setPageStart(0);
@@ -284,11 +304,15 @@ export function TypingModule() {
     setIncorrectWords(0);
     setSaved(false);
     setTraces([]);
+    setLastActivityAt(null);
+    setNotice(reason === "inactivity"
+      ? "Test reset after 5 seconds of inactivity. The run was not recorded."
+      : null);
     eventsRef.current = [];
     wordEventStartRef.current = 0;
     wordStartedAtRef.current = 0;
     requestAnimationFrame(() => inputRef.current?.focus());
-  };
+  }, [language]);
 
   const configure = (nextDuration: TypingDuration, nextLanguage: TypingLanguage) => {
     setDuration(nextDuration);
@@ -307,6 +331,8 @@ export function TypingModule() {
     setIncorrectWords(0);
     setSaved(false);
     setTraces([]);
+    setLastActivityAt(null);
+    setNotice(null);
     eventsRef.current = [];
     wordEventStartRef.current = 0;
     wordStartedAtRef.current = 0;
@@ -360,8 +386,19 @@ export function TypingModule() {
       }
     }
     recordEvents(events);
+    if (events.length > 0) {
+      setLastActivityAt(now);
+      setNotice(null);
+    }
     setInput(nextInput);
   };
+
+  useEffect(() => {
+    if (startedAt === null || lastActivityAt === null || locked) return;
+    const delay = getTypingInactivityDelay(lastActivityAt, Date.now());
+    const timeout = window.setTimeout(() => reset("inactivity"), delay);
+    return () => window.clearTimeout(timeout);
+  }, [lastActivityAt, locked, reset, startedAt]);
 
   return <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[1fr_300px]">
     <div className="panel min-h-0 overflow-auto p-4">
@@ -465,12 +502,13 @@ export function TypingModule() {
           className="sr-only"
         />
         <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-xs text-[var(--muted)]">
-            Two lines at a time. Space submits the current word.
-          </span>
+          <div className="text-xs text-[var(--muted)]">
+            <div>Space confirms the word. The next line stays ready below.</div>
+            {notice && <div className="mt-1 text-[#d69a4b]" role="status">{notice}</div>}
+          </div>
           <button
             type="button"
-            onClick={reset}
+            onClick={() => reset()}
             className="shrink-0 border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-[var(--surface2)]"
           >
             Reset test
