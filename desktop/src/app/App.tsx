@@ -1,7 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useAppStore, type ModuleId } from "./store/appStore";
 import { TypingModule } from "./modules/typing/TypingModule";
-import { OrbitModule } from "./modules/orbit/OrbitModule";
 import { StackerModule } from "./modules/stacker/StackerModule";
 import { BootIntro } from "./components/intro/BootIntro";
 import { exportAppData, importAppData, resetAppData } from "./lib/persistence";
@@ -10,6 +9,9 @@ import { scheduleUpdateChecks, useUpdateStore } from "./modules/updater/updateSt
 
 const MindModule = lazy(() =>
   import("./modules/mind/MindModule").then((module) => ({ default: module.MindModule })),
+);
+const OrbitModule = lazy(() =>
+  import("./modules/orbit/OrbitModule").then((module) => ({ default: module.OrbitModule })),
 );
 
 function SettingsModule() {
@@ -171,7 +173,7 @@ export function App() {
   const content = useMemo(() => {
     if (module === "typing") return <TypingModule />;
     if (module === "mind") return <Suspense fallback={<div className="panel flex h-full items-center justify-center text-sm text-[var(--muted)]">Loading Mind surface…</div>}><MindModule /></Suspense>;
-    if (module === "orbit") return <OrbitModule />;
+    if (module === "orbit") return <Suspense fallback={<div className="h-full bg-black" />}><OrbitModule /></Suspense>;
     if (module === "stacker") return <StackerModule />;
     if (module === "settings") return <SettingsModule />;
     return <Home jump={jump} />;

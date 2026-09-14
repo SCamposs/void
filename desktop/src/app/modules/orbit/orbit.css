@@ -1,0 +1,228 @@
+.orbit-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+  isolation: isolate;
+  contain: strict;
+}
+
+.orbit-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 49%, transparent 0 39%, rgba(0, 0, 0, 0.06) 58%, rgba(0, 0, 0, 0.32) 100%);
+}
+
+.orbit-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+  touch-action: none;
+}
+
+.orbit-controls {
+  position: absolute;
+  z-index: 2;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  max-width: min(310px, calc(100% - 36px));
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 260ms cubic-bezier(0.16, 1, 0.3, 1), transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.orbit-controls.is-visible,
+.orbit-controls:focus-within {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.orbit-controls__buttons {
+  display: flex;
+  gap: 7px;
+  pointer-events: auto;
+}
+
+.orbit-controls__buttons button,
+.orbit-settings__header button,
+.orbit-failure button {
+  border: 1px solid rgba(220, 231, 240, 0.18);
+  background: rgba(5, 7, 9, 0.88);
+  color: rgba(224, 234, 242, 0.72);
+}
+
+.orbit-controls__buttons button {
+  position: relative;
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.orbit-controls__buttons button:hover,
+.orbit-controls__buttons button:focus-visible,
+.orbit-controls__buttons button.is-active,
+.orbit-settings__header button:hover,
+.orbit-failure button:hover {
+  border-color: rgba(235, 246, 255, 0.58);
+  color: #edf7ff;
+}
+
+.orbit-controls__buttons button:disabled {
+  opacity: 0.45;
+}
+
+.orbit-controls__buttons svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.45;
+}
+
+.orbit-control-state {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(224, 234, 242, 0.32);
+}
+
+button.is-active .orbit-control-state {
+  background: #eef8ff;
+  box-shadow: 0 0 7px rgba(204, 235, 255, 0.85);
+}
+
+.orbit-settings {
+  width: 286px;
+  max-width: 100%;
+  border: 1px solid rgba(220, 231, 240, 0.16);
+  background: rgba(4, 6, 8, 0.96);
+  padding: 12px;
+  color: rgba(224, 234, 242, 0.74);
+  pointer-events: auto;
+}
+
+.orbit-settings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.orbit-settings__header h2 {
+  margin: 0;
+  color: #edf7ff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.orbit-settings__header button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.orbit-setting-row,
+.orbit-setting-range {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid rgba(220, 231, 240, 0.1);
+  padding: 10px 0;
+  font-size: 0.68rem;
+}
+
+.orbit-setting-row {
+  grid-template-columns: minmax(0, 1fr) 128px;
+}
+
+.orbit-setting-row select {
+  width: 100%;
+  border: 1px solid rgba(220, 231, 240, 0.16);
+  border-radius: 0;
+  background: #090c10;
+  padding: 6px 24px 6px 7px;
+  color: #dce9f2;
+  font: inherit;
+}
+
+.orbit-setting-range input {
+  width: 100%;
+  margin: 0;
+}
+
+.orbit-settings__note,
+.orbit-audio-notice {
+  margin: 0;
+  color: rgba(202, 216, 226, 0.58);
+  font-size: 0.62rem;
+  line-height: 1.5;
+}
+
+.orbit-audio-notice {
+  max-width: 250px;
+  border: 1px solid rgba(220, 231, 240, 0.14);
+  background: rgba(4, 6, 8, 0.92);
+  padding: 8px 10px;
+  pointer-events: auto;
+}
+
+.orbit-failure {
+  position: absolute;
+  z-index: 3;
+  inset: 50% auto auto 50%;
+  width: min(320px, calc(100% - 40px));
+  transform: translate(-50%, -50%);
+  color: rgba(224, 234, 242, 0.76);
+  text-align: center;
+}
+
+.orbit-failure p {
+  margin: 0 0 14px;
+  font-size: 0.72rem;
+}
+
+.orbit-failure button {
+  padding: 7px 12px;
+  font-size: 0.68rem;
+}
+
+@media (max-width: 760px) {
+  .orbit-controls {
+    right: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+  }
+
+  .orbit-settings {
+    width: min(286px, calc(100vw - 96px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-controls {
+    transform: none;
+    transition-duration: 120ms;
+  }
+}

@@ -1,296 +1,135 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  averageFrequencyRange,
-  clamp,
-  EMPTY_ORBIT_METRICS,
-  fallbackStatus,
-  normalizeAmplitude,
-  smoothMetrics,
-  type OrbitAudioMetrics,
-  type OrbitAudioStatus,
-} from "./audioMath";
+import { OrbitAudioAnalyzer, type OrbitAudioStatus } from "./audio/OrbitAudioAnalyzer";
+import { OrbitControlsMinimal } from "./components/OrbitControlsMinimal";
+import { CanvasFallbackRenderer } from "./renderer/CanvasFallbackRenderer";
+import { OrbitRenderer, type OrbitRuntimeState } from "./renderer/OrbitRenderer";
+import { chooseInitialQuality } from "./renderer/quality";
+import { hasWebGL2Support } from "./renderer/webglSupport";
+import { loadOrbitSettings, saveOrbitSettings, type OrbitSettings } from "./settings";
+import "./orbit.css";
+
+type OrbitController = Pick<OrbitRenderer, "dispose" | "pointerLeave" | "pointerMove" | "setMotion" | "setQuality">;
 
 export function OrbitModule() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const metricsRef = useRef<OrbitAudioMetrics>(EMPTY_ORBIT_METRICS);
-  const smoothedRef = useRef<OrbitAudioMetrics>(EMPTY_ORBIT_METRICS);
-  const [status, setStatus] = useState<OrbitAudioStatus>("idle");
-  const [sensitivity, setSensitivity] = useState(() => Number(localStorage.getItem("void.orbit.sensitivity")) || 1.15);
-  const [smoothing, setSmoothing] = useState(() => Number(localStorage.getItem("void.orbit.smoothing")) || 0.78);
-  const [intensity, setIntensity] = useState(() => Number(localStorage.getItem("void.orbit.intensity")) || 1);
-  const [frozen, setFrozen] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const rendererRef = useRef<OrbitController | null>(null);
+  const analyzerRef = useRef(new OrbitAudioAnalyzer());
+  const sensitivityRef = useRef(1);
+  const controlsTimerRef = useRef<number | null>(null);
+  const [settings, setSettings] = useState<OrbitSettings>(loadOrbitSettings);
+  const [audioStatus, setAudioStatus] = useState<OrbitAudioStatus>("idle");
+  const [runtimeState, setRuntimeState] = useState<OrbitRuntimeState | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  sensitivityRef.current = settings.sensitivity;
 
-  const stopListening = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    sourceRef.current?.disconnect();
-    analyserRef.current?.disconnect();
-    sourceRef.current = null;
-    analyserRef.current = null;
-    streamRef.current = null;
-    metricsRef.current = EMPTY_ORBIT_METRICS;
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
-    setStatus((current) => (current === "denied" || current === "unavailable" ? current : "stopped"));
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
+    controlsTimerRef.current = window.setTimeout(() => setControlsVisible(false), 2_600);
   }, []);
 
-  const startListening = useCallback(async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setStatus("unavailable");
+  const createCanvas = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    stage.replaceChildren();
+    const canvas = document.createElement("canvas");
+    canvas.className = "orbit-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    stage.append(canvas);
+    return canvas;
+  }, []);
+
+  const createRenderer = useCallback(() => {
+    rendererRef.current?.dispose();
+    rendererRef.current = null;
+    const readAudio = (delta: number) => analyzerRef.current.sample(delta, sensitivityRef.current);
+    const createCanvasFallback = () => {
+      const canvas = createCanvas();
+      if (!canvas) throw new Error("Orbit stage is unavailable.");
+      rendererRef.current = new CanvasFallbackRenderer({ canvas, motion: settings.motion, readAudio });
+      setRuntimeState({ backend: "procedural", resolvedQuality: chooseInitialQuality(settings.quality), fallbackReason: "WebGL is unavailable." });
+    };
+    try {
+      if (!hasWebGL2Support()) createCanvasFallback();
+      else {
+        const canvas = createCanvas();
+        if (!canvas) return;
+        rendererRef.current = new OrbitRenderer({
+          canvas,
+          quality: settings.quality,
+          motion: settings.motion,
+          readAudio,
+          onState: setRuntimeState,
+          onFailure: () => setFailure("Orbit couldn't initialize the visual field."),
+        });
+      }
+      setFailure(null);
+    } catch {
+      try { createCanvasFallback(); setFailure(null); }
+      catch { rendererRef.current = null; setFailure("Orbit couldn't initialize the visual field."); }
+    }
+  }, [createCanvas, settings.motion, settings.quality]);
+
+  useEffect(() => {
+    const analyzer = analyzerRef.current;
+    createRenderer();
+    return () => {
+      rendererRef.current?.dispose();
+      rendererRef.current = null;
+      analyzer.stop();
+      if (controlsTimerRef.current !== null) window.clearTimeout(controlsTimerRef.current);
+    };
+    // Settings are applied incrementally by the effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    rendererRef.current?.setQuality(settings.quality);
+    rendererRef.current?.setMotion(settings.motion);
+    saveOrbitSettings(settings);
+  }, [settings]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setSettingsOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const toggleAudio = useCallback(async () => {
+    if (analyzerRef.current.status === "listening") {
+      analyzerRef.current.stop();
+      setAudioStatus("idle");
+      revealControls();
       return;
     }
-    try {
-      stopListening();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      });
-      const audioContext = new AudioContext();
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 1024;
-      analyser.smoothingTimeConstant = Math.max(0.45, Math.min(0.95, smoothing));
-      const source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
-      streamRef.current = stream;
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
-      sourceRef.current = source;
-      setStatus("listening");
-    } catch (error) {
-      setStatus(fallbackStatus(error, Boolean(window.AudioContext && navigator.mediaDevices?.getUserMedia)));
-    }
-  }, [smoothing, stopListening]);
+    setAudioStatus("requesting");
+    setAudioStatus(await analyzerRef.current.start());
+    revealControls();
+  }, [revealControls]);
 
-  useEffect(() => {
-    if (analyserRef.current) analyserRef.current.smoothingTimeConstant = clamp(smoothing, 0.45, 0.95);
-  }, [smoothing]);
+  const updateSettings = useCallback((next: OrbitSettings) => { setSettings(next); revealControls(); }, [revealControls]);
 
-  useEffect(() => {
-    localStorage.setItem("void.orbit.sensitivity", String(sensitivity));
-    localStorage.setItem("void.orbit.smoothing", String(smoothing));
-    localStorage.setItem("void.orbit.intensity", String(intensity));
-  }, [intensity, sensitivity, smoothing]);
-
-  useEffect(() => {
-    let raf = 0;
-    const frequencyData = new Uint8Array(512);
-    const draw = (time: number) => {
-      const canvas = canvasRef.current;
-      const context = canvas?.getContext("2d");
-      if (!canvas || !context) {
-        raf = requestAnimationFrame(draw);
-        return;
-      }
-
-      const rect = canvas.getBoundingClientRect();
-      const scale = window.devicePixelRatio || 1;
-      const width = Math.max(320, Math.floor(rect.width * scale));
-      const height = Math.max(320, Math.floor(rect.height * scale));
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-
-      const analyser = analyserRef.current;
-      if (analyser && status === "listening" && !frozen) {
-        analyser.getByteFrequencyData(frequencyData);
-        metricsRef.current = {
-          volume: averageFrequencyRange(frequencyData, 0, frequencyData.length),
-          bass: averageFrequencyRange(frequencyData, 2, 12),
-          mid: averageFrequencyRange(frequencyData, 12, 80),
-          high: averageFrequencyRange(frequencyData, 80, 220),
-        };
-      } else if (!frozen) {
-        metricsRef.current = EMPTY_ORBIT_METRICS;
-      }
-
-      smoothedRef.current = smoothMetrics(smoothedRef.current, metricsRef.current, smoothing);
-
-      const metrics = smoothedRef.current;
-      const reactive = status === "listening" && !frozen;
-      const idleBreath = 0.5 + Math.sin(time * 0.0012) * 0.5;
-      const amplitude = reactive ? normalizeAmplitude(metrics.volume, sensitivity) : idleBreath * 0.1;
-      const bass = reactive ? metrics.bass * sensitivity : idleBreath * 0.08;
-      const mid = reactive ? metrics.mid * sensitivity : 0.05 + idleBreath * 0.04;
-      const high = reactive ? metrics.high * sensitivity : 0.04;
-      const cx = width / 2;
-      const cy = height / 2;
-      const minSide = Math.min(width, height);
-      const baseRadius = minSide * 0.275;
-      const orbRadius = baseRadius * (1 + amplitude * 0.22 * intensity);
-      const pointCount = 180;
-
-      context.clearRect(0, 0, width, height);
-      const background = context.createRadialGradient(cx, cy, 0, cx, cy, minSide * 0.72);
-      background.addColorStop(0, "#10100e");
-      background.addColorStop(0.46, "#080807");
-      background.addColorStop(1, "#040403");
-      context.fillStyle = background;
-      context.fillRect(0, 0, width, height);
-
-      const halo = context.createRadialGradient(cx, cy, orbRadius * 0.25, cx, cy, orbRadius * (2.25 + amplitude));
-      halo.addColorStop(0, `rgba(248, 246, 238, ${0.2 + amplitude * 0.28})`);
-      halo.addColorStop(0.34, `rgba(232, 228, 218, ${0.08 + bass * 0.22})`);
-      halo.addColorStop(1, "rgba(232, 228, 218, 0)");
-      context.fillStyle = halo;
-      context.beginPath();
-      context.arc(cx, cy, orbRadius * (2.4 + amplitude), 0, Math.PI * 2);
-      context.fill();
-
-      context.save();
-      context.globalCompositeOperation = "lighter";
-      for (let filament = 0; filament < 18; filament += 1) {
-        const orbit = time * (0.00008 + filament * 0.000004) + filament * 0.72;
-        const stretch = 1.18 + Math.sin(filament * 2.1) * 0.18 + high * 0.28;
-        const alpha = 0.025 + amplitude * 0.05 + (filament % 3) * 0.006;
-        context.beginPath();
-        context.ellipse(cx, cy, orbRadius * stretch, orbRadius * (0.34 + bass * 0.24), orbit, 0, Math.PI * 2);
-        context.strokeStyle = `rgba(248, 246, 238, ${alpha})`;
-        context.lineWidth = (0.7 + high * 1.2) * scale;
-        context.shadowColor = "rgba(248, 246, 238, 0.42)";
-        context.shadowBlur = (12 + amplitude * 24) * scale;
-        context.stroke();
-      }
-      context.restore();
-
-      for (let layer = 4; layer >= 0; layer -= 1) {
-        const layerShift = layer * 0.56;
-        const alpha = 0.08 + (4 - layer) * 0.045 + amplitude * 0.08;
-        context.beginPath();
-        for (let index = 0; index <= pointCount; index += 1) {
-          const angle = (index / pointCount) * Math.PI * 2;
-          const organic =
-            Math.sin(angle * 3 + time * 0.0015 + layerShift) * (10 + mid * 38) +
-            Math.sin(angle * 7 - time * 0.0019 + layerShift) * (6 + high * 30) +
-            Math.sin(angle * 13 + time * 0.0009) * (3 + bass * 22);
-          const radius = orbRadius + organic * intensity + layer * (5 + amplitude * 8);
-          const x = cx + Math.cos(angle) * radius;
-          const y = cy + Math.sin(angle) * radius;
-          if (index === 0) context.moveTo(x, y);
-          else context.lineTo(x, y);
-        }
-        context.closePath();
-        context.strokeStyle = `rgba(247, 245, 238, ${alpha})`;
-        context.lineWidth = (layer === 0 ? 2.2 : 1) * scale;
-        context.shadowColor = "rgba(248, 246, 238, 0.48)";
-        context.shadowBlur = (18 + amplitude * 34 + layer * 4) * scale;
-        context.stroke();
-      }
-
-      context.shadowBlur = 0;
-      const core = context.createRadialGradient(cx - orbRadius * 0.22, cy - orbRadius * 0.28, 0, cx, cy, orbRadius);
-      core.addColorStop(0, `rgba(255, 254, 248, ${0.28 + amplitude * 0.18})`);
-      core.addColorStop(0.42, `rgba(214, 211, 203, ${0.1 + mid * 0.12})`);
-      core.addColorStop(1, "rgba(10, 10, 9, 0.02)");
-      context.fillStyle = core;
-      context.beginPath();
-      context.arc(cx, cy, orbRadius * 0.96, 0, Math.PI * 2);
-      context.fill();
-
-      context.globalAlpha = 0.16 + high * 0.35;
-      context.strokeStyle = "#f7f5ee";
-      context.lineWidth = scale;
-      for (let ring = 0; ring < 5; ring += 1) {
-        const radius = orbRadius * (0.42 + ring * 0.13 + Math.sin(time * 0.0008 + ring) * 0.018);
-        context.beginPath();
-        context.ellipse(cx, cy, radius * (1.05 + mid * 0.2), radius * (0.48 + bass * 0.28), time * 0.0004 + ring * 0.74, 0, Math.PI * 2);
-        context.stroke();
-      }
-      context.globalAlpha = 1;
-
-      for (let spark = 0; spark < 44; spark += 1) {
-        const seed = spark * 91.7;
-        const angle = seed + time * (0.00012 + high * 0.0002);
-        const radius = orbRadius * (0.3 + ((Math.sin(seed) + 1) / 2) * (1.5 + amplitude * 0.6));
-        const alpha = 0.08 + ((Math.sin(time * 0.002 + seed) + 1) / 2) * (0.14 + high * 0.26);
-        context.fillStyle = `rgba(250, 248, 241, ${alpha})`;
-        context.fillRect(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius, 1.4 * scale, 1.4 * scale);
-      }
-
-      raf = requestAnimationFrame(draw);
-    };
-
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [frozen, intensity, sensitivity, smoothing, status]);
-
-  useEffect(() => stopListening, [stopListening]);
-
-  const modeLabel = frozen ? "frozen" : status === "listening" ? "reactive" : "idle";
-  const permissionLabel = status === "denied" ? "microphone denied" : status === "unavailable" ? "audio unavailable" : status;
-
-  return (
-    <section className="orbit-shell panel flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] px-4 py-2.5">
-        <div>
-          <h1 className="text-base font-semibold tracking-[-0.02em]">Orbit</h1>
-          <p className="text-[11px] text-[var(--muted)]">Audio-reactive presence, ice-white signal on old black.</p>
-        </div>
-        <div className="shrink-0 border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">
-          {modeLabel} / {permissionLabel}
-        </div>
-      </div>
-
-      <div className="grid min-h-0 flex-1 gap-3 p-3 xl:grid-cols-[1fr_248px]">
-        <div className="orbit-stage relative min-h-[420px] overflow-hidden bg-[#070706]">
-          <canvas ref={canvasRef} className="h-full min-h-[420px] w-full" />
-          <div className="pointer-events-none absolute inset-x-5 bottom-5 flex items-center justify-between gap-4 text-[11px] text-[var(--muted)]">
-            <span>source: {status === "listening" ? "microphone" : "procedural idle"}</span>
-            <span>gain {intensity.toFixed(1)} / smooth {smoothing.toFixed(2)}</span>
-          </div>
-        </div>
-
-        <aside className="flex min-h-0 flex-col gap-3 overflow-auto">
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
-            <div className="mb-3 text-sm text-[var(--muted)]">Audio</div>
-            <div className="grid gap-2">
-              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={startListening} disabled={status === "listening"}>
-                Start listening
-              </button>
-              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={stopListening} disabled={status !== "listening"}>
-                Stop listening
-              </button>
-              <button className="border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={() => setFrozen((value) => !value)}>
-                {frozen ? "Resume reaction" : "Freeze reaction"}
-              </button>
-            </div>
-          </div>
-
-          <details className="border border-[var(--border)] bg-[var(--surface)] p-3">
-            <summary className="cursor-pointer text-sm text-[var(--muted)]">Visual tuning</summary>
-            <div className="mt-3 space-y-3 text-xs">
-              <label className="block">
-                Sensitivity {sensitivity.toFixed(2)}
-                <input className="w-full" type="range" min={0.4} max={2.4} step={0.05} value={sensitivity} onChange={(event) => setSensitivity(Number(event.target.value))} />
-              </label>
-              <label className="block">
-                Smoothing {smoothing.toFixed(2)}
-                <input className="w-full" type="range" min={0.55} max={0.94} step={0.01} value={smoothing} onChange={(event) => setSmoothing(Number(event.target.value))} />
-              </label>
-              <label className="block">
-                Intensity {intensity.toFixed(2)}
-                <input className="w-full" type="range" min={0.35} max={1.8} step={0.05} value={intensity} onChange={(event) => setIntensity(Number(event.target.value))} />
-              </label>
-              <button className="w-full border border-[var(--border)] px-3 py-2 text-left hover:bg-[var(--surface2)] disabled:opacity-45" onClick={() => {
-                setSensitivity(1.15);
-                setSmoothing(0.78);
-                setIntensity(1);
-                setFrozen(false);
-              }}>
-                Reset visuals
-              </button>
-            </div>
-          </details>
-
-          {(status === "denied" || status === "unavailable") && (
-            <div className="border border-[var(--border)] bg-[var(--surface2)] p-3 text-xs text-[var(--muted)]">
-              Orbit is running in idle mode. Check microphone permissions, then start listening again when available.
-            </div>
-          )}
-        </aside>
-      </div>
-    </section>
-  );
+  return <section
+    className="orbit-shell"
+    aria-label="Orbit, an interactive audio-reactive particle field"
+    onPointerMove={(event) => { rendererRef.current?.pointerMove(event.clientX, event.clientY); revealControls(); }}
+    onPointerLeave={() => rendererRef.current?.pointerLeave()}
+    onFocusCapture={revealControls}
+  >
+    <div ref={stageRef} className="absolute inset-0" aria-hidden="true" />
+    {failure && <div className="orbit-failure" role="alert"><p>{failure}</p><button type="button" onClick={createRenderer}>Retry</button></div>}
+    <OrbitControlsMinimal
+      visible={controlsVisible}
+      settingsOpen={settingsOpen}
+      audioStatus={audioStatus}
+      runtimeState={runtimeState}
+      settings={settings}
+      onToggleAudio={() => void toggleAudio()}
+      onToggleSettings={() => { setSettingsOpen((open) => !open); revealControls(); }}
+      onCloseSettings={() => setSettingsOpen(false)}
+      onSettingsChange={updateSettings}
+    />
+  </section>;
 }
