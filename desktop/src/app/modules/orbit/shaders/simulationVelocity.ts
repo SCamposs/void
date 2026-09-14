@@ -60,7 +60,7 @@ void main() {
   float atmosphere = step(0.5, population);
   float wisp = step(1.5, population);
   float breathing = sin(uTime * 0.31 + seed * 4.2) * 0.018 + sin(uTime * 0.173 + seed * 8.7) * 0.012;
-  float audioPressure = uBass * (0.018 + 0.018 * sin(seed * 19.0 + uTime * 2.1));
+  float audioPressure = uBass * (0.052 + 0.024 * sin(seed * 19.0 + uTime * 2.1)) + uOverall * 0.012;
   float desiredRadius = targetRadius * (1.0 + breathing * motionScale + audioPressure);
 
   vec3 homeFlow = curlNoise(home * 1.7 + seed, uTime * 0.075 + seed * 3.0);
@@ -74,7 +74,7 @@ void main() {
   float tangentLength = length(tangent);
   if (tangentLength > 0.0001) tangent /= tangentLength;
   float flowStrength = mix(0.16, 0.25, atmosphere) + wisp * 0.12;
-  flowStrength *= motionScale * (1.0 + uMid * 0.58);
+  flowStrength *= motionScale * (1.0 + uMid * 1.65);
 
   float spring = mix(2.8, 1.45, atmosphere) - wisp * 0.72;
   vec3 radialForce = normal * (desiredRadius - radius) * spring;
@@ -92,9 +92,9 @@ void main() {
 
   float waveRadius = uTransientAge * 1.85;
   float wave = exp(-pow((radius - waveRadius) * 8.0, 2.0)) * uTransient;
-  acceleration += normal * wave * 1.05 * mix(0.15, 1.0, 1.0 - uReducedMotion);
-  acceleration += curlNoise(position * 4.3 + seed, -uTime * 0.41) * uHigh * (0.014 + wisp * 0.022) * motionScale;
-  acceleration += normal * uOverall * 0.02 * (0.5 + seed);
+  acceleration += normal * wave * 2.2 * mix(0.15, 1.0, 1.0 - uReducedMotion);
+  acceleration += curlNoise(position * 4.3 + seed, -uTime * 0.41) * uHigh * (0.046 + wisp * 0.058) * motionScale;
+  acceleration += normal * uOverall * 0.065 * (0.5 + seed);
 
   velocity += acceleration * delta;
   float damping = mix(1.74, 1.34, atmosphere) - wisp * 0.18;

@@ -13,6 +13,7 @@ describe("Orbit audio and interaction signals", () => {
   it("uses RMS-like normalized band energy and a quiet floor", () => {
     expect(averageNormalizedBins(new Uint8Array([0, 255, 0, 255]), 0, 4)).toBeCloseTo(Math.SQRT1_2);
     expect(gateAndNormalize(0.02, 0.035, 2)).toBe(0);
+    expect(gateAndNormalize(0.08, 0.012, 1)).toBeGreaterThan(0.35);
     expect(gateAndNormalize(1, 0.035, 2)).toBe(1);
   });
 
