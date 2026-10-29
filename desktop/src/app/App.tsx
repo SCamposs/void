@@ -5,7 +5,7 @@ import { useAppStore, type ModuleId } from "./store/appStore";
 import { TypingModule } from "./modules/typing/TypingModule";
 import { StackerModule } from "./modules/stacker/StackerModule";
 import { BootIntro } from "./components/intro/BootIntro";
-import { UpdateDot } from "./modules/updater/UpdatePanel";
+import { UpdateDialog, UpdateDot } from "./modules/updater/UpdatePanel";
 import { scheduleUpdateChecks, useUpdateStore } from "./modules/updater/updateStore";
 import { Button, Input, ScrollSurface, Tooltip, TooltipProvider } from "./components/ui/Controls";
 import { VoidMark } from "./components/ui/VoidMark";
@@ -20,7 +20,7 @@ const destinations = [
   { id: "typing", label: "Typing", icon: Keyboard, detail: "Find your rhythm, one word at a time." },
   { id: "orbit", label: "Orbit", icon: AudioLines, detail: "A visual instrument that responds to sound." },
   { id: "stacker", label: "Stacker", icon: Layers3, detail: "Make room for the next piece." },
-  { id: "settings", label: "Settings", icon: Settings, detail: "Appearance, updates and your local data." },
+  { id: "settings", label: "Settings", icon: Settings, detail: "Updates and your local data." },
 ] as const;
 
 function Home({ jump }: { jump(module: ModuleId): void }) {
@@ -37,6 +37,7 @@ export function App() {
   const { module, setModule, sidebarCollapsed, toggleSidebar } = useAppStore();
   const updateAvailable = useUpdateStore((state) => state.status === "available");
   const checkForUpdates = useUpdateStore((state) => state.checkForUpdates);
+  const automaticChecks = useUpdateStore((state) => state.automaticChecks);
   const [showIntro, setShowIntro] = useState(true);
   const [showPalette, setShowPalette] = useState(false);
   const [query, setQuery] = useState("");
@@ -47,7 +48,7 @@ export function App() {
     const timer = window.setTimeout(() => setShowIntro(false), reduced ? 0 : 3200);
     return () => window.clearTimeout(timer);
   }, []);
-  useEffect(() => scheduleUpdateChecks(checkForUpdates), [checkForUpdates]);
+  useEffect(() => automaticChecks ? scheduleUpdateChecks(checkForUpdates) : undefined, [automaticChecks, checkForUpdates]);
   useEffect(() => {
     const open = () => setShowPalette(true);
     const key = (event: KeyboardEvent) => {
@@ -70,7 +71,7 @@ export function App() {
     <header className="void-titlebar" data-tauri-drag-region>
       <Button className="void-wordmark" onClick={() => jump("home")} aria-label="Open Home"><VoidMark /><span>VOID</span></Button>
       <div className="titlebar-drag-space" data-tauri-drag-region />
-      {updateAvailable && <Tooltip label="An update is ready"><Button className="titlebar-update" onClick={() => jump("settings")} aria-label="View available update"><UpdateDot />Update ready</Button></Tooltip>}
+      {updateAvailable && <Tooltip label="An update is ready"><Button className="titlebar-update" onClick={() => useUpdateStore.getState().setDialogOpen(true)} aria-label="View available update"><UpdateDot />Update ready</Button></Tooltip>}
       <WindowControls />
     </header>
     <div className="void-shell">
@@ -87,5 +88,6 @@ export function App() {
       <div className="palette-results">{destinations.filter((item) => `${item.label} ${item.detail}`.toLowerCase().includes(query.toLowerCase())).map(({ id, label, icon: Icon, detail }) => <Button key={id} onClick={() => jump(id)}><Icon size={18} aria-hidden="true" /><span><strong>{label}</strong><small>{detail}</small></span><ArrowRight size={15} aria-hidden="true" /></Button>)}{!destinations.some((item) => `${item.label} ${item.detail}`.toLowerCase().includes(query.toLowerCase())) && <p role="status">No modules found.</p>}</div>
     </Dialog.Popup></Dialog.Portal></Dialog.Root>
     <BootIntro visible={showIntro} onSkip={() => setShowIntro(false)} />
+    <UpdateDialog enabled={!showIntro} />
   </div></TooltipProvider>;
 }

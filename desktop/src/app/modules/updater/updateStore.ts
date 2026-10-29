@@ -3,7 +3,12 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { create } from "zustand";
 
-export const UPDATE_CHECK_INTERVAL_MS = 2 * 60 * 60 * 1_000;
+export const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1_000;
+const PREFERENCE_KEY = "void.updates.automatic.v1";
+
+function readAutomaticChecks(): boolean {
+  try { return localStorage.getItem(PREFERENCE_KEY) !== "false"; } catch { return true; }
+}
 
 export type UpdateStatus =
   | "idle"
@@ -12,12 +17,13 @@ export type UpdateStatus =
   | "available"
   | "downloading"
   | "installing"
+  | "readyToRestart"
   | "unavailable";
 
 export type UpdateCandidate = Pick<
   Update,
   "body" | "currentVersion" | "date" | "downloadAndInstall" | "version"
->;
+> & { close?: () => Promise<void> };
 
 export type UpdaterDependencies = {
   isDesktop: () => boolean;
@@ -33,6 +39,12 @@ export type UpdateState = {
   contentLength: number | null;
   error: string | null;
   lastCheckedAt: string | null;
+  automaticChecks: boolean;
+  dialogOpen: boolean;
+  notifiedVersion: string | null;
+  setAutomaticChecks: (enabled: boolean) => void;
+  setDialogOpen: (open: boolean) => void;
+  restartApp: () => Promise<void>;
   checkForUpdates: () => Promise<void>;
   installUpdate: () => Promise<void>;
 };
@@ -56,10 +68,27 @@ export function createUpdateStore(dependencies: UpdaterDependencies = defaultDep
     contentLength: null,
     error: null,
     lastCheckedAt: null,
+    automaticChecks: readAutomaticChecks(),
+    dialogOpen: false,
+    notifiedVersion: null,
+    setAutomaticChecks: (automaticChecks) => {
+      try { localStorage.setItem(PREFERENCE_KEY, String(automaticChecks)); } catch { /* Session preference still works. */ }
+      set({ automaticChecks });
+    },
+    setDialogOpen: (dialogOpen) => {
+      if (!dialogOpen && ["downloading", "installing"].includes(get().status)) return;
+      set({ dialogOpen });
+    },
+    restartApp: async () => {
+      if (get().status !== "readyToRestart") return;
+      set({ error: null, status: "installing" });
+      try { await dependencies.relaunch(); }
+      catch (error) { set({ status: "readyToRestart", error: messageFrom(error) }); }
+    },
 
     checkForUpdates: async () => {
       const current = get();
-      if (current.isChecking || ["downloading", "installing"].includes(current.status)) return;
+      if (current.isChecking || ["downloading", "installing", "readyToRestart"].includes(current.status)) return;
       if (!dependencies.isDesktop()) {
         set({ status: "unavailable" });
         return;
@@ -80,7 +109,10 @@ export function createUpdateStore(dependencies: UpdaterDependencies = defaultDep
           contentLength: null,
           error: null,
           lastCheckedAt: new Date().toISOString(),
+          ...(candidate && candidate.version !== get().notifiedVersion
+            ? { dialogOpen: true, notifiedVersion: candidate.version } : {}),
         });
+        if (current.candidate !== candidate) void current.candidate?.close?.().catch(() => undefined);
       } catch (error) {
         set({
           status: current.candidate ? "available" : "idle",
@@ -98,6 +130,7 @@ export function createUpdateStore(dependencies: UpdaterDependencies = defaultDep
 
       set({
         status: "downloading",
+        dialogOpen: true,
         downloadedBytes: 0,
         contentLength: null,
         error: null,
@@ -118,7 +151,8 @@ export function createUpdateStore(dependencies: UpdaterDependencies = defaultDep
           set({ status: "installing" });
         });
         set({ status: "installing" });
-        await dependencies.relaunch();
+        try { await dependencies.relaunch(); }
+        catch (error) { set({ status: "readyToRestart", error: messageFrom(error) }); }
       } catch (error) {
         set({ status: "available", error: messageFrom(error) });
       }

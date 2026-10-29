@@ -10,6 +10,7 @@ import "./app/styles/index.css";
 import "./app/styles/tokens.css";
 import "./app/styles/controls.css";
 import "./app/styles/shell.css";
+import "./app/styles/updates.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

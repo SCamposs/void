@@ -48,6 +48,14 @@ test("Settings removes legacy appearance and keeps safe data confirmation", asyn
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByText("App appearance", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("slider", { name: "Noise", exact: true })).toHaveCount(0);
+  const automaticUpdates = page.getByRole("switch", { name: "Check for updates automatically" });
+  await expect(automaticUpdates).toHaveAttribute("aria-checked", "true");
+  await automaticUpdates.click();
+  await expect(automaticUpdates).toHaveAttribute("aria-checked", "false");
+  await page.reload();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(automaticUpdates).toHaveAttribute("aria-checked", "false");
+  await automaticUpdates.click();
   await page.getByRole("button", { name: "Local data", exact: true }).click();
   const importAction = page.getByRole("button", { name: "Import app data", exact: true });
   await importAction.focus();

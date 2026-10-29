@@ -1,88 +1,55 @@
-import { Button, Disclosure, DisclosureBody, DisclosureTitle, Progress } from "../../components/ui/Controls";
+import { useRef } from "react";
+import { Dialog } from "@base-ui/react/dialog";
+import { Button, Disclosure, DisclosureBody, DisclosureTitle, Progress, SwitchControl } from "../../components/ui/Controls";
 import { useUpdateStore } from "./updateStore";
 
-function formatProgress(downloadedBytes: number, contentLength: number | null): string {
-  if (!contentLength) return "Downloading update...";
-  const percentage = Math.min(100, Math.round((downloadedBytes / contentLength) * 100));
-  return `Downloading update... ${percentage}%`;
-}
+const APP_NAME = "VOID";
 
 export function UpdateDot() {
   return <span className="update-dot" aria-hidden="true" />;
 }
 
 export function UpdatePanel() {
-  const status = useUpdateStore((state) => state.status);
-  const isChecking = useUpdateStore((state) => state.isChecking);
-  const candidate = useUpdateStore((state) => state.candidate);
-  const downloadedBytes = useUpdateStore((state) => state.downloadedBytes);
-  const contentLength = useUpdateStore((state) => state.contentLength);
-  const error = useUpdateStore((state) => state.error);
-  const lastCheckedAt = useUpdateStore((state) => state.lastCheckedAt);
-  const checkForUpdates = useUpdateStore((state) => state.checkForUpdates);
-  const installUpdate = useUpdateStore((state) => state.installUpdate);
-
-  const busy = isChecking || status === "downloading" || status === "installing";
-  const statusText = status === "checking"
-    ? "Checking for updates..."
-    : status === "upToDate"
-      ? "VOID is up to date."
-      : status === "available" && candidate
-        ? `Version ${candidate.version} is available. VOID will restart automatically after installation.`
-        : status === "downloading"
-          ? formatProgress(downloadedBytes, contentLength)
-          : status === "installing"
-            ? "Installing update and preparing to restart..."
-            : status === "unavailable"
-              ? "Update checks run in the installed desktop app."
-              : "Automatic update checks are ready.";
-
-  return <section className="border border-[var(--border)] p-4" aria-labelledby="app-updates-title">
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <div className="flex items-center gap-2">
-          <h2 id="app-updates-title" className="font-medium">App updates</h2>
-          {status === "available" && <UpdateDot />}
-        </div>
-        <p className="mt-2 max-w-[68ch] text-xs leading-5 text-[var(--muted)]">
-          VOID checks GitHub when the app opens and every 2 hours. No usage data is sent.
-        </p>
-      </div>
-
-      {status === "available" && candidate ? (
-        <Button
-          className="border border-[var(--accent)] bg-[var(--accent)] px-3 py-2 text-sm text-[var(--bg)] hover:opacity-90 disabled:opacity-50"
-          onClick={() => void installUpdate()}
-          disabled={busy}
-        >
-          Install and restart
-        </Button>
-      ) : (
-        <Button
-          className="border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface2)] disabled:cursor-wait disabled:opacity-50"
-          onClick={() => void checkForUpdates()}
-          disabled={busy || status === "unavailable"}
-        >
-          {isChecking ? "Checking..." : "Check now"}
-        </Button>
-      )}
+  const state = useUpdateStore();
+  const busy = state.isChecking || ["downloading", "installing", "readyToRestart"].includes(state.status);
+  const checkNow = async () => {
+    await state.checkForUpdates();
+    if (useUpdateStore.getState().candidate) state.setDialogOpen(true);
+  };
+  return <section className="update-settings" aria-labelledby="app-updates-title">
+    <div className="update-heading"><h2 id="app-updates-title">App updates</h2>
+      {state.candidate
+        ? <Button className="is-secondary" onClick={() => state.setDialogOpen(true)}>View update</Button>
+        : <Button className="is-secondary" onClick={() => void checkNow()} disabled={busy || state.status === "unavailable"}>{state.isChecking ? "Checking…" : "Check now"}</Button>}
     </div>
-
-    <div className="mt-4 border-t border-[var(--border)] pt-3 text-xs" role="status" aria-live="polite">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span>{statusText}</span>
-        {lastCheckedAt && <span className="text-[var(--subtle)]">Last checked {new Date(lastCheckedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
-      </div>
-      {status === "downloading" && contentLength && (
-        <Progress className="mt-3 h-1 w-full" max={contentLength} value={downloadedBytes} aria-label="Update download progress" />
-      )}
-      {candidate?.body && status === "available" && (
-        <Disclosure className="mt-3 text-[var(--muted)]">
-          <DisclosureTitle className="cursor-pointer">Release notes</DisclosureTitle><DisclosureBody>
-          <p className="mt-2 max-w-[68ch] whitespace-pre-wrap leading-5">{candidate.body}</p>
-        </DisclosureBody></Disclosure>
-      )}
-      {error && <p className="mt-3 text-[#d9aaa3]">Update check failed: {error}</p>}
-    </div>
+    <label className="update-preference"><span><strong>Check automatically</strong><small>Check when {APP_NAME} opens and every hour. Installation always needs your approval.</small></span>
+      <SwitchControl checked={state.automaticChecks} onCheckedChange={state.setAutomaticChecks} label="Check for updates automatically" />
+    </label>
+    <p className="update-status" role="status">{state.status === "unavailable" ? "Update checks are available in the installed app." : state.candidate ? `Version ${state.candidate.version} is available.` : state.isChecking ? "Checking for updates…" : state.error ? "Could not check for updates. Try again when you are online." : state.status === "upToDate" ? `${APP_NAME} is up to date.` : state.automaticChecks ? "Automatic checks are enabled." : "Manual checks only. Use Check now when you want to look for a new version."}</p>
+    {state.lastCheckedAt && <small className="update-last-checked">Last checked {new Date(state.lastCheckedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>}
   </section>;
+}
+
+/** Mounted once at app level so download progress survives navigation. */
+export function UpdateDialog({ enabled = true }: { enabled?: boolean }) {
+  const state = useUpdateStore();
+  const laterRef = useRef<HTMLButtonElement>(null);
+  const busy = state.status === "downloading" || state.status === "installing";
+  const percentage = state.contentLength ? Math.min(100, Math.round(state.downloadedBytes / state.contentLength * 100)) : null;
+  const title = state.status === "downloading" ? "Downloading update" : state.status === "installing" ? "Installing update" : state.status === "readyToRestart" ? "Restart to finish" : "An update is available";
+  return <Dialog.Root open={enabled && state.dialogOpen && !!state.candidate} onOpenChange={state.setDialogOpen} disablePointerDismissal={busy}>
+    <Dialog.Portal><Dialog.Backdrop className="update-dialog-backdrop" /><Dialog.Popup className="update-dialog" initialFocus={laterRef}>
+      <Dialog.Title>{title}</Dialog.Title>
+      <Dialog.Description>{busy ? state.status === "downloading" ? `Downloading ${APP_NAME} ${state.candidate?.version}. Keep the app open.` : `${APP_NAME} will close and restart to finish installing. This may take a moment.` : state.status === "readyToRestart" ? `The update is installed. Restart ${APP_NAME} to finish.` : `${APP_NAME} ${state.candidate?.version} is ready. Finish your current work before continuing. The app will close and restart during installation.`}</Dialog.Description>
+      <div className="update-dialog-status" role="status" aria-live="polite">
+        {state.status === "downloading" && <><p>{percentage === null ? `${(state.downloadedBytes / 1048576).toFixed(1)} MB downloaded` : `${percentage}% downloaded`}</p><Progress value={state.contentLength ? state.downloadedBytes : null} max={state.contentLength ?? 100} aria-label="Update download progress" /></>}
+        {state.status === "installing" && <p>Installing and preparing to restart…</p>}
+      </div>
+      {state.candidate?.body && !busy && <Disclosure className="update-notes"><DisclosureTitle>What’s new</DisclosureTitle><DisclosureBody><p>{state.candidate.body}</p></DisclosureBody></Disclosure>}
+      {state.error && <p className="update-error" role="alert">{state.status === "readyToRestart" ? "The app could not restart. Try again, or close and reopen it." : "The update could not be completed. Your installed version is still available. Check your connection and try again."}</p>}
+      <div className="update-dialog-actions"><Button ref={laterRef} className="is-secondary" disabled={busy} onClick={() => state.setDialogOpen(false)}>Later</Button>
+        <Button className="is-primary" disabled={busy || state.isChecking} onClick={() => void (state.status === "readyToRestart" ? state.restartApp() : state.installUpdate())}>{busy ? "Updating…" : state.status === "readyToRestart" ? "Restart now" : state.error ? "Retry update" : "Update and restart"}</Button>
+      </div>
+    </Dialog.Popup></Dialog.Portal>
+  </Dialog.Root>;
 }

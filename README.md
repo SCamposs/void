@@ -11,8 +11,10 @@ Module-specific refinements remain a subsequent phase. Native visual/installer
 acceptance is tracked in [issue #2](https://github.com/SCamposs/void/issues/2).
 
 Installed builds check the official GitHub updater feed when VOID opens and
-every two hours. Downloads and installation only begin after the user selects
-the available update.
+every hour. Settings can disable automatic checks in favor of manual checks.
+The VOID update dialog shows the available version, requests approval to update
+and restart, and displays download progress. Downloads and installation only
+begin after confirmation. Windows updates use a quiet per-user installation.
 
 ## Product direction
 

@@ -83,8 +83,8 @@ export function DisclosureBody({ children }: { children: ReactNode }) {
 export function ScrollSurface({ children, className = "", label }: { children: ReactNode; className?: string; label: string }) {
   return <ScrollArea.Root className={`void-scroll-area ${className}`}><ScrollArea.Viewport className="void-scroll-viewport" aria-label={label}><ScrollArea.Content>{children}</ScrollArea.Content></ScrollArea.Viewport><ScrollArea.Scrollbar className="void-scrollbar"><ScrollArea.Thumb className="void-scroll-thumb" /></ScrollArea.Scrollbar></ScrollArea.Root>;
 }
-export function Progress({ value, max = 100, className = "", "aria-label": label }: { value: number; max?: number; className?: string; "aria-label": string }) {
-  return <BaseProgress.Root value={max > 0 ? value / max * 100 : 0} aria-label={label} className={`void-progress ${className}`}><BaseProgress.Track><BaseProgress.Indicator /></BaseProgress.Track></BaseProgress.Root>;
+export function Progress({ value, max = 100, className = "", "aria-label": label }: { value: number | null; max?: number; className?: string; "aria-label": string }) {
+  return <BaseProgress.Root value={value === null ? null : max > 0 ? value / max * 100 : 0} aria-label={label} className={`void-progress ${className}`}><BaseProgress.Track><BaseProgress.Indicator /></BaseProgress.Track></BaseProgress.Root>;
 }
 export function Tooltip({ label, children }: { label: string; children: React.ReactElement }) {
   return <BaseTooltip.Root><BaseTooltip.Trigger render={children} /><BaseTooltip.Portal><BaseTooltip.Positioner sideOffset={8} className="void-tooltip-positioner"><BaseTooltip.Popup className="void-tooltip">{label}</BaseTooltip.Popup></BaseTooltip.Positioner></BaseTooltip.Portal></BaseTooltip.Root>;

@@ -8,13 +8,15 @@ developer machine.
 
 1. Confirm the same version in `desktop/package.json`,
    `desktop/src-tauri/Cargo.toml`, and `desktop/src-tauri/tauri.conf.json`.
-2. Run the local validation commands below.
+2. Update both lockfiles and write curated notes in `docs/releases/<tag>.md`.
+   Include downloads, notable changes, fixes/removals, and known limitations.
+   Keep alpha/beta/rc versions marked as prereleases. Run the local validation commands below.
 3. Commit the release-ready changes through your normal review process.
 4. Create and push a matching version tag:
 
    ```text
-   git tag v0.1.4-alpha
-   git push origin v0.1.4-alpha
+   git tag -a v0.3.0-alpha -m "VOID v0.3.0-alpha: Visual Foundation"
+   git push origin v0.3.0-alpha
    ```
 
 The `Desktop release` workflow checks out that exact tag, validates the app on
