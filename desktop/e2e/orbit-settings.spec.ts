@@ -80,3 +80,32 @@ test("Orbit settings contain fields, preserve controls and dismiss nested layers
   await expect(panel.getByRole("combobox", { name: "Motion", exact: true })).toContainText("Calm");
   await expect(panel.getByRole("combobox", { name: "Quality", exact: true })).toContainText("Performance");
 });
+
+test("Orbit microphone failure stays readable without overlapping settings", async ({ page }, testInfo) => {
+  // A denied browser permission fixture, never a real microphone request.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: {
+      getUserMedia: () => Promise.reject(new DOMException("Permission denied", "NotAllowedError")),
+    } });
+  });
+  await page.setViewportSize({ width: 720, height: 560 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Orbit", exact: true }).click();
+  await page.locator(".orbit-shell").hover({ position: { x: 20, y: 20 } });
+  await page.getByRole("button", { name: "Turn microphone on", exact: true }).click();
+  await expect(page.locator(".orbit-audio-notice")).toBeVisible();
+  await page.getByRole("button", { name: "Open Orbit settings", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "Orbit settings", exact: true });
+  const notice = panel.getByRole("status");
+  await expect(notice).toHaveText("Microphone unavailable. Orbit continues without audio input.");
+  await expect(page.locator(".orbit-audio-notice")).toHaveCount(0);
+  await expectFieldsContained(panel);
+  const bounds = (await panel.boundingBox())!;
+  const note = (await notice.boundingBox())!;
+  expect(note.y + note.height).toBeLessThanOrEqual(bounds.y + bounds.height - 16);
+  expect(bounds.y).toBeGreaterThanOrEqual(15);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(545);
+  await page.screenshot({ path: testInfo.outputPath("orbit-settings-microphone-unavailable.png") });
+  await panel.getByRole("button", { name: "Close Orbit settings" }).click();
+  await expect(page.locator(".orbit-audio-notice")).toBeVisible();
+});

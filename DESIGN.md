@@ -37,6 +37,12 @@ The validation workflow runs unit/type/lint/build checks, headless browser inter
 
 Refine Orbit, Typing, Stacker and embedded Mind individually, using these shared primitives and tokens. Preserve their domain behavior while reviewing each layout and specialized interaction against its own purpose.
 
+### Orbit settings: first module pass
+
+The first refinement is limited to Orbit's floating settings and action controls. The overflow came from a 150px shell override inside a 128px grid column. Orbit now owns a shrinkable field grid; the shell no longer sets its field widths. The panel uses shared color, spacing, radius and font tokens, consistent icons/tooltips, and a controlled Base UI Popover with collision-aware portal placement. Select options remain portalled and can extend outside the panel while staying inside the window.
+
+Base UI owns outside dismissal and layered Escape/focus behavior; the old module-wide Escape listener is removed. An unavailable-microphone notice lives inside the open panel, avoiding a second overlapping floating message. Rendering, simulation, quality selection, audio analysis and settings storage contracts remain unchanged. Browser checks run only on isolated CI, including field containment, supported small windows, text scaling, nested menus, persistence and a simulated denied-permission state. Native DPI and actual microphone permission/device behavior remain manual acceptance.
+
 ## Fixed identity amendment
 
 The App appearance customization section was removed at the maintainer's request. The new identity is fixed by shared tokens rather than by the old theme settings. The shell no longer reads, migrates or writes legacy appearance preferences, and importing an older backup cannot restyle the application. Navigation collapse remains a functional preference. Specialized module controls remain within their existing scope.

@@ -35,6 +35,8 @@ export function OrbitControlsMinimal({
 }: OrbitControlsMinimalProps) {
   const listening = audioStatus === "listening";
   const audioLabel = listening ? "Turn microphone off" : audioStatus === "requesting" ? "Requesting microphone access" : "Turn microphone on";
+  const audioUnavailable = audioStatus === "denied" || audioStatus === "unavailable";
+  const audioNotice = "Microphone unavailable. Orbit continues without audio input.";
   return <Popover.Root open={settingsOpen} onOpenChange={onSettingsOpenChange}><div className={`orbit-controls ${visible || settingsOpen ? "is-visible" : ""}`}>
     <Popover.Portal><Popover.Positioner className="orbit-settings-positioner" side="top" align="end" sideOffset={12} collisionPadding={16}>
     <Popover.Popup className="orbit-settings">
@@ -80,11 +82,10 @@ export function OrbitControlsMinimal({
           ? "Reduced visual mode is active on this graphics device."
           : `${settings.quality === "auto" ? "Automatic" : "Current"} quality: ${QUALITY_LABELS[runtimeState.resolvedQuality]}.`}
       </p>}
+      {audioUnavailable && <p className="orbit-settings__audio-note" role="status">{audioNotice}</p>}
     </Popover.Popup></Popover.Positioner></Popover.Portal>
 
-    {(audioStatus === "denied" || audioStatus === "unavailable") && <p className="orbit-audio-notice" role="status">
-      Microphone unavailable. Orbit remains alive in quiet mode.
-    </p>}
+    {audioUnavailable && !settingsOpen && <p className="orbit-audio-notice" role="status">{audioNotice}</p>}
 
     <div className="orbit-controls__buttons">
       <Tooltip label={audioLabel}><Button

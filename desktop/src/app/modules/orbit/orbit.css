@@ -77,7 +77,8 @@
 .orbit-setting-row > span { min-width: 0; overflow-wrap: anywhere; }
 .orbit-setting-row .void-select { width: 100%; min-width: 0; font-size: .875rem; }
 .orbit-setting-range { display: grid; gap: var(--space-3); margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border); font-size: .8125rem; }
-.orbit-settings__note, .orbit-audio-notice { margin: var(--space-3) 0 0; color: var(--muted); font-size: .75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.orbit-settings__note, .orbit-settings__audio-note, .orbit-audio-notice { margin: var(--space-3) 0 0; color: var(--muted); font-size: .75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.orbit-settings__audio-note { padding-top: var(--space-3); border-top: 1px solid var(--border); }
 .orbit-audio-notice { position: absolute; right: 0; bottom: calc(100% + 12px); width: 250px; max-width: calc(100vw - 48px); padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); pointer-events: auto; }
 .orbit-failure { position: absolute; z-index: 3; inset: 50% auto auto 50%; width: min(320px, calc(100% - 40px)); transform: translate(-50%, -50%); color: var(--text); text-align: center; }
 .orbit-failure p { margin: 0 0 14px; font-size: .875rem; }
