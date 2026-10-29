@@ -169,6 +169,8 @@ jobs:
           cd release-assets
           sha256sum VOID-Linux-x64.deb > VOID-Linux-x64.deb.sha256
           sha256sum VOID-Linux-x64.AppImage > VOID-Linux-x64.AppImage.sha256
+          cd ../desktop
+          npm run tauri -- signer sign --password= ../release-assets/VOID-Linux-x64.deb
 
       - name: Preserve workflow artifacts
         uses: actions/upload-artifact@v7

@@ -38,3 +38,11 @@ The Windows candidate artifact is `VOID-visual-foundation-Windows-candidate`, co
 Earlier failed runs remain in the history. They exposed incorrect test expectations for a fresh unconfigured Mind screen and textual comparison of equivalent animated colors serialized in different CSS color spaces. The corrected checks retain real UI assertions and explicit RGBA/opacity requirements rather than ignoring failures.
 
 Later runs also exposed a real integration regression when rapidly entering the accented word `rápido` in Typing. The invisible gameplay keystroke capture retains a native input, while visible form controls use the shared Base UI foundation. Selector focus returns directly to that capture. The final browser suite passes the fixed accented-word case; failed runs were not hidden or accepted through retries.
+
+## Release checkpoint: v0.3.0-alpha
+
+The subsequent user-requested release adds startup/hourly checks, a persisted manual-only preference, and a Base UI update dialog with explicit update/restart consent and real download progress. NSIS explicitly installs for the current user and updater mode is quiet. This extends the original foundation-only checkpoint above.
+
+Application source `99e2b8c`, annotated tag `v0.3.0-alpha`, passed [visual validation 40921991266](https://github.com/SCamposs/void/actions/runs/40921991266), including 129 unit tests, six Chromium scenarios and two Rust tests. [Release 40922363639](https://github.com/SCamposs/void/actions/runs/40922363639) passed Windows/Linux validation, built NSIS/DEB/AppImage packages and published the release plus updater feed.
+
+Downloaded packages matched all three SHA-256 files without executing/installing them. A separately signed DEB asset and explicit DEB/AppImage feed routes complete Linux package-format routing. The same preparation is now part of the main release workflow; no tagged application binary was replaced or tag rewritten. Native upgrade/restart acceptance remains issue #2.

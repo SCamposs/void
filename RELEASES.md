@@ -40,6 +40,7 @@ Each release contains:
 - `VOID-Windows-x64-setup.exe.sha256`
 - `VOID-Linux-x64.deb`
 - `VOID-Linux-x64.deb.sha256`
+- `VOID-Linux-x64.deb.sig`
 - `VOID-Linux-x64.AppImage`
 - `VOID-Linux-x64.AppImage.sig`
 - `VOID-Linux-x64.AppImage.sha256`
@@ -47,6 +48,11 @@ Each release contains:
 
 The stable filenames keep links and automation predictable. The same files are
 retained as workflow artifacts for diagnostics.
+
+The Linux feed has explicit `linux-x86_64-deb` and `linux-x86_64-appimage`
+entries so the updater selects the installed package format. The generic Linux
+entry remains an AppImage fallback for compatibility. DEB installation uses the
+system package manager and may request administrator authorization.
 
 ## Updater signing
 

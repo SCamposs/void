@@ -1,7 +1,7 @@
 {
   "version": "0.3.0-alpha",
   "notes": "See the GitHub release notes for v0.3.0-alpha.",
-  "pub_date": "2026-10-29T17:42:13.8098719Z",
+  "pub_date": "2026-10-29T17:44:12.9514039Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1F5YzNBOG1sV2VUMlAyOGVyYm9HL2VNOHNLS3Y4eG5lbUtXN2huVStLSEE1WVk1dmJINktPbExpRGs0bUxOUERHdFdvVUNadkJEaDZzWmxYRkFEandJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjk1NjEzCWZpbGU6Vk9JRF8wLjMuMC1hbHBoYV94NjQtc2V0dXAuZXhlCjUrdXRHMGczSzVUQmxuc3l6Ui9lMWV5dUNqSkRiR25nZXVhNlExWkZ0NTgrUS9jVmt4cE9iaDlsNmlOR0V5bDZ5VG1wT1ZwVUNRQ0FlbnNNWmpwYURBPT0K",
@@ -10,6 +10,14 @@
     "linux-x86_64": {
       "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1ZvNzlkdlIxMUVyY3UvdnNQWDBWV0pSVFNkRzFnS2dwMGJEWEp0K2V0cXF4YXJLNU5KTHBVZVlXRmZGNXZPMXVjUGdCOU5ZSVRQUnJwV0RjdTcydVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjk1NTM4CWZpbGU6Vk9JRF8wLjMuMC1hbHBoYV9hbWQ2NC5BcHBJbWFnZQpscVRjby9DY212MUtGd3llQmMrKzVJOE15Ryt3WkpZbzRwaDk3Tk9VM0pXMjUwVVZ2eEZVK1VpTXF0U05IaGgyazlHVy9KelhPdVZKbnJEOWpWMm5EUT09Cg==",
       "url": "https://github.com/SCamposs/void/releases/download/v0.3.0-alpha/VOID-Linux-x64.AppImage"
+    },
+    "linux-x86_64-appimage": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1ZvNzlkdlIxMUVyY3UvdnNQWDBWV0pSVFNkRzFnS2dwMGJEWEp0K2V0cXF4YXJLNU5KTHBVZVlXRmZGNXZPMXVjUGdCOU5ZSVRQUnJwV0RjdTcydVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjk1NTM4CWZpbGU6Vk9JRF8wLjMuMC1hbHBoYV9hbWQ2NC5BcHBJbWFnZQpscVRjby9DY212MUtGd3llQmMrKzVJOE15Ryt3WkpZbzRwaDk3Tk9VM0pXMjUwVVZ2eEZVK1VpTXF0U05IaGgyazlHVy9KelhPdVZKbnJEOWpWMm5EUT09Cg==",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.3.0-alpha/VOID-Linux-x64.AppImage"
+    },
+    "linux-x86_64-deb": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1ZSL1VJdlVVem9ZTUVESnQzbWc0bHJ3amczZm9WL2tiMWRpM2ZkV0FZY2w4WG4zeE9lTytTYk5CMjNIUUhXcmo5TVBvQUxsZlhDUEJvQmJ5R0ptVndvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjk1ODA5CWZpbGU6Vk9JRC1MaW51eC14NjQuZGViCml5TmZxRTJKcEZNbXNEcHdublp6YzZXZXczdDI5QW5JVnF1LzZaUU9zeEhLanJvQ3hJRlprcVM0RFBiSUEzYm52eUNPQ3diK09mWHE3OE5Fc2hZdkJ3PT0K",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.3.0-alpha/VOID-Linux-x64.deb"
     }
   }
 }
