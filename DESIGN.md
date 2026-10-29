@@ -25,6 +25,8 @@ Selectors render through a portal above clipping containers, retain controlled v
 
 The operating system still owns file pickers. Hidden file inputs remain native for explicit import; their visible actions follow VOID styling. Existing engine/rendering/gameplay layouts, provider capabilities and data formats are not redesigned here. This phase does not replace embedded Mind with the standalone Mind product.
 
+Typing's invisible gameplay keystroke capture also remains a native input, preserving its original caret/IME semantics and avoiding form styling on a screen-reader-only element. Its visible selectors/actions use the shared Base UI components, with an explicit focus destination back to the capture field after a selector closes.
+
 ## Installer and validation
 
 NSIS uses the canonical VOID icon and the approved Mind header/sidebar artwork, generated from the identical shared mark. Native installer page bodies remain native, as approved previously. Production updater configuration/signing remains unchanged. The CI candidate temporarily disables updater-artifact generation for packaging validation only; it is not a signed production release.

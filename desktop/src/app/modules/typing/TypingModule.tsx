@@ -1,5 +1,5 @@
 import { useConfirm } from "../../components/ui/use-confirm";
-import { Button, Input, Select } from "../../components/ui/Controls";
+import { Button, Select } from "../../components/ui/Controls";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   classifyCharacter,
@@ -485,7 +485,8 @@ export function TypingModule() {
             </Button>
           )}
         </div>
-        <Input
+        {/* Hidden gameplay capture keeps its native input/IME semantics, without form styling. */}
+        <input
           ref={inputRef}
           value={input}
           aria-label={`Type the word ${words[index]}`}
