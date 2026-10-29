@@ -10,7 +10,7 @@ permissions:
   contents: read
 concurrency:
   group: visual-foundation-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   frontend:
     runs-on: ubuntu-22.04
@@ -38,6 +38,7 @@ jobs:
             desktop/playwright-report/
           if-no-files-found: ignore
   native-windows:
+    needs: frontend
     runs-on: windows-latest
     timeout-minutes: 40
     defaults:

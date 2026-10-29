@@ -76,12 +76,36 @@ test("Typing and embedded Mind keep functional fields and custom controls", asyn
   await expect(typingInput).toHaveValue(word);
   await page.screenshot({ path: testInfo.outputPath("typing-shared-chrome.png") });
   await page.getByRole("button", { name: "Mind", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Mind", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connect a model you control.", exact: true })).toBeVisible();
   await expect(page.locator("select")).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Loopback endpoint" }).fill("http://127.0.0.1:9090");
+  await expect(page.getByRole("textbox", { name: "Loopback endpoint" })).toHaveValue("http://127.0.0.1:9090");
+  await page.getByRole("button", { name: "Let VOID start it" }).click();
+  const context = page.getByLabel("Context tokens", { exact: true });
+  const contextBefore = Number((await context.inputValue()).replaceAll(",", ""));
+  await page.getByRole("button", { name: "Increase Context tokens" }).click();
+  await expect.poll(async () => Number((await context.inputValue()).replaceAll(",", ""))).toBe(contextBefore + 512);
   await page.screenshot({ path: testInfo.outputPath("mind-shared-chrome.png") });
 });
 
 test("Reduced motion resolves the canonical intro mark without waiting", async ({ page }) => {
   await expect(page.locator(".void-intro")).toHaveCount(0);
   await expect(page.locator(".home-mark path")).toHaveAttribute("d", "M 10 5 L 50 95 L 90 5 L 42 45 L 70 25 L 50 70 L 21.1 5 Z");
+});
+
+test("Normal intro finishes in white and allows keyboard dismissal", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.reload();
+  const logo = page.locator(".void-intro .void-logo-path");
+  await expect(logo).toBeVisible();
+  await expect.poll(async () => logo.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return style.strokeWidth === "0px" && style.fill === style.stroke;
+  }), { intervals: [16], timeout: 3100 }).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("intro-white-final.png") });
+  await expect(page.locator(".void-intro")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Skip Intro" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".void-intro")).toHaveCount(0);
 });

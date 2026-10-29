@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { ArrowRight, AudioLines, Home as HomeIcon, Keyboard, Layers3, PanelLeft, Search, Settings, X } from "lucide-react";
 import { useAppStore, type ModuleId } from "./store/appStore";
@@ -41,6 +41,13 @@ export function App() {
   const [showPalette, setShowPalette] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const values = { "--fontScale": theme.fontScale, "--glowStrength": theme.glow, "--accentMix": theme.accentIntensity, "--noiseStrength": theme.noise, "--scanlineStrength": theme.scanlineIntensity };
+    const previous = Object.keys(values).map((key) => [key, root.style.getPropertyValue(key)]);
+    Object.entries(values).forEach(([key, value]) => root.style.setProperty(key, String(value)));
+    return () => previous.forEach(([key, value]) => { if (value) root.style.setProperty(key, value); else root.style.removeProperty(key); });
+  }, [theme.fontScale, theme.glow, theme.accentIntensity, theme.noise, theme.scanlineIntensity]);
   const jump = useCallback((next: ModuleId) => { setModule(next); setShowPalette(false); }, [setModule]);
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -66,9 +73,7 @@ export function App() {
     if (module === "settings") return <ScrollSurface label="Settings"><SettingsModule /></ScrollSurface>;
     return <Home jump={jump} />;
   }, [module, jump]);
-  return <TooltipProvider><div className={`void-app ${theme.scanlines ? "crt" : ""} boot`} data-collapsed={sidebarCollapsed} data-dense={theme.dense} data-background={theme.backgroundTexture} style={{
-    fontSize: `${theme.fontScale}rem`, ["--glowStrength" as string]: String(theme.glow), ["--noiseStrength" as string]: String(theme.noise), ["--scanlineStrength" as string]: String(theme.scanlineIntensity),
-  }}>
+  return <TooltipProvider><div className={`void-app ${theme.scanlines ? "crt" : ""} boot`} data-collapsed={sidebarCollapsed} data-dense={theme.dense} data-background={theme.backgroundTexture}>
     <header className="void-titlebar" data-tauri-drag-region>
       <Button className="void-wordmark" onClick={() => jump("home")} aria-label="Open Home"><VoidMark /><span>VOID</span></Button>
       <div className="titlebar-drag-space" data-tauri-drag-region />
