@@ -46,7 +46,7 @@ VOID must not become:
 
 ### Typography
 
-- Use a proportional system sans for headings, controls, and reading text. Prefer Segoe UI Variable, Segoe UI, Inter, then system-ui.
+- Use bundled Urbanist for the VOID wordmark and headings, and bundled Barlow for body text and controls, matching VOID Mind. System sans is only a fallback. Fonts are served locally, without a font CDN.
 - Reserve mono for code, short technical facts, counters, and rare identity labels. The whole interface must not read like a terminal.
 - Keep the product scale compact and fixed. Use weight, spacing, and tone before increasing size.
 - Long-form text stays between 65 and 75 characters per line with comfortable line height.
@@ -152,3 +152,8 @@ A migrated VOID surface is done when:
 - typography, spacing, radii, borders, and motion come from shared tokens
 - the surface remains usable by keyboard, with reduced motion, at smaller supported window sizes
 - visual validation confirms hierarchy and interaction states, while automated checks confirm that module behavior did not regress
+
+
+## Current visual foundation scope
+
+The 2026-10-29 transfer brings the approved Mind palette, fonts, shared Base UI primitives, focus/scrollbar states, application shell, custom titlebar and installer artwork into VOID. Existing module controls consume the shared primitives, while module engines, renderers, domain flows and specialized layouts remain for subsequent per-module work. See [DESIGN.md](DESIGN.md). No Mind account/provider features are copied into the embedded Mind module as part of this visual transfer.

@@ -1,3 +1,5 @@
+import { useConfirm } from "../../components/ui/use-confirm";
+import { Button, CheckControl, Disclosure, DisclosureBody, DisclosureTitle, Input, NumberControl, Select, Slider, Textarea } from "../../components/ui/Controls";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { LlamaServerProvider } from "./provider";
@@ -33,7 +35,7 @@ function RangeControl({
   return (
     <label className="mind-range">
       <span>{label}<output>{value}</output></span>
-      <input type="range" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} />
+      <Slider label={label} value={value} min={min} max={max} step={step} onValueChange={onChange} />
     </label>
   );
 }
@@ -53,6 +55,7 @@ function provisionalModel(modelPath: string, context: number): MindModel {
 }
 
 export function MindControls() {
+  const confirm = useConfirm();
   const store = useMindStore(useShallow((state) => ({
     models: state.models,
     selectedModelId: state.selectedModelId,
@@ -157,44 +160,44 @@ export function MindControls() {
         <div><strong>{mindStateLabel(store.runtimeState)}</strong><span>{store.runtimeDetail}</span></div>
       </div>
 
-      <details open>
-        <summary>Runtime</summary>
+      <Disclosure defaultOpen>
+        <DisclosureTitle>Runtime</DisclosureTitle><DisclosureBody>
         <div className="mind-control-group">
           <label>Mode
-            <select value={store.runtime.mode} onChange={(event) => store.updateRuntime({ mode: event.target.value as "external" | "managed" })}>
+            <Select label="Mode" value={store.runtime.mode} onValueChange={(nextValue) => store.updateRuntime({ mode: nextValue as "external" | "managed" })}>
               <option value="external">External local server</option>
               <option value="managed" disabled={!isTauriRuntime()}>Managed by VOID</option>
-            </select>
+            </Select>
           </label>
           <label>Loopback endpoint
-            <input value={store.runtime.endpoint} onChange={(event) => store.updateRuntime({ endpoint: event.target.value })} />
+            <Input value={store.runtime.endpoint} onChange={(event) => store.updateRuntime({ endpoint: event.target.value })} />
           </label>
-          <button onClick={() => void checkRuntime()}>Check local runtime</button>
+          <Button onClick={() => void checkRuntime()}>Check local runtime</Button>
           {store.runtime.mode === "managed" && (
             <>
               <label>llama-server
                 <div className="mind-path-field">
-                  <input readOnly value={store.runtime.executablePath ?? ""} placeholder="Not selected" />
-                  <button onClick={() => void selectLlamaServer().then((path) => path && store.updateRuntime({ executablePath: path }))}>Choose</button>
+                  <Input readOnly value={store.runtime.executablePath ?? ""} placeholder="Not selected" />
+                  <Button onClick={() => void selectLlamaServer().then((path) => path && store.updateRuntime({ executablePath: path }))}>Choose</Button>
                 </div>
               </label>
               <div className="mind-button-row">
-                <button disabled={busy} onClick={() => void startRuntime()}>{busy ? "Loading…" : "Start runtime"}</button>
-                <button onClick={() => void stopManagedRuntime().then(() => store.setRuntimeStatus("stopped", "Managed runtime stopped."))}>Stop runtime</button>
+                <Button disabled={busy} onClick={() => void startRuntime()}>{busy ? "Loading…" : "Start runtime"}</Button>
+                <Button onClick={() => void stopManagedRuntime().then(() => store.setRuntimeStatus("stopped", "Managed runtime stopped."))}>Stop runtime</Button>
               </div>
             </>
           )}
         </div>
-      </details>
+      </DisclosureBody></Disclosure>
 
-      <details open>
-        <summary>Model Manager</summary>
+      <Disclosure defaultOpen>
+        <DisclosureTitle>Model Manager</DisclosureTitle><DisclosureBody>
         <div className="mind-control-group">
           <label>Active model
-            <select value={store.selectedModelId ?? ""} onChange={(event) => store.selectModel(event.target.value || null)}>
+            <Select label="Active model" value={store.selectedModelId ?? ""} onValueChange={(nextValue) => store.selectModel(nextValue || null)}>
               <option value="">No model selected</option>
               {store.models.map((model) => <option key={model.id} value={model.id}>{model.version} · {model.displayName}</option>)}
-            </select>
+            </Select>
           </label>
           {selectedModel && (
             <div className="mind-model-facts">
@@ -204,7 +207,7 @@ export function MindControls() {
             </div>
           )}
           {store.runtime.mode === "managed" && (
-            <button onClick={() => void selectGgufModel().then((path) => path && store.addModel(provisionalModel(path, store.settings.context)))}>Import GGUF metadata</button>
+            <Button onClick={() => void selectGgufModel().then((path) => path && store.addModel(provisionalModel(path, store.settings.context)))}>Import GGUF metadata</Button>
           )}
           <label className="mind-file-button">
             Import manifest
@@ -241,20 +244,20 @@ export function MindControls() {
               event.target.value = "";
             }} />
           </label>
-          <button disabled={!selectedModel} onClick={() => selectedModel && store.removeModel(selectedModel.id)}>Remove model metadata</button>
+          <Button disabled={!selectedModel} onClick={() => selectedModel && store.removeModel(selectedModel.id)}>Remove model metadata</Button>
         </div>
-      </details>
+      </DisclosureBody></Disclosure>
 
-      <details>
-        <summary>Response</summary>
+      <Disclosure>
+        <DisclosureTitle>Response</DisclosureTitle><DisclosureBody>
         <div className="mind-control-group">
           <label>Profile
-            <select value={store.profile} onChange={(event) => store.setProfile(event.target.value as typeof store.profile)}>
+            <Select label="Profile" value={store.profile} onValueChange={(nextValue) => store.setProfile(nextValue as typeof store.profile)}>
               <option value="general">General</option><option value="creative">Creative</option><option value="analytical">Analytical</option><option value="concise">Concise</option><option value="custom">Custom</option>
-            </select>
+            </Select>
           </label>
           <label>System instructions
-            <textarea rows={6} value={store.settings.systemPrompt} onChange={(event) => store.updateSettings({ systemPrompt: event.target.value })} />
+            <Textarea rows={6} value={store.settings.systemPrompt} onChange={(event) => store.updateSettings({ systemPrompt: event.target.value })} />
           </label>
           <RangeControl label="Temperature" value={store.settings.temperature} min={0} max={2} step={0.05} onChange={updateNumber("temperature")} />
           <RangeControl label="Top P" value={store.settings.topP} min={0.05} max={1} step={0.05} onChange={updateNumber("topP")} />
@@ -264,28 +267,28 @@ export function MindControls() {
           <RangeControl label="Context" value={store.settings.context} min={512} max={32768} step={512} onChange={updateNumber("context")} />
           <RangeControl label="GPU layers" value={store.settings.gpuLayers} min={-1} max={99} step={1} onChange={updateNumber("gpuLayers")} />
           <label>Seed
-            <input type="number" value={store.settings.seed} onChange={(event) => store.updateSettings({ seed: Number(event.target.value) })} />
+            <NumberControl label="Seed"  value={store.settings.seed} onValueChange={(nextValue) => store.updateSettings({ seed: Number(nextValue) })} />
           </label>
           <label>Stop sequences, one per line
-            <textarea rows={3} value={store.settings.stopSequences.join("\n")} onChange={(event) => store.updateSettings({ stopSequences: event.target.value.split("\n").map((item) => item.trim()).filter(Boolean) })} />
+            <Textarea rows={3} value={store.settings.stopSequences.join("\n")} onChange={(event) => store.updateSettings({ stopSequences: event.target.value.split("\n").map((item) => item.trim()).filter(Boolean) })} />
           </label>
         </div>
-      </details>
+      </DisclosureBody></Disclosure>
 
-      <details>
-        <summary>Policy, memory, and data</summary>
+      <Disclosure>
+        <DisclosureTitle>Policy, memory, and data</DisclosureTitle><DisclosureBody>
         <div className="mind-control-group">
-          <label className="mind-toggle">Local input policy <input type="checkbox" checked={store.policy.inputPolicyEnabled} onChange={(event) => store.updatePolicy({ inputPolicyEnabled: event.target.checked })} /></label>
-          <label className="mind-toggle">Local output policy <input type="checkbox" checked={store.policy.outputPolicyEnabled} onChange={(event) => store.updatePolicy({ outputPolicyEnabled: event.target.checked })} /></label>
-          <label className="mind-toggle">Personal memory <input type="checkbox" checked={store.policy.memoryEnabled} onChange={(event) => store.updatePolicy({ memoryEnabled: event.target.checked })} /></label>
+          <label className="mind-toggle">Local input policy <CheckControl checked={store.policy.inputPolicyEnabled} onCheckedChange={(nextValue) => store.updatePolicy({ inputPolicyEnabled: nextValue })} /></label>
+          <label className="mind-toggle">Local output policy <CheckControl checked={store.policy.outputPolicyEnabled} onCheckedChange={(nextValue) => store.updatePolicy({ outputPolicyEnabled: nextValue })} /></label>
+          <label className="mind-toggle">Personal memory <CheckControl checked={store.policy.memoryEnabled} onCheckedChange={(nextValue) => store.updatePolicy({ memoryEnabled: nextValue })} /></label>
           <p className="mind-help">Memory retrieval is not implemented in A0. Enabling this reserves the preference but stores no hidden memories.</p>
-          <label className="mind-toggle">Retain conversations <input type="checkbox" checked={store.policy.retainConversations} onChange={(event) => store.updatePolicy({ retainConversations: event.target.checked })} /></label>
-          <button onClick={exportMindData}>Export Mind data</button>
-          <button onClick={() => {
-            if (window.confirm("Delete all VOID Mind chats, models, settings, and local preferences?")) store.resetMind();
-          }}>Reset Mind data</button>
+          <label className="mind-toggle">Retain conversations <CheckControl checked={store.policy.retainConversations} onCheckedChange={(nextValue) => store.updatePolicy({ retainConversations: nextValue })} /></label>
+          <Button onClick={exportMindData}>Export Mind data</Button>
+          <Button onClick={async () => {
+            if (await confirm("Delete all VOID Mind chats, models, settings, and local preferences?")) store.resetMind();
+          }}>Reset Mind data</Button>
         </div>
-      </details>
+      </DisclosureBody></Disclosure>
       {notice && <p className="mind-controls__notice" role="status">{notice}</p>}
     </aside>
   );

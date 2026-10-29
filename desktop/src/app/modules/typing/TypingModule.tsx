@@ -1,3 +1,5 @@
+import { useConfirm } from "../../components/ui/use-confirm";
+import { Button, Input, Select } from "../../components/ui/Controls";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   classifyCharacter,
@@ -122,6 +124,7 @@ function scoreActiveWord(expected: string, typed: string) {
 }
 
 export function TypingModule() {
+  const confirm = useConfirm();
   const inputRef = useRef<HTMLInputElement>(null);
   const wordFlowRef = useRef<HTMLDivElement>(null);
   const eventsRef = useRef<TypingInputEvent[]>([]);
@@ -405,28 +408,28 @@ export function TypingModule() {
       {!locked ? <>
         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
           <label className="flex items-center gap-2">Duration
-            <select
+            <Select label="Duration"
               className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1"
               value={duration}
               disabled={startedAt !== null}
-              onChange={(event) => configure(Number(event.target.value) as TypingDuration, language)}
+              onValueChange={(nextValue) => configure(Number(nextValue) as TypingDuration, language)}
             >
               <option value={15}>15s</option>
               <option value={30}>30s</option>
               <option value={60}>60s</option>
               <option value={120}>120s</option>
-            </select>
+            </Select>
           </label>
           <label className="flex items-center gap-2">Language
-            <select
+            <Select label="Language"
               className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1"
               value={language}
               disabled={startedAt !== null}
-              onChange={(event) => configure(duration, event.target.value as TypingLanguage)}
+              onValueChange={(nextValue) => configure(duration, nextValue as TypingLanguage)}
             >
               <option value="pt-BR">PT-BR</option>
               <option value="en">EN</option>
-            </select>
+            </Select>
           </label>
           <span className="ml-auto text-[var(--muted)]">Timer starts on first input</span>
         </div>
@@ -474,16 +477,16 @@ export function TypingModule() {
             })}
           </div>
           {!inputFocused && (
-            <button
+            <Button
               type="button"
               className="absolute bottom-2 right-2 border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[10px] text-[var(--muted)] hover:bg-[var(--surface2)] hover:text-[var(--text)]"
               onClick={() => inputRef.current?.focus()}
             >
               Continue typing
-            </button>
+            </Button>
           )}
         </div>
-        <input
+        <Input
           ref={inputRef}
           value={input}
           aria-label={`Type the word ${words[index]}`}
@@ -506,13 +509,13 @@ export function TypingModule() {
             <div>Space confirms the word. The next line stays ready below.</div>
             {notice && <div className="mt-1 text-[#d69a4b]" role="status">{notice}</div>}
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => reset()}
             className="shrink-0 border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-[var(--surface2)]"
           >
             Reset test
-          </button>
+          </Button>
         </div>
       </> : <TypingResults
         traces={traces}
@@ -539,17 +542,17 @@ export function TypingModule() {
           </div>
         </div>)}
       </div>
-      <button
+      <Button
         type="button"
         className="mt-3 border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--surface2)]"
-        onClick={() => {
-          if (!window.confirm("Reset typing history?")) return;
+        onClick={async () => {
+          if (!await confirm("Reset typing history?")) return;
           typingRepo.reset();
           setSessions([]);
         }}
       >
         Reset typing history
-      </button>
+      </Button>
     </div>
   </div>;
 }

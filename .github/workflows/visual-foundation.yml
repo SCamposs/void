@@ -1,0 +1,65 @@
+name: Visual foundation validation
+on:
+  push:
+    branches: [main, 'codex/mind-visual-foundation']
+    paths: ['desktop/**', '.github/workflows/visual-foundation.yml']
+  pull_request:
+    paths: ['desktop/**', '.github/workflows/visual-foundation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: visual-foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frontend:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm run lint && npm run typecheck && npm test && npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: visual-foundation-evidence
+          path: |
+            desktop/test-results/
+            desktop/playwright-report/
+          if-no-files-found: ignore
+  native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - run: npm ci
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build branded NSIS candidate without publishing
+        run: npm run tauri -- build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: VOID-visual-foundation-Windows-candidate
+          path: desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error

@@ -1,3 +1,4 @@
+import { Button, Disclosure, DisclosureBody, DisclosureTitle, Progress } from "../../components/ui/Controls";
 import { useUpdateStore } from "./updateStore";
 
 function formatProgress(downloadedBytes: number, contentLength: number | null): string {
@@ -49,21 +50,21 @@ export function UpdatePanel() {
       </div>
 
       {status === "available" && candidate ? (
-        <button
+        <Button
           className="border border-[var(--accent)] bg-[var(--accent)] px-3 py-2 text-sm text-[var(--bg)] hover:opacity-90 disabled:opacity-50"
           onClick={() => void installUpdate()}
           disabled={busy}
         >
           Install and restart
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
           className="border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface2)] disabled:cursor-wait disabled:opacity-50"
           onClick={() => void checkForUpdates()}
           disabled={busy || status === "unavailable"}
         >
           {isChecking ? "Checking..." : "Check now"}
-        </button>
+        </Button>
       )}
     </div>
 
@@ -73,13 +74,13 @@ export function UpdatePanel() {
         {lastCheckedAt && <span className="text-[var(--subtle)]">Last checked {new Date(lastCheckedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
       </div>
       {status === "downloading" && contentLength && (
-        <progress className="mt-3 h-1 w-full" max={contentLength} value={downloadedBytes} aria-label="Update download progress" />
+        <Progress className="mt-3 h-1 w-full" max={contentLength} value={downloadedBytes} aria-label="Update download progress" />
       )}
       {candidate?.body && status === "available" && (
-        <details className="mt-3 text-[var(--muted)]">
-          <summary className="cursor-pointer">Release notes</summary>
+        <Disclosure className="mt-3 text-[var(--muted)]">
+          <DisclosureTitle className="cursor-pointer">Release notes</DisclosureTitle><DisclosureBody>
           <p className="mt-2 max-w-[68ch] whitespace-pre-wrap leading-5">{candidate.body}</p>
-        </details>
+        </DisclosureBody></Disclosure>
       )}
       {error && <p className="mt-3 text-[#d9aaa3]">Update check failed: {error}</p>}
     </div>

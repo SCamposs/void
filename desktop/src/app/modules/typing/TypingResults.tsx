@@ -1,3 +1,4 @@
+import { Button } from "../../components/ui/Controls";
 import { useMemo, useState, type ReactNode } from "react";
 import {
   buildTypingTimeline,
@@ -58,7 +59,7 @@ function ResultIconButton({
   children: ReactNode;
 }) {
   return <span className="group relative">
-    <button
+    <Button
       type="button"
       aria-label={label}
       aria-pressed={active}
@@ -70,7 +71,7 @@ function ResultIconButton({
       }`}
     >
       {children}
-    </button>
+    </Button>
     <span
       role="tooltip"
       className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-[10px] text-[var(--text)] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
@@ -352,13 +353,13 @@ export function TypingResults({
   return <section aria-label="Typing test results">
     <div className="flex items-center justify-between gap-4 border-b border-[var(--border)] pb-3">
       <ResultToolbar view={view} setView={setView} />
-      <button
+      <Button
         type="button"
         onClick={onRestart}
         className="border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-[var(--surface2)]"
       >
         Restart test
-      </button>
+      </Button>
     </div>
     <div className="flex flex-wrap items-end justify-between gap-5 border-b border-[var(--border)] py-5">
       <div className="flex gap-8">

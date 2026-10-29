@@ -25,7 +25,11 @@
         "title": "VOID",
         "width": 1280,
         "height": 800,
-        "resizable": true
+        "minWidth": 720,
+        "minHeight": 560,
+        "resizable": true,
+        "decorations": false,
+        "backgroundColor": "#000000"
       }
     ]
   },
@@ -44,7 +48,10 @@
     "windows": {
       "nsis": {
         "installerIcon": "icons/icon.ico",
-        "uninstallerIcon": "icons/icon.ico"
+        "uninstallerIcon": "icons/icon.ico",
+        "headerImage": "windows/installer-header.bmp",
+        "sidebarImage": "windows/installer-sidebar.bmp",
+        "uninstallerHeaderImage": "windows/installer-header.bmp"
       }
     }
   },

@@ -1,3 +1,4 @@
+import { Button } from "../../components/ui/Controls";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { OrbitAudioAnalyzer, type OrbitAudioStatus } from "./audio/OrbitAudioAnalyzer";
 import { OrbitControlsMinimal } from "./components/OrbitControlsMinimal";
@@ -119,7 +120,7 @@ export function OrbitModule() {
     onFocusCapture={revealControls}
   >
     <div ref={stageRef} className="absolute inset-0" aria-hidden="true" />
-    {failure && <div className="orbit-failure" role="alert"><p>{failure}</p><button type="button" onClick={createRenderer}>Retry</button></div>}
+    {failure && <div className="orbit-failure" role="alert"><p>{failure}</p><Button type="button" onClick={createRenderer}>Retry</Button></div>}
     <OrbitControlsMinimal
       visible={controlsVisible}
       settingsOpen={settingsOpen}

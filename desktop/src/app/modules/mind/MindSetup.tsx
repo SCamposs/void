@@ -1,3 +1,4 @@
+import { Button, Input, NumberControl } from "../../components/ui/Controls";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { LlamaServerProvider } from "./provider";
@@ -136,39 +137,39 @@ export function MindSetup() {
       </div>
 
       <div className="mind-setup__modes" role="tablist" aria-label="Runtime setup mode">
-        <button className={mode === "external" ? "is-active" : ""} onClick={() => setMode("external")}>Use running server</button>
-        <button className={mode === "managed" ? "is-active" : ""} onClick={() => setMode("managed")}>Let VOID start it</button>
+        <Button className={mode === "external" ? "is-active" : ""} onClick={() => setMode("external")}>Use running server</Button>
+        <Button className={mode === "managed" ? "is-active" : ""} onClick={() => setMode("managed")}>Let VOID start it</Button>
       </div>
 
       {mode === "external" ? (
         <div className="mind-setup__form">
           <label>
             Loopback endpoint
-            <input
+            <Input
               value={runtime.endpoint}
               onChange={(event) => updateRuntime({ mode: "external", endpoint: event.target.value })}
               placeholder="http://127.0.0.1:8080"
             />
           </label>
           <p className="mind-help">Start llama-server yourself with a compatible instruct GGUF, then test the local endpoint.</p>
-          <button className="mind-primary-button" disabled={busy} onClick={() => void connectExternal()}>
+          <Button className="mind-primary-button" disabled={busy} onClick={() => void connectExternal()}>
             {busy ? "Checking server…" : "Test local server"}
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="mind-setup__form">
           <label>
             llama-server executable
             <div className="mind-path-field">
-              <input readOnly value={executablePath} placeholder="Select llama-server.exe" />
-              <button onClick={() => void selectLlamaServer().then((path) => path && setExecutablePath(path))}>Choose</button>
+              <Input readOnly value={executablePath} placeholder="Select llama-server.exe" />
+              <Button onClick={() => void selectLlamaServer().then((path) => path && setExecutablePath(path))}>Choose</Button>
             </div>
           </label>
           <label>
             GGUF model
             <div className="mind-path-field">
-              <input readOnly value={modelPath} placeholder="Select a local .gguf file" />
-              <button onClick={() => void selectGgufModel().then((path) => path && setModelPath(path))}>Choose</button>
+              <Input readOnly value={modelPath} placeholder="Select a local .gguf file" />
+              <Button onClick={() => void selectGgufModel().then((path) => path && setModelPath(path))}>Choose</Button>
             </div>
           </label>
           <div className="mind-setup__summary">
@@ -178,15 +179,15 @@ export function MindSetup() {
           </div>
           <div className="mind-setup__tuning">
             <label>Context tokens
-              <input type="number" min={512} max={32768} step={512} value={settings.context} onChange={(event) => updateSettings({ context: Number(event.target.value) })} />
+              <NumberControl label="Context tokens"  min={512} max={32768} step={512} value={settings.context} onValueChange={(nextValue) => updateSettings({ context: Number(nextValue) })} />
             </label>
             <label>GPU layers
-              <input type="number" min={-1} max={99} value={settings.gpuLayers} onChange={(event) => updateSettings({ gpuLayers: Number(event.target.value) })} />
+              <NumberControl label="GPU layers"  min={-1} max={99} value={settings.gpuLayers} onValueChange={(nextValue) => updateSettings({ gpuLayers: Number(nextValue) })} />
             </label>
           </div>
-          <button className="mind-primary-button" disabled={busy} onClick={() => void startManaged()}>
+          <Button className="mind-primary-button" disabled={busy} onClick={() => void startManaged()}>
             {busy ? "Loading model…" : "Start local runtime"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -199,13 +200,13 @@ export function MindSetup() {
       </div>
 
       <div className="mind-setup__finish">
-        <button
+        <Button
           className="mind-primary-button"
           disabled={runtimeState !== "ready" || !selectedModelId}
           onClick={completeOnboarding}
         >
           Open VOID Mind
-        </button>
+        </Button>
         <span>A detected model without a manifest is labeled A0 and clearly marked unverified.</span>
       </div>
     </section>

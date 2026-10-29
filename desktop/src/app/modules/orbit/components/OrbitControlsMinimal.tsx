@@ -1,3 +1,4 @@
+import { Button, Select, Slider } from "../../../components/ui/Controls";
 import type { OrbitAudioStatus } from "../audio/OrbitAudioAnalyzer";
 import type { OrbitRuntimeState } from "../renderer/OrbitRenderer";
 import type { OrbitResolvedQuality, OrbitQualityMode } from "../renderer/quality";
@@ -52,37 +53,37 @@ export function OrbitControlsMinimal({
     {settingsOpen && <section className="orbit-settings" role="dialog" aria-label="Orbit settings">
       <div className="orbit-settings__header">
         <h2>Orbit settings</h2>
-        <button type="button" onClick={onCloseSettings} aria-label="Close Orbit settings">×</button>
+        <Button type="button" onClick={onCloseSettings} aria-label="Close Orbit settings">×</Button>
       </div>
 
       <label className="orbit-setting-row">
         <span>Motion</span>
-        <select value={settings.motion} onChange={(event) => onSettingsChange({ ...settings, motion: event.target.value as OrbitMotion })}>
+        <Select label="Motion" value={settings.motion} onValueChange={(nextValue) => onSettingsChange({ ...settings, motion: nextValue as OrbitMotion })}>
           <option value="calm">Calm</option>
           <option value="balanced">Balanced</option>
           <option value="alive">Alive</option>
-        </select>
+        </Select>
       </label>
 
       <label className="orbit-setting-row">
         <span>Quality</span>
-        <select value={settings.quality} onChange={(event) => onSettingsChange({ ...settings, quality: event.target.value as OrbitQualityMode })}>
+        <Select label="Quality" value={settings.quality} onValueChange={(nextValue) => onSettingsChange({ ...settings, quality: nextValue as OrbitQualityMode })}>
           <option value="auto">Automatic</option>
           <option value="performance">Performance</option>
           <option value="balanced">Balanced</option>
           <option value="quality">Quality</option>
-        </select>
+        </Select>
       </label>
 
       <label className="orbit-setting-range">
         <span>Microphone sensitivity</span>
-        <input
-          type="range"
+        <Slider label="Microphone sensitivity"
+
           min="0.5"
           max="2"
           step="0.05"
           value={settings.sensitivity}
-          onChange={(event) => onSettingsChange({ ...settings, sensitivity: Number(event.target.value) })}
+          onValueChange={(nextValue) => onSettingsChange({ ...settings, sensitivity: Number(nextValue) })}
         />
       </label>
 
@@ -98,7 +99,7 @@ export function OrbitControlsMinimal({
     </p>}
 
     <div className="orbit-controls__buttons">
-      <button
+      <Button
         type="button"
         className={listening ? "is-active" : ""}
         onClick={onToggleAudio}
@@ -108,8 +109,8 @@ export function OrbitControlsMinimal({
       >
         <MicrophoneIcon muted={!listening} />
         <span className="orbit-control-state" aria-hidden="true" />
-      </button>
-      <button
+      </Button>
+      <Button
         type="button"
         className={settingsOpen ? "is-active" : ""}
         onClick={onToggleSettings}
@@ -118,7 +119,7 @@ export function OrbitControlsMinimal({
         title="Orbit settings"
       >
         <SettingsIcon />
-      </button>
+      </Button>
     </div>
   </div>;
 }

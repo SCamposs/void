@@ -1,3 +1,5 @@
+import { useConfirm } from "../../components/ui/use-confirm";
+import { Button, Input, Textarea } from "../../components/ui/Controls";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LlamaServerProvider } from "./provider";
 import { applyInputPolicy, applyOutputPolicy } from "./policy";
@@ -16,6 +18,7 @@ const STARTERS = [
 ];
 
 export function MindModule() {
+  const confirm = useConfirm();
   const store = useMindStore();
   const activeChat = store.chats.find((chat) => chat.id === store.activeChatId);
   const selectedModel = store.models.find((model) => model.id === store.selectedModelId);
@@ -145,24 +148,24 @@ export function MindModule() {
           <span>local inference</span><span>loopback only</span><span>telemetry off</span>
         </div>
         <div className="mind-header__mobile-actions">
-          <button onClick={() => setShowChats((value) => !value)}>Chats</button>
-          <button onClick={() => setShowControls((value) => !value)}>Controls</button>
+          <Button onClick={() => setShowChats((value) => !value)}>Chats</Button>
+          <Button onClick={() => setShowControls((value) => !value)}>Controls</Button>
         </div>
       </header>
 
       <div className="mind-layout">
         <aside className={`mind-chat-sidebar ${showChats ? "is-open" : ""}`}>
-          <button className="mind-primary-button" onClick={() => { store.createChat(); setShowChats(false); }}>New conversation</button>
-          <input className="mind-chat-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" />
+          <Button className="mind-primary-button" onClick={() => { store.createChat(); setShowChats(false); }}>New conversation</Button>
+          <Input className="mind-chat-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" />
           <div className="mind-chat-list">
             {filteredChats.map((chat) => (
               <div className={`mind-chat-row ${chat.id === store.activeChatId ? "is-active" : ""}`} key={chat.id}>
-                <button onClick={() => { store.selectChat(chat.id); setShowChats(false); }}>
+                <Button onClick={() => { store.selectChat(chat.id); setShowChats(false); }}>
                   <strong>{chat.title}</strong><span>{new Date(chat.updatedAt).toLocaleDateString()}</span>
-                </button>
-                <button aria-label={`Delete ${chat.title}`} onClick={() => {
-                  if (window.confirm(`Delete “${chat.title}”?`)) store.deleteChat(chat.id);
-                }}>×</button>
+                </Button>
+                <Button aria-label={`Delete ${chat.title}`} onClick={async () => {
+                  if (await confirm(`Delete “${chat.title}”?`)) store.deleteChat(chat.id);
+                }}>×</Button>
               </div>
             ))}
             {filteredChats.length === 0 && <p className="mind-help">No matching conversations.</p>}
@@ -179,8 +182,8 @@ export function MindModule() {
                   <div className="mind-message__body">
                     {editingId === message.id ? (
                       <div className="mind-message__edit">
-                        <textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} rows={5} />
-                        <div><button onClick={() => void saveEdit(message)}>Save and regenerate</button><button onClick={() => setEditingId(null)}>Cancel</button></div>
+                        <Textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} rows={5} />
+                        <div><Button onClick={() => void saveEdit(message)}>Save and regenerate</Button><Button onClick={() => setEditingId(null)}>Cancel</Button></div>
                       </div>
                     ) : message.content ? (
                       <MarkdownMessage content={message.content} />
@@ -189,9 +192,9 @@ export function MindModule() {
                     )}
                     {message.content && editingId !== message.id && (
                       <div className="mind-message__actions">
-                        <button onClick={() => void copyMessage(message)}>{copiedId === message.id ? "Copied" : "Copy"}</button>
-                        {message.role === "user" && <button onClick={() => { setEditingId(message.id); setEditingContent(message.content); }}>Edit</button>}
-                        {message.role === "assistant" && <button disabled={busy} onClick={() => void regenerate(message)}>Regenerate</button>}
+                        <Button onClick={() => void copyMessage(message)}>{copiedId === message.id ? "Copied" : "Copy"}</Button>
+                        {message.role === "user" && <Button onClick={() => { setEditingId(message.id); setEditingContent(message.content); }}>Edit</Button>}
+                        {message.role === "assistant" && <Button disabled={busy} onClick={() => void regenerate(message)}>Regenerate</Button>}
                       </div>
                     )}
                   </div>
@@ -204,12 +207,12 @@ export function MindModule() {
               <MindOrbit state={store.runtimeState} />
               <h2>What should we think through?</h2>
               <p>Start a local conversation. Nothing here is sent beyond the loopback runtime you selected.</p>
-              <div>{STARTERS.map((starter) => <button key={starter} onClick={() => setDraft(starter)}>{starter}</button>)}</div>
+              <div>{STARTERS.map((starter) => <Button key={starter} onClick={() => setDraft(starter)}>{starter}</Button>)}</div>
             </div>
           )}
 
           <div className="mind-composer">
-            <textarea
+            <Textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
@@ -224,13 +227,13 @@ export function MindModule() {
             />
             <div>
               <span>Enter to send · Shift+Enter for newline</span>
-              {busy ? <button onClick={() => abortRef.current?.abort()}>Stop</button> : <button className="mind-primary-button" disabled={!selectedModel || !draft.trim()} onClick={() => void sendMessage()}>Send message</button>}
+              {busy ? <Button onClick={() => abortRef.current?.abort()}>Stop</Button> : <Button className="mind-primary-button" disabled={!selectedModel || !draft.trim()} onClick={() => void sendMessage()}>Send message</Button>}
             </div>
           </div>
         </main>
 
         <div className={`mind-controls-wrap ${showControls ? "is-open" : ""}`}>
-          <button className="mind-controls-close" onClick={() => setShowControls(false)}>Close controls</button>
+          <Button className="mind-controls-close" onClick={() => setShowControls(false)}>Close controls</Button>
           <MindControls />
         </div>
       </div>

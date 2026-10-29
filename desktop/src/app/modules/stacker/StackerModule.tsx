@@ -1,3 +1,4 @@
+import { Button, CheckControl, Disclosure, DisclosureBody, DisclosureTitle, Input, Select, Slider } from "../../components/ui/Controls";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StackerEngine, type LastClearEvent, type Snapshot } from "./engine";
 import {
@@ -162,7 +163,8 @@ function formatMs(ms: number): string {
 function isTextEntryTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName.toLowerCase();
-  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
+  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable
+    || target.closest('[role="combobox"], [role="slider"], [role="checkbox"], [role="switch"], [role="listbox"], [role="dialog"], [role="alertdialog"]') !== null;
 }
 
 type SprintHistoryEntry = { at: number; ms: number };
@@ -209,7 +211,7 @@ function ToggleRow({ checked, onChange, children }: { checked: boolean; onChange
   return (
     <label className="flex items-center justify-between gap-3 border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
       <span className="text-[var(--muted)]">{children}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <CheckControl checked={checked} onCheckedChange={(nextValue) => onChange(nextValue)} />
     </label>
   );
 }
@@ -1092,29 +1094,29 @@ export function StackerModule() {
         {!focusMode && <p className="text-[11px] text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">
-        <button
+        <Button
           className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)] disabled:cursor-not-allowed disabled:opacity-40"
           onClick={beginCountdown}
           disabled={countdownStep !== null || !state.isPaused || state.isGameOver}
         >
           {countdownStep ?? "Start"}
-        </button>
-        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={restart}>Restart</button>
-        <button
+        </Button>
+        <Button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={restart}>Restart</Button>
+        <Button
           className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)] disabled:opacity-40"
           onClick={togglePause}
           disabled={mode === "sprint" || countdownStep !== null}
           title={mode === "sprint" ? "Sprint runs do not pause." : "Pause or resume"}
         >
           {state.isPaused ? "Resume" : "Pause"}
-        </button>
-        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>{mode}</button>
-        <button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={() => {
+        </Button>
+        <Button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>{mode}</Button>
+        <Button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={() => {
           emitSound("menu");
           setSettingsOpen((value) => !value);
         }}>
           Settings
-        </button>
+        </Button>
       </div>
     </div>
 
@@ -1247,103 +1249,103 @@ export function StackerModule() {
             <h2 className="font-semibold">Stacker settings</h2>
             <p className="text-xs text-[var(--muted)]">Tuning, replay setup, effects, and run details.</p>
           </div>
-          <button className="border border-[var(--border)] px-2 py-1 text-xs" onClick={() => setSettingsOpen(false)}>Close</button>
+          <Button className="border border-[var(--border)] px-2 py-1 text-xs" onClick={() => setSettingsOpen(false)}>Close</Button>
         </div>
 
-        <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Input tuning</summary>
+        <Disclosure className="mb-3 border border-[var(--border)] p-3">
+          <DisclosureTitle className="cursor-pointer text-[var(--muted)]">Input tuning</DisclosureTitle><DisclosureBody>
           <div className="mt-3 space-y-2">
             <div className="flex gap-1 text-[10px]">
-              <button className="border px-1.5 py-0.5" onClick={() => applyPreset("balanced")}>Balanced</button>
-              <button className="border px-1.5 py-0.5" onClick={() => applyPreset("competitive")}>Competitive</button>
-              <button className="border px-1.5 py-0.5" onClick={() => applyPreset("instant")}>Instant</button>
+              <Button className="border px-1.5 py-0.5" onClick={() => applyPreset("balanced")}>Balanced</Button>
+              <Button className="border px-1.5 py-0.5" onClick={() => applyPreset("competitive")}>Competitive</Button>
+              <Button className="border px-1.5 py-0.5" onClick={() => applyPreset("instant")}>Instant</Button>
             </div>
-            <SettingRow label="DAS" value={`${dasMs}ms`}><input className="w-full" type="range" min={50} max={220} step={5} value={dasMs} onChange={(e) => setDasMs(Number(e.target.value))} /></SettingRow>
-            <SettingRow label="ARR" value={`${arrMs}ms`}><input className="w-full" type="range" min={0} max={50} step={1} value={arrMs} onChange={(e) => setArrMs(Number(e.target.value))} /></SettingRow>
-            <SettingRow label="DCD" value={`${dcdMs}ms`}><input className="w-full" type="range" min={0} max={80} step={1} value={dcdMs} onChange={(e) => setDcdMs(Number(e.target.value))} /></SettingRow>
-            <SettingRow label="SDF" value={`${sdfMs}ms`}><input className="w-full" type="range" min={0} max={80} step={1} value={sdfMs} onChange={(e) => setSdfMs(Number(e.target.value))} /></SettingRow>
-            <SettingRow label="Lock delay" value={`${lockDelayMs}ms`}><input className="w-full" type="range" min={0} max={900} step={10} value={lockDelayMs} onChange={(e) => setLockDelayMs(Number(e.target.value))} /></SettingRow>
-            <SettingRow label="Lock resets" value={String(lockResetLimit)}><input className="w-full" type="range" min={0} max={20} step={1} value={lockResetLimit} onChange={(e) => setLockResetLimit(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="DAS" value={`${dasMs}ms`}><Slider label="DAS" className="w-full" min={50} max={220} step={5} value={dasMs} onValueChange={(nextValue) => setDasMs(Number(nextValue))} /></SettingRow>
+            <SettingRow label="ARR" value={`${arrMs}ms`}><Slider label="ARR" className="w-full" min={0} max={50} step={1} value={arrMs} onValueChange={(nextValue) => setArrMs(Number(nextValue))} /></SettingRow>
+            <SettingRow label="DCD" value={`${dcdMs}ms`}><Slider label="DCD" className="w-full" min={0} max={80} step={1} value={dcdMs} onValueChange={(nextValue) => setDcdMs(Number(nextValue))} /></SettingRow>
+            <SettingRow label="SDF" value={`${sdfMs}ms`}><Slider label="SDF" className="w-full" min={0} max={80} step={1} value={sdfMs} onValueChange={(nextValue) => setSdfMs(Number(nextValue))} /></SettingRow>
+            <SettingRow label="Lock delay" value={`${lockDelayMs}ms`}><Slider label="Lock delay" className="w-full" min={0} max={900} step={10} value={lockDelayMs} onValueChange={(nextValue) => setLockDelayMs(Number(nextValue))} /></SettingRow>
+            <SettingRow label="Lock resets" value={String(lockResetLimit)}><Slider label="Lock resets" className="w-full" min={0} max={20} step={1} value={lockResetLimit} onValueChange={(nextValue) => setLockResetLimit(Number(nextValue))} /></SettingRow>
           </div>
-        </details>
+        </DisclosureBody></Disclosure>
 
-        <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Seed and opener</summary>
+        <Disclosure className="mb-3 border border-[var(--border)] p-3">
+          <DisclosureTitle className="cursor-pointer text-[var(--muted)]">Seed and opener</DisclosureTitle><DisclosureBody>
           <div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-1 text-[10px]">
-            <input value={seedInput} onChange={(e) => setSeedInput(e.target.value)} placeholder="Seed" className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--text)]" />
-            <input value={openerInput} onChange={(e) => setOpenerInput(e.target.value.toUpperCase())} placeholder="Opener" className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--text)]" />
-            <button className="border px-1.5 py-0.5" onClick={restart}>Apply</button>
+            <Input value={seedInput} onChange={(e) => setSeedInput(e.target.value)} placeholder="Seed" className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--text)]" />
+            <Input value={openerInput} onChange={(e) => setOpenerInput(e.target.value.toUpperCase())} placeholder="Opener" className="border border-[var(--border)] bg-[var(--surface)] px-1 py-0.5 text-[var(--text)]" />
+            <Button className="border px-1.5 py-0.5" onClick={restart}>Apply</Button>
           </div>
-        </details>
+        </DisclosureBody></Disclosure>
 
-        <details className="mb-3 border border-[var(--border)] p-3" open>
-          <summary className="cursor-pointer text-[var(--muted)]">Appearance</summary>
+        <Disclosure className="mb-3 border border-[var(--border)] p-3" defaultOpen>
+          <DisclosureTitle className="cursor-pointer text-[var(--muted)]">Appearance</DisclosureTitle><DisclosureBody>
           <div className="mt-3 space-y-2">
             <SettingRow label="Piece skin">
-              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={pieceSkin} onChange={(event) => setPieceSkin(event.target.value as PieceSkin)}>
+              <Select label="Piece skin" className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={pieceSkin} onValueChange={(nextValue) => setPieceSkin(nextValue as PieceSkin)}>
                 <option value="classic-mono">Classic mono</option>
                 <option value="ice-glass">Ice glass</option>
                 <option value="wireframe">Wireframe</option>
                 <option value="solid-block">Solid block</option>
                 <option value="soft-glow">Soft glow</option>
-              </select>
+              </Select>
             </SettingRow>
             <SettingRow label="Piece palette">
-              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={piecePalette} onChange={(event) => setPiecePalette(event.target.value as PiecePalette)}>
+              <Select label="Piece palette" className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={piecePalette} onValueChange={(nextValue) => setPiecePalette(nextValue as PiecePalette)}>
                 <option value="mono">Mono</option>
                 <option value="ice">Ice</option>
                 <option value="contrast">Contrast</option>
-              </select>
+              </Select>
             </SettingRow>
             <SettingRow label="Board background">
-              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={boardBackground} onChange={(event) => setBoardBackground(event.target.value as BoardBackground)}>
+              <Select label="Board background" className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={boardBackground} onValueChange={(nextValue) => setBoardBackground(nextValue as BoardBackground)}>
                 <option value="old-black">Old black</option>
                 <option value="charcoal">Charcoal</option>
                 <option value="deep-grid">Deep grid</option>
-              </select>
+              </Select>
             </SettingRow>
-            <SettingRow label="Grid intensity" value={`${Math.round(gridIntensity * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={gridIntensity} onChange={(event) => setGridIntensity(Number(event.target.value))} /></SettingRow>
+            <SettingRow label="Grid intensity" value={`${Math.round(gridIntensity * 100)}%`}><Slider label="Grid intensity" className="w-full" min={0} max={1} step={0.01} value={gridIntensity} onValueChange={(nextValue) => setGridIntensity(Number(nextValue))} /></SettingRow>
             <ToggleRow checked={showGhost} onChange={setShowGhost}>Ghost piece</ToggleRow>
-            <SettingRow label="Ghost opacity" value={`${Math.round(ghostOpacity * 100)}%`}><input className="w-full" type="range" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onChange={(event) => setGhostOpacity(Number(event.target.value))} /></SettingRow>
+            <SettingRow label="Ghost opacity" value={`${Math.round(ghostOpacity * 100)}%`}><Slider label="Ghost opacity" className="w-full" min={0.05} max={0.35} step={0.01} value={ghostOpacity} onValueChange={(nextValue) => setGhostOpacity(Number(nextValue))} /></SettingRow>
             <ToggleRow checked={focusMode} onChange={setFocusMode}>Compact focus mode</ToggleRow>
           </div>
-        </details>
+        </DisclosureBody></Disclosure>
 
-        <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Audio</summary>
+        <Disclosure className="mb-3 border border-[var(--border)] p-3">
+          <DisclosureTitle className="cursor-pointer text-[var(--muted)]">Audio</DisclosureTitle><DisclosureBody>
           <div className="mt-3 space-y-2">
             <ToggleRow checked={sfxEnabled} onChange={setSfxEnabled}>Sound effects</ToggleRow>
             <ToggleRow checked={uiSoundEnabled} onChange={setUiSoundEnabled}>UI sounds</ToggleRow>
             <SettingRow label="Sound pack">
-              <select className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={soundPack} onChange={(event) => {
-                setSoundPack(event.target.value as StackerSoundPack);
+              <Select label="Sound pack" className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={soundPack} onValueChange={(nextValue) => {
+                setSoundPack(nextValue as StackerSoundPack);
                 emitSound("apply");
               }}>
                 <option value="void-soft">VOID soft</option>
                 <option value="glass">Glass</option>
                 <option value="mechanical">Mechanical</option>
                 <option value="muted">Muted</option>
-              </select>
+              </Select>
             </SettingRow>
-            <SettingRow label="Master volume" value={`${Math.round(volume * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={volume} onChange={(event) => setVolume(Number(event.target.value))} /></SettingRow>
-            <SettingRow label="Impact" value={`${Math.round(impactIntensity * 100)}%`}><input className="w-full" type="range" min={0.25} max={1.75} step={0.05} value={impactIntensity} onChange={(event) => setImpactIntensity(Number(event.target.value))} /></SettingRow>
+            <SettingRow label="Master volume" value={`${Math.round(volume * 100)}%`}><Slider label="Master volume" className="w-full" min={0} max={1} step={0.01} value={volume} onValueChange={(nextValue) => setVolume(Number(nextValue))} /></SettingRow>
+            <SettingRow label="Impact" value={`${Math.round(impactIntensity * 100)}%`}><Slider label="Impact" className="w-full" min={0.25} max={1.75} step={0.05} value={impactIntensity} onValueChange={(nextValue) => setImpactIntensity(Number(nextValue))} /></SettingRow>
             <ToggleRow checked={hearNextPieces} onChange={setHearNextPieces}>Next-piece tone</ToggleRow>
-            <button className="w-full border border-[var(--border)] px-2.5 py-2 text-left text-xs hover:bg-[var(--surface2)]" onClick={() => emitSound("apply")}>Preview sound pack</button>
+            <Button className="w-full border border-[var(--border)] px-2.5 py-2 text-left text-xs hover:bg-[var(--surface2)]" onClick={() => emitSound("apply")}>Preview sound pack</Button>
           </div>
-        </details>
+        </DisclosureBody></Disclosure>
 
-        <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Motion</summary>
+        <Disclosure className="mb-3 border border-[var(--border)] p-3">
+          <DisclosureTitle className="cursor-pointer text-[var(--muted)]">Motion</DisclosureTitle><DisclosureBody>
           <div className="mt-3 space-y-2">
-            <SettingRow label="Clear motion" value={`${Math.round(clearFxStrength * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={clearFxStrength} onChange={(e) => setClearFxStrength(Number(e.target.value))} /></SettingRow>
-            <SettingRow label="Board shake" value={`${Math.round(shakeStrength * 100)}%`}><input className="w-full" type="range" min={0} max={1.5} step={0.01} value={shakeStrength} onChange={(e) => setShakeStrength(Number(e.target.value))} /></SettingRow>
+            <SettingRow label="Clear motion" value={`${Math.round(clearFxStrength * 100)}%`}><Slider label="Clear motion" className="w-full" min={0} max={1} step={0.01} value={clearFxStrength} onValueChange={(nextValue) => setClearFxStrength(Number(nextValue))} /></SettingRow>
+            <SettingRow label="Board shake" value={`${Math.round(shakeStrength * 100)}%`}><Slider label="Board shake" className="w-full" min={0} max={1.5} step={0.01} value={shakeStrength} onValueChange={(nextValue) => setShakeStrength(Number(nextValue))} /></SettingRow>
             <ToggleRow checked={showParticles} onChange={setShowParticles}>Clear particles</ToggleRow>
-            <SettingRow label="Particle intensity" value={`${Math.round(particleIntensity * 100)}%`}><input className="w-full" type="range" min={0} max={1} step={0.01} value={particleIntensity} onChange={(event) => setParticleIntensity(Number(event.target.value))} /></SettingRow>
+            <SettingRow label="Particle intensity" value={`${Math.round(particleIntensity * 100)}%`}><Slider label="Particle intensity" className="w-full" min={0} max={1} step={0.01} value={particleIntensity} onValueChange={(nextValue) => setParticleIntensity(Number(nextValue))} /></SettingRow>
           </div>
-        </details>
+        </DisclosureBody></Disclosure>
 
-        <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Run details</summary>
+        <Disclosure className="mb-3 border border-[var(--border)] p-3">
+          <DisclosureTitle className="cursor-pointer text-[var(--muted)]">Run details</DisclosureTitle><DisclosureBody>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <div>Pieces {runPieces}</div>
             <div>Inputs {runInputs}</div>
@@ -1357,10 +1359,10 @@ export function StackerModule() {
             {mode === "sprint" && <div>PB {sprintBestMs !== null ? formatMs(sprintBestMs) : "--:--.--"}</div>}
             <div>Best score {bestScore ?? 0}</div>
           </div>
-        </details>
+        </DisclosureBody></Disclosure>
 
-        <details className="mb-3 border border-[var(--border)] p-3">
-          <summary className="cursor-pointer text-[var(--muted)]">Recent locks and archive</summary>
+        <Disclosure className="mb-3 border border-[var(--border)] p-3">
+          <DisclosureTitle className="cursor-pointer text-[var(--muted)]">Recent locks and archive</DisclosureTitle><DisclosureBody>
           <div className="mt-3 space-y-3 text-[10px]">
             <div>
               <div className="mb-1 text-xs text-[var(--muted)]">Recent locks</div>
@@ -1387,7 +1389,7 @@ export function StackerModule() {
               ))}
             </div>
           </div>
-        </details>
+        </DisclosureBody></Disclosure>
       </aside>
     </div>}
   </section>;
