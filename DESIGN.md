@@ -29,7 +29,7 @@ Typing's invisible gameplay keystroke capture also remains a native input, prese
 
 ## Installer and validation
 
-NSIS uses the canonical VOID icon and the approved Mind header/sidebar artwork, generated from the identical shared mark. Native installer page bodies remain native, as approved previously. Production updater configuration/signing remains unchanged. The CI candidate temporarily disables updater-artifact generation for packaging validation only; it is not a signed production release.
+NSIS uses the canonical VOID icon and the approved Mind header/sidebar artwork, generated from the identical shared mark. Native installer page bodies remain native, as approved previously. Installation is explicitly per-user; updates run quietly on Windows after consent in a branded dialog. Checks run at startup and hourly unless Settings selects manual-only mode. Download progress is real and unknown size stays indeterminate. The existing VOID updater key is retained, with signed DEB/AppImage routes matching the installed Linux package. Native install/restart acceptance remains tracked separately. The CI candidate temporarily disables updater-artifact generation for packaging validation only; it is not a production release.
 
 The validation workflow runs unit/type/lint/build checks, headless browser interaction/screenshots on an isolated Linux runner, and Windows native tests/NSIS compilation. It never installs a package or interacts with a user's desktop. Native titlebar, installer/upgrade/uninstall, real Windows font/focus rendering and final visual acceptance require manual validation and are tracked separately. Automated evidence is not human visual approval.
 
