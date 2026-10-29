@@ -1,5 +1,5 @@
 import { useConfirm } from "../../components/ui/use-confirm";
-import { Button, CheckControl, Disclosure, DisclosureBody, DisclosureTitle, Input, NumberControl, Select, Slider, Textarea } from "../../components/ui/Controls";
+import { Button, FileButton, CheckControl, Disclosure, DisclosureBody, DisclosureTitle, Input, NumberControl, Select, Slider, Textarea } from "../../components/ui/Controls";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { LlamaServerProvider } from "./provider";
@@ -209,9 +209,7 @@ export function MindControls() {
           {store.runtime.mode === "managed" && (
             <Button onClick={() => void selectGgufModel().then((path) => path && store.addModel(provisionalModel(path, store.settings.context)))}>Import GGUF metadata</Button>
           )}
-          <label className="mind-file-button">
-            Import manifest
-            <input type="file" accept="application/json,.json" onChange={(event) => {
+          <FileButton accept="application/json,.json" onChange={(event) => {
               const file = event.target.files?.[0];
               if (!file) return;
               void readManifestFile(file).then((manifest) => {
@@ -242,8 +240,7 @@ export function MindControls() {
                 setNotice(`Imported ${manifest.name} ${manifest.version}.`);
               }).catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Manifest import failed."));
               event.target.value = "";
-            }} />
-          </label>
+            }}>Import manifest</FileButton>
           <Button disabled={!selectedModel} onClick={() => selectedModel && store.removeModel(selectedModel.id)}>Remove model metadata</Button>
         </div>
       </DisclosureBody></Disclosure>

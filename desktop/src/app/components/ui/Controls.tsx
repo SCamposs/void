@@ -1,4 +1,4 @@
-import { Children, forwardRef, isValidElement, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { Children, forwardRef, isValidElement, useRef, type ChangeEventHandler, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { Button as BaseButton } from "@base-ui/react/button";
 import { Input as BaseInput } from "@base-ui/react/input";
 import { Select as BaseSelect } from "@base-ui/react/select";
@@ -22,6 +22,10 @@ export const Input = forwardRef<HTMLInputElement, ComponentPropsWithoutRef<"inpu
 export const Textarea = forwardRef<HTMLTextAreaElement, ComponentPropsWithoutRef<"textarea">>(function Textarea({ className = "", ...props }, ref) {
   return <BaseInput render={<textarea ref={ref} {...props} />} className={`void-input void-textarea ${className}`} />;
 });
+export function FileButton({ children, accept, onChange, className = "" }: { children: ReactNode; accept: string; onChange: ChangeEventHandler<HTMLInputElement>; className?: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return <><Button type="button" className={`is-secondary ${className}`} onClick={() => inputRef.current?.click()}>{children}</Button><input ref={inputRef} hidden type="file" accept={accept} onChange={onChange} /></>;
+}
 
 type OptionProps = { value?: string | number; disabled?: boolean; children?: ReactNode };
 function optionText(node: ReactNode): string {

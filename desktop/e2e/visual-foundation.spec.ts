@@ -49,6 +49,9 @@ test("Settings removes legacy appearance and keeps safe data confirmation", asyn
   await expect(page.getByText("App appearance", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("slider", { name: "Noise", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Local data", exact: true }).click();
+  const importAction = page.getByRole("button", { name: "Import app data", exact: true });
+  await importAction.focus();
+  await expect(importAction).toBeFocused();
   await page.getByRole("button", { name: "Reset local data", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect(page.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();

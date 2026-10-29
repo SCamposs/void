@@ -1,5 +1,5 @@
 import { useConfirm } from "../ui/use-confirm";
-import { Button, Disclosure, DisclosureBody, DisclosureTitle } from "../ui/Controls";
+import { Button, FileButton, Disclosure, DisclosureBody, DisclosureTitle } from "../ui/Controls";
 import { useState } from "react";
 import { exportAppData, importAppData, resetAppData } from "../../lib/persistence";
 import { UpdatePanel } from "../../modules/updater/UpdatePanel";
@@ -31,9 +31,7 @@ export function SettingsModule() {
         <p className="mt-3 text-xs leading-5 text-[var(--muted)]">Export creates a portable JSON backup of VOID-owned settings and history. Import merges a valid backup and reloads the app.</p>
         <div className="mt-3 flex flex-wrap gap-2 text-sm">
           <Button className="border border-[var(--border)] px-3 py-2 hover:bg-[var(--surface2)]" onClick={downloadBackup}>Export app data</Button>
-          <label className="cursor-pointer border border-[var(--border)] px-3 py-2 hover:bg-[var(--surface2)]">
-            Import app data
-            <input className="sr-only" type="file" accept="application/json,.json" onChange={async (event) => {
+          <FileButton accept="application/json,.json" onChange={async (event) => {
               const file = event.target.files?.[0];
               if (!file) return;
               try {
@@ -45,8 +43,7 @@ export function SettingsModule() {
               } finally {
                 event.target.value = "";
               }
-            }} />
-          </label>
+            }}>Import app data</FileButton>
           <Button className="border border-[var(--border)] px-3 py-2 hover:bg-[var(--surface2)]" onClick={async () => {
             if (!await confirm("Reset all VOID settings and local history? This cannot be undone without a backup.")) return;
             const count = resetAppData();
