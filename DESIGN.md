@@ -43,6 +43,8 @@ The first refinement is limited to Orbit's floating settings and action controls
 
 Base UI owns outside dismissal and layered Escape/focus behavior; the old module-wide Escape listener is removed. An unavailable-microphone notice lives inside the open panel, avoiding a second overlapping floating message. Rendering, simulation, quality selection, audio analysis and settings storage contracts remain unchanged. Browser checks run only on isolated CI, including field containment, supported small windows, text scaling, nested menus, persistence and a simulated denied-permission state. Native DPI and actual microphone permission/device behavior remain manual acceptance.
 
+Source `b0627bd` on `orbit-settings-polish` passed lint, TypeScript, 129 unit tests, production build, eight browser scenarios, Windows native tests and NSIS candidate packaging in [CI 40930690426](https://github.com/SCamposs/void/actions/runs/40930690426). Screenshots were inspected at 1280×800 and 720×560, including increased text size and the denied-permission fixture. This is a branch checkpoint, not part of the published v0.3.0-alpha installer. No application/browser/installer was launched on the user's PC. Native DPI/permission acceptance is listed in [issue #2](https://github.com/SCamposs/void/issues/2).
+
 ## Fixed identity amendment
 
 The App appearance customization section was removed at the maintainer's request. The new identity is fixed by shared tokens rather than by the old theme settings. The shell no longer reads, migrates or writes legacy appearance preferences, and importing an older backup cannot restyle the application. Navigation collapse remains a functional preference. Specialized module controls remain within their existing scope.
