@@ -9,7 +9,7 @@
   --text: oklch(91% 0.008 250);
   --muted: oklch(70% 0.008 250);
   --subtle: oklch(65% 0.006 250);
-  --accent: oklch(calc(97.5% * var(--accentMix, 1)) 0.008 250);
+  --accent: oklch(97.5% 0.008 250);
   --error: oklch(69% 0.17 356.8);
   --font-display: "Urbanist Variable", Urbanist, "Segoe UI Variable", system-ui, sans-serif;
   --font-body: Barlow, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;

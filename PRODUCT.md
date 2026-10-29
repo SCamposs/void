@@ -20,7 +20,7 @@ Quiet, liminal, precise.
 
 VOID should feel like a modern desktop instrument used in a dark room. The interface recedes until state, content, or an action needs attention. The exact VOID symbol, near-black environment, ice-white light, compact geometry, and restrained motion carry the identity.
 
-VOID Mind is the approved reference for the next visual refinement of the parent application. It is a quality bar and a source of shared primitives, not a screen-for-screen template. VOID keeps its modular character and subtle monitor texture; it adopts Mind's clarity, typography, focus treatment, component discipline, and resistance to decorative noise.
+VOID Mind is the approved reference for the next visual refinement of the parent application. It is a quality bar and a source of shared primitives, not a screen-for-screen template. VOID keeps its modular character; it adopts Mind's clarity, typography, focus treatment, component discipline, and resistance to decorative noise.
 
 ## Anti-references
 
@@ -40,7 +40,7 @@ VOID must not become:
 
 - Large regions stay at or near absolute black. Panels use only enough tonal separation to explain structure.
 - Ice-white is earned. Use it for the VOID identity, primary actions, current selection, focus, and important live state.
-- Warm charcoal from the current VOID palette may remain where it supports the parent product's monitor character, but medium-gray application shells are not allowed.
+- The shared shell follows Mind's black/glacial-white palette. Legacy warm-charcoal themes and medium-gray application shells are not part of the new identity.
 - Borders are sparse hairlines. Do not outline every region or combine a decorative border with a wide soft shadow.
 - Red and cyan are exceptional signals for error or a brief identity displacement. They are never permanent decorative accents.
 
@@ -96,7 +96,7 @@ VOID must not become:
 - Motion communicates entry, progress, selection, completion, or recovery. It is not ambient decoration.
 - The exact VOID path may trace and fill during boot. Its final fill remains ice-white; it must never resolve to black or disappear into the background.
 - Boot motion may include one short identity bloom or red/cyan displacement. Continuous glitch is prohibited.
-- The parent VOID may retain subtle noise and scanlines, but texture must be stable, low-opacity, and subordinate to content.
+- The shared shell uses a clean black field. Legacy scanline, noise, glow, texture and font-scale customization is removed; old saved appearance preferences are ignored.
 - Every non-essential animation has a prefers-reduced-motion resolution that removes both movement and unnecessary waiting.
 
 ## Shared Component Direction

@@ -64,44 +64,6 @@ progress::-moz-progress-bar {
   background: var(--accent);
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: var(--noiseStrength, 0.08);
-  background-image: radial-gradient(rgba(255,255,255,0.8) 0.5px, transparent 0.5px);
-  background-size: 3px 3px;
-}
-
-.crt::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: var(--scanlineStrength, 0.12);
-  background: linear-gradient(to bottom, rgba(255,255,255,0.03), rgba(255,255,255,0.03) 1px, transparent 2px, transparent 4px);
-  background-size: 100% 4px;
-}
-
-.boot[data-background="vignette"] {
-  background: radial-gradient(circle at 50% 35%, #151512 0, var(--bg) 48%, #050505 100%);
-}
-
-.boot[data-background="radial"] {
-  background:
-    radial-gradient(circle at 18% 12%, rgba(232, 237, 244, 0.045), transparent 34%),
-    radial-gradient(circle at 84% 86%, rgba(232, 237, 244, 0.03), transparent 30%),
-    var(--bg);
-}
-
-.boot { animation: bootIn 320ms ease-out; }
-@keyframes bootIn {
-  from { opacity: 0; transform: scale(0.995); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-
 .stacker-shell,
 .orbit-shell {
   contain: layout paint;
@@ -1054,21 +1016,7 @@ body::before {
   }
 }
 
-.intro-scanlines {
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03),
-    rgba(255, 255, 255, 0.03) 1px,
-    transparent 2px,
-    transparent 4px
-  );
-}
 
-.intro-noise {
-  opacity: 0.07;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.8) 0.5px, transparent 0.5px);
-  background-size: 3px 3px;
-}
 
 .void-logo-path {
   fill: transparent;

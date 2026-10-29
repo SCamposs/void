@@ -34,23 +34,20 @@ test("Home identity, navigation size, keyboard dialog and compact layout", async
   await page.screenshot({ path: testInfo.outputPath("home-compact.png") });
 });
 
-test("Shared switch, slider, select, disclosure and safe confirmation preserve settings", async ({ page }, testInfo) => {
+test("Settings removes legacy appearance and keeps safe data confirmation", async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    const oldTheme = JSON.stringify({ fontScale: 1.2, accentIntensity: .7, noise: .25, scanlines: true, backgroundTexture: "radial" });
+    localStorage.setItem("void.app.theme.v2", oldTheme);
+    localStorage.setItem("void-desktop-theme", oldTheme);
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "A little space to focus." })).toBeVisible();
+  await expect(page.locator("html")).toHaveCSS("font-size", "16px");
+  await expect(page.locator("body")).toHaveCSS("font-family", /Barlow/);
+  await expect(page.locator("body")).toHaveCSS("background-color", "oklch(0 0 0)");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const scanlines = page.getByRole("switch", { name: "Scanlines", exact: true });
-  const wasChecked = await scanlines.getAttribute("aria-checked");
-  await scanlines.click();
-  await expect(scanlines).toHaveAttribute("aria-checked", wasChecked === "true" ? "false" : "true");
-  const noise = page.getByRole("slider", { name: "Noise", exact: true });
-  const before = Number(await noise.getAttribute("aria-valuenow"));
-  await noise.focus(); await page.keyboard.press("ArrowRight");
-  await expect(noise).toHaveAttribute("aria-valuenow", String(Number((before + .01).toFixed(2))));
-  const texture = page.getByRole("combobox", { name: "Background texture", exact: true });
-  await texture.click();
-  const popup = page.getByRole("listbox");
-  await expect(popup).toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath("select-open.png") });
-  await page.getByRole("option", { name: "Flat", exact: true }).click();
-  await expect(texture).toContainText("Flat");
+  await expect(page.getByText("App appearance", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("slider", { name: "Noise", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Local data", exact: true }).click();
   await page.getByRole("button", { name: "Reset local data", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
@@ -58,16 +55,35 @@ test("Shared switch, slider, select, disclosure and safe confirmation preserve s
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("settings.png") });
+});
+
+test("Module switches and sliders keep their keyboard and persistence behavior", async ({ page }, testInfo) => {
+  await page.getByRole("button", { name: "Stacker", exact: true }).click();
+  await page.locator("main").getByRole("button", { name: "Settings", exact: true }).click();
+  const ghost = page.getByRole("switch", { name: "Ghost piece", exact: true });
+  const beforeGhost = await ghost.getAttribute("aria-checked");
+  await ghost.click();
+  await expect(ghost).toHaveAttribute("aria-checked", beforeGhost === "true" ? "false" : "true");
+  await page.getByRole("button", { name: "Input tuning", exact: true }).click();
+  const das = page.getByRole("slider", { name: "DAS", exact: true });
+  const before = Number(await das.getAttribute("aria-valuenow"));
+  await das.focus(); await page.keyboard.press("ArrowRight");
+  await expect(das).toHaveAttribute("aria-valuenow", String(before + 5));
+  await page.screenshot({ path: testInfo.outputPath("stacker-shared-controls.png") });
   await page.reload();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await expect(scanlines).toHaveAttribute("aria-checked", wasChecked === "true" ? "false" : "true");
-  await expect(texture).toContainText("Flat");
+  await page.getByRole("button", { name: "Stacker", exact: true }).click();
+  await page.locator("main").getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(ghost).toHaveAttribute("aria-checked", beforeGhost === "true" ? "false" : "true");
+  await page.getByRole("button", { name: "Input tuning", exact: true }).click();
+  await expect(das).toHaveAttribute("aria-valuenow", String(before + 5));
 });
 
 test("Typing and embedded Mind keep functional fields and custom controls", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: "Typing", exact: true }).click();
   const duration = page.getByRole("combobox", { name: "Duration", exact: true });
-  await duration.click(); await page.getByRole("option", { name: "60s", exact: true }).click();
+  await duration.click();
+  await page.screenshot({ path: testInfo.outputPath("select-open.png") });
+  await page.getByRole("option", { name: "60s", exact: true }).click();
   await expect(duration).toContainText("60s");
   const typingInput = page.getByRole("textbox", { name: /^Type the word / });
   const word = (await typingInput.getAttribute("aria-label"))!.replace("Type the word ", "");

@@ -1,4 +1,4 @@
-import { Button, CheckControl, Disclosure, DisclosureBody, DisclosureTitle, Input, Select, Slider } from "../../components/ui/Controls";
+import { Button, SwitchControl, Disclosure, DisclosureBody, DisclosureTitle, Input, Select, Slider } from "../../components/ui/Controls";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StackerEngine, type LastClearEvent, type Snapshot } from "./engine";
 import {
@@ -211,7 +211,7 @@ function ToggleRow({ checked, onChange, children }: { checked: boolean; onChange
   return (
     <label className="flex items-center justify-between gap-3 border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
       <span className="text-[var(--muted)]">{children}</span>
-      <CheckControl checked={checked} onCheckedChange={(nextValue) => onChange(nextValue)} />
+      <SwitchControl label={typeof children === "string" ? children : undefined} checked={checked} onCheckedChange={(nextValue) => onChange(nextValue)} />
     </label>
   );
 }

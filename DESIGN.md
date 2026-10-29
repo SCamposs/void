@@ -32,3 +32,7 @@ The validation workflow runs unit/type/lint/build checks, headless browser inter
 ## Next phase
 
 Refine Orbit, Typing, Stacker and embedded Mind individually, using these shared primitives and tokens. Preserve their domain behavior while reviewing each layout and specialized interaction against its own purpose.
+
+## Fixed identity amendment
+
+The App appearance customization section was removed at the maintainer's request. The new identity is fixed by shared tokens rather than by the old theme settings. The shell no longer reads, migrates or writes legacy appearance preferences, and importing an older backup cannot restyle the application. Navigation collapse remains a functional preference. Specialized module controls remain within their existing scope.

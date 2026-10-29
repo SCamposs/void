@@ -21,14 +21,12 @@ export type TypingSummary = {
 export const STORAGE_SCHEMA_VERSION = 3;
 export const storageKeys = {
   schema: "void.storage.schema",
-  theme: "void.app.theme.v2",
   sidebar: "void.app.sidebar.v2",
   typingSessions: "void.typing.sessions.v2",
   mindState: "void.mind.state.v1",
 } as const;
 
 const LEGACY_KEYS: Record<string, string> = {
-  "void-desktop-theme": storageKeys.theme,
   "void-sidebar-collapsed": storageKeys.sidebar,
   "void-typing-sessions": storageKeys.typingSessions,
 };
