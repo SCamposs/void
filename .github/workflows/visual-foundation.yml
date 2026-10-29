@@ -1,7 +1,7 @@
 name: Visual foundation validation
 on:
   push:
-    branches: [main, 'codex/mind-visual-foundation']
+    branches: [main, 'mind-visual-foundation']
     paths: ['desktop/**', '.github/workflows/visual-foundation.yml']
   pull_request:
     paths: ['desktop/**', '.github/workflows/visual-foundation.yml']
