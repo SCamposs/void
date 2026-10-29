@@ -85,14 +85,21 @@ code, pre, kbd { font-family: var(--font-mono); }
 .void-confirm-dialog p { color: var(--muted); line-height: 1.6; font-size: .9rem; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
 .void-intro { position: fixed; z-index: var(--z-intro); inset: 0; display: grid; place-items: center; background: var(--bg); transition: opacity 300ms var(--ease-out); }
+.void-intro::before { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(52vw, 560px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, color-mix(in oklch, var(--accent) 8%, transparent), color-mix(in oklch, var(--accent) 2%, transparent) 38%, transparent 68%); pointer-events: none; animation: void-intro-bloom 1.2s 1.6s var(--ease-out) both; }
 .void-intro[aria-hidden="true"] { opacity: 0; pointer-events: none; visibility: hidden; }
-.intro-content { display: flex; flex-direction: column; align-items: center; gap: 22px; color: var(--accent); }
+.intro-content { position: relative; display: flex; flex-direction: column; align-items: center; gap: 22px; color: var(--accent); }
 .intro-content > svg { width: 136px; height: 136px; }
-.intro-wordmark { font: 500 .8rem var(--font-display); letter-spacing: .35em; }
-.intro-content > button { padding: 8px 12px; font-size: .75rem; color: var(--muted); }
+.intro-wordmark { position: relative; font: 500 .8rem var(--font-display); letter-spacing: .35em; text-indent: .35em; animation: void-word-resolve .65s 2.15s var(--ease-out) both; }
+.intro-wordmark::before, .intro-wordmark::after { content: attr(data-word); position: absolute; inset: 0; opacity: 0; pointer-events: none; animation: void-chroma-separate 220ms 2.88s ease-out; }
+.intro-wordmark::before { color: var(--error); --chroma-offset: -1.5px; }
+.intro-wordmark::after { color: var(--signal-cyan); --chroma-offset: 1.5px; }
+.intro-content > button { position: fixed; right: 20px; bottom: 18px; padding: 7px 9px; font-size: .68rem; color: var(--muted); }
 .intro-content > button:hover { color: var(--accent); }
-.void-logo-path { fill: var(--accent); stroke: var(--accent); animation: void-trace 2.2s var(--ease-out) both, void-fill .7s 2.2s ease-out both; }
-@keyframes void-fill { from { fill: transparent; } to { fill: var(--accent); stroke-width: 0; } }
+.void-logo-path { fill: var(--accent); stroke: var(--accent); filter: drop-shadow(0 0 4px color-mix(in oklch, var(--accent) 24%, transparent)); animation: void-trace 2.2s var(--ease-out) both, void-fill .7s 2.2s ease-out both; }
+@keyframes void-fill { from { fill: transparent; } to { fill: var(--accent); stroke-width: 0; filter: drop-shadow(0 0 8px color-mix(in oklch, var(--accent) 36%, transparent)); } }
+@keyframes void-intro-bloom { from { opacity: 0; } to { opacity: 1; } }
+@keyframes void-word-resolve { from { opacity: 0; filter: blur(6px); letter-spacing: .6em; text-indent: .6em; } to { opacity: 1; filter: blur(0); letter-spacing: .35em; text-indent: .35em; } }
+@keyframes void-chroma-separate { 0%, 100% { opacity: 0; transform: translateX(0); } 45% { opacity: .4; transform: translateX(var(--chroma-offset)); } }
 @media (max-width: 900px) {
   .void-shell { grid-template-columns: 148px minmax(0, 1fr); }
   .void-app[data-collapsed="true"] .void-shell { grid-template-columns: 60px minmax(0, 1fr); }
@@ -103,4 +110,7 @@ code, pre, kbd { font-family: var(--font-mono); }
 }
 @media (prefers-reduced-motion: reduce) {
   .void-logo-path { animation: none; stroke-dashoffset: 0; fill: var(--accent); stroke-width: 0; }
+  .intro-wordmark { animation: none; opacity: 1; filter: none; }
+  .intro-wordmark::before, .intro-wordmark::after { animation: none; opacity: 0; }
+  .void-intro::before { animation: none; opacity: .5; }
 }

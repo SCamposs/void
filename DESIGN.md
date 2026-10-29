@@ -15,6 +15,8 @@ VOID adopts the approved VOID Mind visual language while retaining its modular p
 
 Fonts are bundled locally. Urbanist belongs to wordmarks/headings; Barlow belongs to reading and controls; mono remains for code, identifiers and module-specific measures where appropriate. Placeholders use the same legible neutral ramp as secondary text. Disabled controls retain the ordinary cursor.
 
+Boot also carries Mind's restrained identity moment: canonical trace/fill, a cold bloom, wordmark resolution and one brief chromatic separation. The action to skip stays at the lower edge. All of this resolves immediately under reduced motion; it is not continuous decoration or configurable legacy texture.
+
 ## Composition and interaction
 
 Home uses open space and simple module rows rather than placeholder metrics or a dashboard card grid. Shared navigation has meaningful outline icons; the sidebar toggle changes its actual width. The titlebar provides drag space and narrow native minimize/maximize/close operations, without granting general command execution. Command navigation uses a Base UI Dialog with search focus and keyboard dismissal.

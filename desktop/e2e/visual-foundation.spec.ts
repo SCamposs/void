@@ -141,6 +141,8 @@ test("Normal intro has white terminal styles, self-dismisses and supports Escape
   expect(terminal.fill.every((channel, index) => Math.abs(channel - terminal.stroke[index]) <= 1)).toBe(true);
   expect(terminal.fill.slice(0, 3).every((channel) => channel >= 230)).toBe(true);
   expect(terminal.fill[3]).toBe(255);
+  await page.locator(".void-intro").evaluate((element) => element.getAnimations({ subtree: true }).forEach((animation) => animation.finish()));
+  await expect(page.locator(".intro-wordmark")).toHaveCSS("opacity", "1");
   await page.screenshot({ path: testInfo.outputPath("intro-white-final.png") });
   await expect(page.locator(".void-intro")).toHaveCount(0, { timeout: 4000 });
   await page.reload();

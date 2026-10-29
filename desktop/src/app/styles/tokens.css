@@ -11,6 +11,7 @@
   --subtle: oklch(65% 0.006 250);
   --accent: oklch(97.5% 0.008 250);
   --error: oklch(69% 0.17 356.8);
+  --signal-cyan: oklch(78% 0.14 215);
   --font-display: "Urbanist Variable", Urbanist, "Segoe UI Variable", system-ui, sans-serif;
   --font-body: Barlow, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;

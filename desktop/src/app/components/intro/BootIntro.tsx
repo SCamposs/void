@@ -24,7 +24,7 @@ export function BootIntro({ visible, onSkip }: BootIntroProps) {
             d={VOID_PATH}
           />
         </svg>
-        <div className="intro-wordmark">VOID</div>
+        <div className="intro-wordmark" data-word="VOID">VOID</div>
         <Button ref={skipRef} onClick={onSkip}>
           Skip Intro
         </Button>
