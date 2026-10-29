@@ -1,8 +1,14 @@
 # VOID
 
 VOID is a local-first desktop app built with Tauri, React, and TypeScript. It
-combines focused tools with a quiet old-monitor identity: charcoal surfaces,
-ice-white signal, and restrained CRT texture.
+combines focused tools with the shared VOID Mind visual foundation: black
+surfaces, glacial-white light, Urbanist headings and Barlow controls/body text.
+
+The shared shell, Base UI components, custom titlebar and installer branding are
+documented in [DESIGN.md](DESIGN.md). The former App appearance customization is
+removed; legacy appearance preferences no longer restyle the application.
+Module-specific refinements remain a subsequent phase. Native visual/installer
+acceptance is tracked in [issue #2](https://github.com/SCamposs/void/issues/2).
 
 Installed builds check the official GitHub updater feed when VOID opens and
 every two hours. Downloads and installation only begin after the user selects

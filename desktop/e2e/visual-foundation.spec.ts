@@ -109,17 +109,32 @@ test("Reduced motion resolves the canonical intro mark without waiting", async (
   await expect(page.locator(".home-mark path")).toHaveAttribute("d", "M 10 5 L 50 95 L 90 5 L 42 45 L 70 25 L 50 70 L 21.1 5 Z");
 });
 
-test("Normal intro finishes in white and allows keyboard dismissal", async ({ page }, testInfo) => {
+test("Normal intro has white terminal styles, self-dismisses and supports Escape", async ({ page }, testInfo) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.reload();
   const logo = page.locator(".void-intro .void-logo-path");
   await expect(logo).toBeVisible();
-  await expect.poll(async () => logo.evaluate((element) => {
+  // Complete the actual CSS animations, rather than racing the short final hold.
+  const endTimes = await logo.evaluate((element) => element.getAnimations().map((animation) => {
+    const end = animation.effect!.getComputedTiming().endTime;
+    animation.finish();
+    return Number(end);
+  }));
+  expect(endTimes).toHaveLength(2);
+  expect(Math.max(...endTimes)).toBeLessThanOrEqual(3000);
+  await expect(logo).toHaveCSS("stroke-width", "0px");
+  const terminal = await logo.evaluate((element) => {
     const style = getComputedStyle(element);
-    return style.strokeWidth === "0px" && style.fill === style.stroke;
-  }), { intervals: [16], timeout: 3100 }).toBe(true);
+    const context = document.createElement("canvas").getContext("2d")!;
+    context.fillStyle = style.fill;
+    context.fillRect(0, 0, 1, 1);
+    return { sameColor: style.fill === style.stroke, rgba: [...context.getImageData(0, 0, 1, 1).data] };
+  });
+  expect(terminal.sameColor).toBe(true);
+  expect(terminal.rgba.slice(0, 3).every((channel) => channel >= 230)).toBe(true);
+  expect(terminal.rgba[3]).toBe(255);
   await page.screenshot({ path: testInfo.outputPath("intro-white-final.png") });
-  await expect(page.locator(".void-intro")).toHaveCount(0);
+  await expect(page.locator(".void-intro")).toHaveCount(0, { timeout: 4000 });
   await page.reload();
   await expect(page.getByRole("button", { name: "Skip Intro" })).toBeFocused();
   await page.keyboard.press("Escape");
