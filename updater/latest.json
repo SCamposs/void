@@ -1,15 +1,15 @@
 {
-  "version": "0.2.0-alpha",
-  "notes": "See the GitHub release notes for v0.2.0-alpha.",
-  "pub_date": "2026-09-14T14:24:36.1129892Z",
+  "version": "0.3.0-alpha",
+  "notes": "See the GitHub release notes for v0.3.0-alpha.",
+  "pub_date": "2026-10-29T17:42:13.8098719Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb2FHWmcxdUI1bGJKWFZrSDFadnJtMWtFS1k2OUllTFZ2Q1ArWWp4c3lRWkhOY2gxRVkwdjZMb1Rlc1ovMzRoZytaM2ZNYW9tRDBLSEk5N0dTdzYvRndVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5Mzk1ODE3CWZpbGU6Vk9JRF8wLjIuMC1hbHBoYV94NjQtc2V0dXAuZXhlCkwrTkcxSDlsRmY5aHFLaU90ekNHVHY3U09QQWNPZDdQcERoQzY1aWhRd3A2bFFFZHhjWjcrS2hGTUR3OVRjeXNSYkhiOWVNMFlBZDdKYXQwNmxBNkNnPT0K",
-      "url": "https://github.com/SCamposs/void/releases/download/v0.2.0-alpha/VOID-Windows-x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1F5YzNBOG1sV2VUMlAyOGVyYm9HL2VNOHNLS3Y4eG5lbUtXN2huVStLSEE1WVk1dmJINktPbExpRGs0bUxOUERHdFdvVUNadkJEaDZzWmxYRkFEandJPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjk1NjEzCWZpbGU6Vk9JRF8wLjMuMC1hbHBoYV94NjQtc2V0dXAuZXhlCjUrdXRHMGczSzVUQmxuc3l6Ui9lMWV5dUNqSkRiR25nZXVhNlExWkZ0NTgrUS9jVmt4cE9iaDlsNmlOR0V5bDZ5VG1wT1ZwVUNRQ0FlbnNNWmpwYURBPT0K",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.3.0-alpha/VOID-Windows-x64-setup.exe"
     },
     "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1pSSkRsd0lkVUdwMVplV2RPanVpK0NlWkduVXZqZTdZU2I3K1ROd0RxcjJBbWl2Y051VWUwUWhzNGhxMk9XTnFiOHlqUUhUclRTSldFUVpQdnJxb2cwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5Mzk1Nzk0CWZpbGU6Vk9JRF8wLjIuMC1hbHBoYV9hbWQ2NC5BcHBJbWFnZQpSY2pZYjJGSnZXWEpVOEh0Q05TSlJHZWNzK3hnQlpoTmhVRzN4aU1zNHhtRnIrMndjeXd4Q1U0cTBxNFdscS9QcGFPN21JWCtiVG1DVzZFVFlxckdEZz09Cg==",
-      "url": "https://github.com/SCamposs/void/releases/download/v0.2.0-alpha/VOID-Linux-x64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1ZvNzlkdlIxMUVyY3UvdnNQWDBWV0pSVFNkRzFnS2dwMGJEWEp0K2V0cXF4YXJLNU5KTHBVZVlXRmZGNXZPMXVjUGdCOU5ZSVRQUnJwV0RjdTcydVFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzMjk1NTM4CWZpbGU6Vk9JRF8wLjMuMC1hbHBoYV9hbWQ2NC5BcHBJbWFnZQpscVRjby9DY212MUtGd3llQmMrKzVJOE15Ryt3WkpZbzRwaDk3Tk9VM0pXMjUwVVZ2eEZVK1VpTXF0U05IaGgyazlHVy9KelhPdVZKbnJEOWpWMm5EUT09Cg==",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.3.0-alpha/VOID-Linux-x64.AppImage"
     }
   }
 }
