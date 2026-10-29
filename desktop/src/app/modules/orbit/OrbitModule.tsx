@@ -92,12 +92,6 @@ export function OrbitModule() {
     saveOrbitSettings(settings);
   }, [settings]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setSettingsOpen(false); };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
   const toggleAudio = useCallback(async () => {
     if (analyzerRef.current.status === "listening") {
       analyzerRef.current.stop();
@@ -128,8 +122,7 @@ export function OrbitModule() {
       runtimeState={runtimeState}
       settings={settings}
       onToggleAudio={() => void toggleAudio()}
-      onToggleSettings={() => { setSettingsOpen((open) => !open); revealControls(); }}
-      onCloseSettings={() => setSettingsOpen(false)}
+      onSettingsOpenChange={(open) => { setSettingsOpen(open); revealControls(); }}
       onSettingsChange={updateSettings}
     />
   </section>;

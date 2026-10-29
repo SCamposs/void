@@ -80,7 +80,6 @@ code, pre, kbd { font-family: var(--font-mono); }
 .mind-composer:focus-within { border-color: var(--accent); }
 .mind-composer .void-textarea:focus-visible { outline: none; box-shadow: none; }
 .mind-chat-sidebar .void-select { font-size: .8rem; }
-.orbit-settings .void-select { width: 150px; font-size: .8rem; }
 .void-confirm-dialog h2 { font-size: 1.4rem; font-weight: 500; margin-bottom: 12px; }
 .void-confirm-dialog p { color: var(--muted); line-height: 1.6; font-size: .9rem; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
