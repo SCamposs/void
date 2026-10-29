@@ -339,7 +339,6 @@ export function TypingModule() {
     eventsRef.current = [];
     wordEventStartRef.current = 0;
     wordStartedAtRef.current = 0;
-    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const handleInput = (rawValue: string) => {
@@ -408,7 +407,7 @@ export function TypingModule() {
       {!locked ? <>
         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
           <label className="flex items-center gap-2">Duration
-            <Select label="Duration"
+            <Select label="Duration" finalFocus={inputRef}
               className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1"
               value={duration}
               disabled={startedAt !== null}
@@ -421,7 +420,7 @@ export function TypingModule() {
             </Select>
           </label>
           <label className="flex items-center gap-2">Language
-            <Select label="Language"
+            <Select label="Language" finalFocus={inputRef}
               className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1"
               value={language}
               disabled={startedAt !== null}

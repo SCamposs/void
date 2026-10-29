@@ -89,8 +89,9 @@ test("Typing and embedded Mind keep functional fields and custom controls", asyn
   await page.getByRole("option", { name: "60s", exact: true }).click();
   await expect(duration).toContainText("60s");
   const typingInput = page.getByRole("textbox", { name: /^Type the word / });
-  const word = (await typingInput.getAttribute("aria-label"))!.replace("Type the word ", "");
-  await typingInput.focus();
+  await expect(page.getByRole("listbox")).toHaveCount(0);
+  await expect(typingInput).toBeFocused();
+  const word = "rápido";
   await page.keyboard.type(word);
   await expect(typingInput).toHaveValue(word);
   await page.screenshot({ path: testInfo.outputPath("typing-shared-chrome.png") });

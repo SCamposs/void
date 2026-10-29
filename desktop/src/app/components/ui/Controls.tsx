@@ -1,4 +1,4 @@
-import { Children, forwardRef, isValidElement, useRef, type ChangeEventHandler, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { Children, forwardRef, isValidElement, useRef, type ChangeEventHandler, type ComponentPropsWithoutRef, type ReactNode, type RefObject } from "react";
 import { Button as BaseButton } from "@base-ui/react/button";
 import { Input as BaseInput } from "@base-ui/react/input";
 import { Select as BaseSelect } from "@base-ui/react/select";
@@ -32,9 +32,9 @@ function optionText(node: ReactNode): string {
   return Children.toArray(node).map((part) => isValidElement<{ children?: ReactNode }>(part) ? optionText(part.props.children) : String(part)).join("");
 }
 /** Option children are declarative data only; the popup never renders a native select. */
-export function Select({ value, onValueChange, children, label, className = "", disabled, id }: {
+export function Select({ value, onValueChange, children, label, className = "", disabled, id, finalFocus }: {
   value: string | number; onValueChange(value: string): void; children: ReactNode;
-  label: string; className?: string; disabled?: boolean; id?: string;
+  label: string; className?: string; disabled?: boolean; id?: string; finalFocus?: RefObject<HTMLElement | null>;
 }) {
   const options = Children.toArray(children).filter(isValidElement<OptionProps>).map((child) => ({
     value: String(child.props.value ?? optionText(child.props.children)), label: optionText(child.props.children), disabled: child.props.disabled,
@@ -44,7 +44,7 @@ export function Select({ value, onValueChange, children, label, className = "", 
       <BaseSelect.Value /><BaseSelect.Icon><ChevronDown size={14} aria-hidden="true" /></BaseSelect.Icon>
     </BaseSelect.Trigger>
     <BaseSelect.Portal><BaseSelect.Positioner className="void-select-positioner" sideOffset={6} align="start" alignItemWithTrigger={false}>
-      <BaseSelect.Popup className="void-select-popup"><BaseSelect.List>
+      <BaseSelect.Popup className="void-select-popup" finalFocus={finalFocus}><BaseSelect.List>
         {options.map((option) => <BaseSelect.Item className="void-select-option" key={option.value} value={option.value} disabled={option.disabled}>
           <BaseSelect.ItemText>{option.label}</BaseSelect.ItemText><BaseSelect.ItemIndicator><Check size={14} aria-hidden="true" /></BaseSelect.ItemIndicator>
         </BaseSelect.Item>)}
