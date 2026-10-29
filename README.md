@@ -8,6 +8,19 @@ Installed builds check the official GitHub updater feed when VOID opens and
 every two hours. Downloads and installation only begin after the user selects
 the available update.
 
+## Product direction
+
+VOID is evolving toward a **local-first desktop workspace**: a cohesive home for useful everyday tools, experiments, and fun things, with a consistent interface rather than a collection of disconnected apps.
+
+### Planned capabilities (not yet delivered)
+
+- **Mind inside VOID:** a deliberately simplified, integrated experience inspired by the standalone [VOID Mind](https://github.com/SCamposs/void-mind), focused on useful conversational assistance within the workspace. The standalone product remains a separate, more extensive environment.
+- **Bring your own intelligence:** support for user-selected AI providers through supported OAuth/account sign-in flows where available, or user-supplied API keys. Availability and authentication mechanics will depend on each provider; local models remain an important option.
+- **Extensibility:** an eventual plugin system and native, reusable skills that allow workspace modules and AI-assisted workflows to grow without turning the core app into a monolith.
+- **Workspace + play:** practical tools and small, enjoyable experiments living together within the same desktop environment.
+
+These are **roadmap intentions, not current feature claims or release commitments**. Provider security boundaries, credential storage, user consent, permissions, sandboxing, and plugin/skill trust will need dedicated design before any extensibility or cloud-provider integration ships. See [the current local Mind setup](desktop/docs/VOID_MIND.md) for what is implemented today.
+
 ## Download and install
 
 - [Download VOID for Windows](https://github.com/SCamposs/void/releases) (`.exe`)
