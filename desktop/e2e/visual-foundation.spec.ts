@@ -126,13 +126,18 @@ test("Normal intro has white terminal styles, self-dismisses and supports Escape
   const terminal = await logo.evaluate((element) => {
     const style = getComputedStyle(element);
     const context = document.createElement("canvas").getContext("2d")!;
-    context.fillStyle = style.fill;
-    context.fillRect(0, 0, 1, 1);
-    return { sameColor: style.fill === style.stroke, rgba: [...context.getImageData(0, 0, 1, 1).data] };
+    const rgba = (color: string) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return [...context.getImageData(0, 0, 1, 1).data];
+    };
+    return { fill: rgba(style.fill), stroke: rgba(style.stroke) };
   });
-  expect(terminal.sameColor).toBe(true);
-  expect(terminal.rgba.slice(0, 3).every((channel) => channel >= 230)).toBe(true);
-  expect(terminal.rgba[3]).toBe(255);
+  // Animation interpolation may serialize OKLab while the stroke stays OKLCH.
+  expect(terminal.fill.every((channel, index) => Math.abs(channel - terminal.stroke[index]) <= 1)).toBe(true);
+  expect(terminal.fill.slice(0, 3).every((channel) => channel >= 230)).toBe(true);
+  expect(terminal.fill[3]).toBe(255);
   await page.screenshot({ path: testInfo.outputPath("intro-white-final.png") });
   await expect(page.locator(".void-intro")).toHaveCount(0, { timeout: 4000 });
   await page.reload();
