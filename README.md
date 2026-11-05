@@ -7,7 +7,9 @@ surfaces, glacial-white light, Urbanist headings and Barlow controls/body text.
 The shared shell, Base UI components, custom titlebar and installer branding are
 documented in [DESIGN.md](DESIGN.md). The former App appearance customization is
 removed; legacy appearance preferences no longer restyle the application.
-Module-specific refinements remain a subsequent phase. Native visual/installer
+Stacker now includes refined gameplay, neon piece colors, placement effects and
+the VOID glacial sound pack. Other module-specific refinements remain a subsequent
+phase. Native visual/installer
 acceptance is tracked in [issue #2](https://github.com/SCamposs/void/issues/2).
 
 Installed builds check the official GitHub updater feed when VOID opens and

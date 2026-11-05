@@ -1,6 +1,10 @@
 import { Button, SwitchControl, Disclosure, DisclosureBody, DisclosureTitle, Input, Select, Slider } from "../../components/ui/Controls";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StackerEngine, type LastClearEvent, type Snapshot } from "./engine";
+import { advanceRepeat } from "./handling";
+import { prepareStackerReferenceAudio, stackerOutput } from "./referenceAudio";
+import { Volume2, VolumeX } from "lucide-react";
+import "./stacker.css";
 import {
   playStackerSound,
   type StackerSoundEvent,
@@ -16,20 +20,19 @@ import {
 
 const CELL = 22;
 const W = 10;
-const MINI = 10;
 const GAP = 1;
 const H = 20;
 const BOARD_PIXEL_W = W * CELL + (W - 1) * GAP;
 const BOARD_PIXEL_H = H * CELL + (H - 1) * GAP;
 const PLAY_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "z", "Z", "a", "A", "c", "C", "p", "P", "r", "R", "F4"]);
 const PIECE_SHADES: Record<number, string> = {
-  1: "#e6e1d7",
-  2: "#d9d4ca",
-  3: "#ccc8bf",
-  4: "#c0bcb4",
-  5: "#b5b1aa",
-  6: "#aaa79f",
-  7: "#9f9c95",
+  1: "#e7ecf3",
+  2: "#d8e0eb",
+  3: "#c8d2e0",
+  4: "#bcc8d7",
+  5: "#b0bdcf",
+  6: "#a1b1c6",
+  7: "#93a5bd",
 };
 type PieceSkin = "classic-mono" | "ice-glass" | "wireframe" | "solid-block" | "soft-glow";
 type PiecePalette = "mono" | "ice" | "contrast";
@@ -38,28 +41,28 @@ type BoardBackground = "old-black" | "charcoal" | "deep-grid";
 const PIECE_PALETTES: Record<PiecePalette, Record<number, string>> = {
   mono: PIECE_SHADES,
   ice: {
-    1: "#f6f4ed",
-    2: "#e7e5df",
-    3: "#d8d9d6",
-    4: "#cacdc9",
-    5: "#bdc2bd",
-    6: "#b1b7b2",
-    7: "#a5aca7",
+    1: "#81e8ff", // I, glacial cyan
+    2: "#f3df86", // O, pale yellow
+    3: "#c5a3ff", // T, frosted violet
+    4: "#89e0b5", // S, cool mint
+    5: "#f29cbc", // Z, muted rose
+    6: "#91b6ff", // J, ice blue
+    7: "#f0ba85", // L, pale peach
   },
   contrast: {
-    1: "#f7f4eb",
-    2: "#d8d2c5",
-    3: "#eee9de",
-    4: "#bfc3be",
-    5: "#d4ccc0",
-    6: "#aeb6b4",
-    7: "#c7c2b8",
+    1: "#f5f8ff",
+    2: "#b9c9dd",
+    3: "#e6edf7",
+    4: "#92a7c3",
+    5: "#d3deed",
+    6: "#a5b8d2",
+    7: "#c2d1e5",
   },
 };
 
 const BOARD_BACKGROUNDS: Record<BoardBackground, string> = {
-  "old-black": "#080807",
-  charcoal: "#10100e",
+  "old-black": "#030405",
+  charcoal: "#0a0c10",
   "deep-grid": "#050505",
 };
 
@@ -110,7 +113,7 @@ function clearLabel(lines: number): string {
 
 function clearTone(clear: LastClearEvent): string {
   if (clear.isPerfectClear) return "#f2efe5";
-  if (clear.tSpinKind === "mini") return "#d9d4ca";
+  if (clear.tSpinKind === "mini") return "#d8e0eb";
   if (clear.isTSpin) return "#ebe7de";
   if (clear.lines === 4) return "#f2efe5";
   return "#c9c5bc";
@@ -118,10 +121,10 @@ function clearTone(clear: LastClearEvent): string {
 
 function comboTierTone(combo: number): string {
   if (combo >= 8) return "#f2efe5";
-  if (combo >= 5) return "#d9d4ca";
+  if (combo >= 5) return "#d8e0eb";
   if (combo >= 3) return "#c9c5bc";
   if (combo >= 2) return "#b9b5ab";
-  return "#9f9c95";
+  return "#93a5bd";
 }
 
 function b2bTierTone(b2bStreak: number): string {
@@ -134,7 +137,7 @@ function b2bTierTone(b2bStreak: number): string {
 
 function clearSubtitle(clear: LastClearEvent): string {
   const detail: string[] = [];
-  if (clear.combo > 1) detail.push(`C${clear.combo}`);
+  if (clear.combo > 1) detail.push(`C${clear.combo - 1}`);
   if (clear.b2bStreak >= 2) detail.push(`B${clear.b2bStreak - 1}`);
   if (clear.tSpinKind === "mini") detail.push("MINI");
   if (clear.isPerfectClear) detail.push("PC");
@@ -163,7 +166,7 @@ function formatMs(ms: number): string {
 function isTextEntryTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName.toLowerCase();
-  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable
+  return tag === "input" || tag === "textarea" || tag === "select" || tag === "button" || target.isContentEditable
     || target.closest('[role="combobox"], [role="slider"], [role="checkbox"], [role="switch"], [role="listbox"], [role="dialog"], [role="alertdialog"]') !== null;
 }
 
@@ -197,7 +200,7 @@ const OPENER_KEY = "void_stacker_opener";
 
 function SettingRow({ label, value, children }: { label: string; value?: string; children: ReactNode }) {
   return (
-    <label className="block border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
+    <label className="block border border-[var(--border)] bg-[#090b0e] px-2.5 py-2 text-xs">
       <span className="mb-1 flex items-center justify-between gap-3">
         <span className="text-[var(--muted)]">{label}</span>
         {value && <span className="text-[var(--subtle)]">{value}</span>}
@@ -209,7 +212,7 @@ function SettingRow({ label, value, children }: { label: string; value?: string;
 
 function ToggleRow({ checked, onChange, children }: { checked: boolean; onChange: (checked: boolean) => void; children: ReactNode }) {
   return (
-    <label className="flex items-center justify-between gap-3 border border-[var(--border)] bg-[#0d0d0b] px-2.5 py-2 text-xs">
+    <label className="flex items-center justify-between gap-3 border border-[var(--border)] bg-[#090b0e] px-2.5 py-2 text-xs">
       <span className="text-[var(--muted)]">{children}</span>
       <SwitchControl label={typeof children === "string" ? children : undefined} checked={checked} onCheckedChange={(nextValue) => onChange(nextValue)} />
     </label>
@@ -304,35 +307,32 @@ function parseOpener(input: string): number[] {
 }
 
 function pieceShade(id: number, palette: PiecePalette = "mono"): string {
-  return PIECE_PALETTES[palette][id] ?? "#dcd8cf";
+  return PIECE_PALETTES[palette][id] ?? "#dce5f2";
 }
 
 function MiniPiece({ matrix, pieceId, active, palette = "mono" }: { matrix: number[][] | null; pieceId?: number; active?: boolean; palette?: PiecePalette }) {
-  const rows = Math.max(2, matrix?.length ?? 0);
-  const cols = Math.max(4, matrix?.[0]?.length ?? 0);
-  const onColor = pieceShade(pieceId ?? 1, palette);
-  return (
-    <div
-      className={`grid border border-[var(--border)] p-1 ${active ? "bg-[var(--surface2)]" : "bg-[var(--surface)]"}`}
-      style={{ gridTemplateColumns: `repeat(${cols}, ${MINI}px)`, gap: 1 }}
-    >
-      {Array.from({ length: rows }).flatMap((_, y) =>
-        Array.from({ length: cols }).map((__, x) => {
-          const on = (matrix?.[y]?.[x] ?? 0) !== 0;
-          return (
-            <span
-              key={`${x}-${y}`}
-              className="h-[10px] w-[10px] border border-[#2a2a25]"
-              style={{ background: on ? onColor : "#11110f" }}
-            />
-          );
-        }),
-      )}
-    </div>
-  );
+  const occupied = matrix?.flatMap((row, y) => row.flatMap((cell, x) => cell ? [{ x, y }] : [])) ?? [];
+  const minX = occupied.length ? Math.min(...occupied.map((cell) => cell.x)) : 0;
+  const minY = occupied.length ? Math.min(...occupied.map((cell) => cell.y)) : 0;
+  const rows = occupied.length ? Math.max(...occupied.map((cell) => cell.y)) - minY + 1 : 2;
+  const cols = occupied.length ? Math.max(...occupied.map((cell) => cell.x)) - minX + 1 : 4;
+  return <div className={`stacker-preview ${active ? "is-next" : ""}`} style={{ gridTemplateColumns: `repeat(${cols}, var(--stacker-mini))` }} aria-label={pieceId ? `${pieceLabel(pieceId)} piece` : "Empty hold"}>
+    {Array.from({ length: rows }).flatMap((_, y) => Array.from({ length: cols }).map((__, x) => {
+      const on = !!matrix?.[y + minY]?.[x + minX];
+      return <span key={`${x}-${y}`} className={on ? "is-filled" : undefined} style={{ background: on ? pieceShade(pieceId ?? 1, palette) : "transparent", ["--piece-tone" as string]: pieceShade(pieceId ?? 1, palette) }} />;
+    }))}
+  </div>;
 }
 
 export function StackerModule() {
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(media.matches);
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const engineRef = useRef(new StackerEngine("endless"));
   const lastFrame = useRef(performance.now());
   const lastClearId = useRef(0);
@@ -398,8 +398,6 @@ export function StackerModule() {
       setHearNextPieces(false);
       setShowGhost(true);
       setGhostOpacity(0.22);
-      setSeedInput("");
-      setOpenerInput("");
       return;
     }
     if (preset === "competitive") {
@@ -415,8 +413,6 @@ export function StackerModule() {
       setHearNextPieces(false);
       setShowGhost(true);
       setGhostOpacity(0.2);
-      setSeedInput("");
-      setOpenerInput("");
       return;
     }
     setDasMs(90);
@@ -431,8 +427,6 @@ export function StackerModule() {
     setHearNextPieces(true);
     setShowGhost(true);
     setGhostOpacity(0.18);
-    setSeedInput("777");
-    setOpenerInput("IOT");
   };
 
   useEffect(() => { localStorage.setItem("void_stacker_das", String(dasMs)); }, [dasMs]);
@@ -517,11 +511,12 @@ export function StackerModule() {
   const ensureAudioReady = useCallback((nowMs?: number) => {
     if (typeof window === "undefined" || !window.AudioContext) return;
     if (!audio.current) audio.current = new window.AudioContext();
+    void prepareStackerReferenceAudio(audio.current);
     if (audio.current.state === "running") return;
     const now = nowMs ?? performance.now();
     if (now - lastAudioResumeAttemptRef.current < 1500) return;
     lastAudioResumeAttemptRef.current = now;
-    void audio.current.resume();
+    void audio.current.resume().catch(() => undefined);
   }, []);
   const soundSettings = useMemo<StackerSoundSettings>(() => ({
     enabled: sfxEnabled,
@@ -530,16 +525,41 @@ export function StackerModule() {
     impact: impactIntensity,
     pack: soundPack,
   }), [impactIntensity, sfxEnabled, soundPack, uiSoundEnabled, volume]);
-  const emitSound = useCallback((event: StackerSoundEvent, detail = 0) => {
+  const emitSound = useCallback((event: StackerSoundEvent, detail = 0, packOverride?: StackerSoundPack) => {
     if (!soundSettings.enabled || typeof window === "undefined" || !window.AudioContext) return;
     if (!audio.current) audio.current = new window.AudioContext();
     const context = audio.current;
+    const selected = packOverride ? { ...soundSettings, pack: packOverride } : soundSettings;
+    void prepareStackerReferenceAudio(context);
     if (context.state === "suspended") {
-      void context.resume().then(() => playStackerSound(context, event, soundSettings, detail));
+      void context.resume().then(() => playStackerSound(context, event, selected, detail)).catch(() => undefined);
       return;
     }
-    playStackerSound(context, event, soundSettings, detail);
+    playStackerSound(context, event, selected, detail);
   }, [soundSettings]);
+
+  useEffect(() => {
+    if (audio.current) stackerOutput(audio.current, soundSettings);
+  }, [soundSettings]);
+
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    boardRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  const toggleSettings = useCallback(() => {
+    if (settingsOpen) { closeSettings(); return; }
+    const engine = engineRef.current;
+    const snapshot = engine.getSnapshot();
+    if (!snapshot.isPaused && !snapshot.isGameOver) {
+      if (mode === "sprint") return;
+      engine.togglePause();
+      setState(engine.getSnapshot());
+      emitSound("pause");
+    }
+    emitSound("menu");
+    setSettingsOpen(true);
+  }, [closeSettings, emitSound, mode, settingsOpen]);
 
   const cancelCountdown = useCallback(() => {
     for (const timeout of countdownTimeoutsRef.current) window.clearTimeout(timeout);
@@ -551,7 +571,7 @@ export function StackerModule() {
   const beginCountdown = useCallback(() => {
     const snapshot = engineRef.current.getSnapshot();
     if (countdownActiveRef.current || !snapshot.isPaused || snapshot.isGameOver) return;
-
+    boardRef.current?.focus({ preventScroll: true });
     ensureAudioReady();
     countdownActiveRef.current = true;
     setCountdownStep(STACKER_COUNTDOWN_STEPS[0]);
@@ -566,6 +586,7 @@ export function StackerModule() {
     });
 
     const goTimeout = window.setTimeout(() => {
+      countdownActiveRef.current = false;
       engineRef.current.start();
       setState(engineRef.current.getSnapshot());
       setCountdownStep("GO");
@@ -612,6 +633,23 @@ export function StackerModule() {
     }
   }, [dcdMs]);
 
+  const performPieceAction = useCallback((action: (engine: StackerEngine) => void, sound: StackerSoundEvent) => {
+    const engine = engineRef.current;
+    const before = engine.getSnapshot();
+    if (before.isPaused || before.isGameOver) return false;
+    action(engine);
+    const after = engine.getSnapshot();
+    const changed = before.activePiece.x !== after.activePiece.x || before.activePiece.y !== after.activePiece.y
+      || before.canHold !== after.canHold || before.lastLock?.id !== after.lastLock?.id
+      || JSON.stringify(before.activePiece.matrix) !== JSON.stringify(after.activePiece.matrix)
+      || (sound === "rotate" && before.activePiece.id === 2);
+    if (changed) {
+      emitSound(sound);
+      if (sound !== "move" && sound !== "soft-drop") applyDasCut();
+    }
+    return changed;
+  }, [applyDasCut, emitSound]);
+
   useEffect(() => {
     let raf = 0;
     const tick = (now: number) => {
@@ -621,59 +659,27 @@ export function StackerModule() {
       const runLeft = keyHeld.current.left && (!keyHeld.current.right || horizontalPriority.current === "left");
       const runRight = keyHeld.current.right && (!keyHeld.current.left || horizontalPriority.current === "right");
 
-      if (runLeft) {
-        if (moveRepeat.current.left <= 0) {
-          if (arrMs <= 0) {
-            while (true) {
-              const beforeX = engineRef.current.getSnapshot().activePiece.x;
-              engineRef.current.moveLeft();
-              const afterX = engineRef.current.getSnapshot().activePiece.x;
-              if (afterX === beforeX) break;
-            }
-          } else {
-            engineRef.current.moveLeft();
-          }
-          moveRepeat.current.left = arrMs;
-        } else {
-          moveRepeat.current.left -= dt;
+      const engine = engineRef.current;
+      const playing = !engine.getSnapshot().isPaused && !engine.getSnapshot().isGameOver;
+      for (const direction of ["left", "right"] as const) {
+        const held = playing && (direction === "left" ? runLeft : runRight);
+        if (!held) continue;
+        const beforeX = engine.getSnapshot().activePiece.x;
+        const repeat = advanceRepeat(moveRepeat.current[direction], dt, arrMs);
+        moveRepeat.current[direction] = repeat.remainingMs;
+        for (let i = 0; i < repeat.count; i += 1) {
+          if (direction === "left") engine.moveLeft();
+          else engine.moveRight();
         }
-      } else {
-        moveRepeat.current.left = 0;
+        if (engine.getSnapshot().activePiece.x !== beforeX) emitSound("move");
       }
-
-      if (runRight) {
-        if (moveRepeat.current.right <= 0) {
-          if (arrMs <= 0) {
-            while (true) {
-              const beforeX = engineRef.current.getSnapshot().activePiece.x;
-              engineRef.current.moveRight();
-              const afterX = engineRef.current.getSnapshot().activePiece.x;
-              if (afterX === beforeX) break;
-            }
-          } else {
-            engineRef.current.moveRight();
-          }
-          moveRepeat.current.right = arrMs;
-        } else {
-          moveRepeat.current.right -= dt;
-        }
-      } else {
-        moveRepeat.current.right = 0;
-      }
-
-      if (keyHeld.current.down) {
-        if (moveRepeat.current.down <= 0) {
-          if (sdfMs <= 0) {
-            runSoftDropBurst();
-          } else {
-            engineRef.current.softDrop();
-          }
-          moveRepeat.current.down = sdfMs;
-        } else {
-          moveRepeat.current.down -= dt;
-        }
-      } else {
-        moveRepeat.current.down = 0;
+      if (playing && keyHeld.current.down) {
+        const beforeY = engine.getSnapshot().activePiece.y;
+        const repeat = advanceRepeat(moveRepeat.current.down, dt, sdfMs);
+        moveRepeat.current.down = repeat.remainingMs;
+        if (sdfMs <= 0) runSoftDropBurst();
+        else for (let i = 0; i < repeat.count; i += 1) engine.softDrop();
+        if (engine.getSnapshot().activePiece.y !== beforeY) emitSound("soft-drop");
       }
 
       engineRef.current.update(dt);
@@ -695,7 +701,7 @@ export function StackerModule() {
           .filter((particle) => particle.lifeMs > 0);
       }
       const snap = engineRef.current.getSnapshot();
-      if (snap.isGameOver && !wasGameOverRef.current) emitSound("game-over");
+      if (snap.isGameOver && !wasGameOverRef.current) emitSound(mode === "sprint" && snap.lines >= 40 ? "sprint-clear" : "game-over");
       wasGameOverRef.current = snap.isGameOver;
       if (snap.isPaused && !wasPausedRef.current) {
         pausedAtMsRef.current = now;
@@ -711,7 +717,7 @@ export function StackerModule() {
         runStartMsRef.current = now - runElapsedRef.current;
         runSavedRef.current = false;
       }
-      if (runRunningRef.current && !snap.isPaused) {
+      if (runRunningRef.current && (!snap.isPaused || snap.isGameOver)) {
         const elapsed = now - runStartMsRef.current;
         runElapsedRef.current = elapsed;
         setRunElapsedMs(elapsed);
@@ -727,7 +733,7 @@ export function StackerModule() {
           sprintSavedRunRef.current = false;
           runSavedRef.current = false;
         }
-        if (sprintRunningRef.current && !snap.isPaused) {
+        if (sprintRunningRef.current && (!snap.isPaused || snap.isGameOver)) {
           const elapsed = now - sprintStartMsRef.current;
           sprintElapsedRef.current = elapsed;
           setSprintElapsedMs(elapsed);
@@ -752,7 +758,7 @@ export function StackerModule() {
             score: snap.score,
             lines: snap.lines,
             ms: Math.max(1, Math.trunc(runElapsedRef.current)),
-            pieces: runPiecesRef.current,
+            pieces: snap.lastLock?.id ?? runPiecesRef.current,
             inputs: runInputsRef.current,
             finessePlus: runFinessePlusRef.current,
           },
@@ -786,28 +792,32 @@ export function StackerModule() {
         const shakeDuration =
           clear.isPerfectClear ? 360 : clear.lines >= 4 || clear.isTSpin ? 280 : 170;
         shakeUntilRef.current = Math.max(shakeUntilRef.current, now + shakeDuration);
-        if (showParticles) {
+        if (showParticles && !reducedMotion && clear.lines > 0) {
           const spawned: ClearParticle[] = [];
           const burstCount = Math.round(
             Math.min(42, 10 + clear.lines * 7 + (clear.isPerfectClear ? 8 : 0)) * particleIntensity,
           );
           for (let i = 0; i < burstCount; i += 1) {
+            const rows = clear.clearedRows ?? [H - 1];
+            const row = rows[i % rows.length] ?? H - 1;
+            const lifeMs = 300 + Math.random() * 180;
             spawned.push({
               id: ++particleIdRef.current,
               x: Math.random() * (BOARD_PIXEL_W - 12) + 6,
-              y: Math.max(12, BOARD_PIXEL_H - clear.lines * 28 + Math.random() * 24),
+              y: (row + .5) * (CELL + GAP),
               vx: (Math.random() - 0.5) * 0.1,
               vy: -(0.06 + Math.random() * 0.12),
-              lifeMs: 420 + Math.random() * 260,
-              maxLifeMs: 420 + Math.random() * 260,
+              lifeMs,
+              maxLifeMs: lifeMs,
               size: 1.2 + Math.random() * 2.1,
               tone,
             });
           }
           particlesRef.current = [...particlesRef.current, ...spawned].slice(-130);
         }
-        emitSound("line-clear", clear.lines);
-        if (clear.combo > 1) emitSound("combo", clear.combo);
+        const clearSound: StackerSoundEvent = clear.isPerfectClear ? "all-clear" : clear.isTSpin ? "t-spin" : clear.lines === 4 ? clear.wasBackToBack ? "back-to-back" : "quad" : "line-clear";
+        emitSound(clearSound, clear.lines);
+        if (clear.lines > 0 && clear.combo > 1) emitSound("combo", clear.combo - 1);
       }
       setFeedback((current) => (current && current.untilMs <= now ? null : current));
       setClearTrail((current) => current.filter((entry) => entry.untilMs > now));
@@ -815,12 +825,13 @@ export function StackerModule() {
         const lock = snap.lastLock;
         if (lock.id !== lastLockId.current) {
           lastLockId.current = lock.id;
-          runPiecesRef.current += 1;
+          runPiecesRef.current = lock.id;
           runFinessePlusRef.current += Math.max(0, pieceInputsRef.current - 3);
           pieceInputsRef.current = 0;
           setRunPieces(runPiecesRef.current);
           setRunFinessePlus(runFinessePlusRef.current);
           if (lock.lines === 0 && lock.lockCause !== "hard-drop") emitSound("lock");
+          if (lock.lockCause !== "hard-drop") applyDasCut();
         }
         setLockTrail((current) => {
           if (current.length > 0 && current[0].id === lock.id) return current;
@@ -849,21 +860,20 @@ export function StackerModule() {
               : "#8f8c84";
           return [{ id: lock.id, label: title, detail, tone }, ...current].slice(0, 6);
         });
-        applyDasCut();
       }
       setState(snap);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [applyDasCut, arrMs, emitSound, hearNextPieces, mode, particleIntensity, runSoftDropBurst, sdfMs, showParticles]);
+  }, [applyDasCut, arrMs, emitSound, hearNextPieces, mode, particleIntensity, reducedMotion, runSoftDropBurst, sdfMs, showParticles]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (settingsOpen) {
         if (e.key === "Escape") {
           e.preventDefault();
-          setSettingsOpen(false);
+          closeSettings();
         }
         return;
       }
@@ -890,35 +900,28 @@ export function StackerModule() {
         keyHeld.current.left = true;
         horizontalPriority.current = "left";
         moveRepeat.current.left = dasMs;
-        eg.moveLeft();
-        emitSound("move");
-        countedInput = true;
+        countedInput = performPieceAction((engine) => engine.moveLeft(), "move");
       }
       if (e.key === "ArrowRight") {
         e.preventDefault();
         keyHeld.current.right = true;
         horizontalPriority.current = "right";
         moveRepeat.current.right = dasMs;
-        eg.moveRight();
-        emitSound("move");
-        countedInput = true;
+        countedInput = performPieceAction((engine) => engine.moveRight(), "move");
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         keyHeld.current.down = true;
-        if (sdfMs <= 0) runSoftDropBurst();
-        else eg.softDrop();
-        emitSound("soft-drop");
+        countedInput = performPieceAction((engine) => { if (sdfMs <= 0) runSoftDropBurst(); else engine.softDrop(); }, "soft-drop");
         moveRepeat.current.down = Math.max(0, sdfMs);
-        countedInput = true;
       }
-      if (e.key === "ArrowUp") { e.preventDefault(); eg.rotateClockwise(); emitSound("rotate"); applyDasCut(); countedInput = true; }
-      if (e.key === "z" || e.key === "Z") { e.preventDefault(); eg.rotateCounterClockwise(); emitSound("rotate"); applyDasCut(); countedInput = true; }
-      if (e.key === "Control" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.rotateCounterClockwise(); emitSound("rotate"); applyDasCut(); countedInput = true; }
-      if (e.key === "a" || e.key === "A") { e.preventDefault(); eg.rotate180(); emitSound("rotate"); applyDasCut(); countedInput = true; }
-      if (e.code === "Space") { e.preventDefault(); eg.hardDrop(); emitSound("hard-drop"); applyDasCut(); countedInput = true; }
-      if (e.key === "c" || e.key === "C") { e.preventDefault(); eg.hold(); emitSound("hold"); applyDasCut(); countedInput = true; }
-      if (e.key === "Shift" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); eg.hold(); emitSound("hold"); applyDasCut(); countedInput = true; }
+      if (e.key === "ArrowUp") { e.preventDefault(); countedInput = performPieceAction((engine) => engine.rotateClockwise(), "rotate"); }
+      if (e.key === "z" || e.key === "Z") { e.preventDefault(); countedInput = performPieceAction((engine) => engine.rotateCounterClockwise(), "rotate"); }
+      if (e.key === "Control" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); countedInput = performPieceAction((engine) => engine.rotateCounterClockwise(), "rotate"); }
+      if (e.key === "a" || e.key === "A") { e.preventDefault(); countedInput = performPieceAction((engine) => engine.rotate180(), "rotate"); }
+      if (e.code === "Space") { e.preventDefault(); countedInput = performPieceAction((engine) => engine.hardDrop(), "hard-drop"); }
+      if (e.key === "c" || e.key === "C") { e.preventDefault(); countedInput = performPieceAction((engine) => engine.hold(), "hold"); }
+      if (e.key === "Shift" && e.location === KeyboardEvent.DOM_KEY_LOCATION_LEFT) { e.preventDefault(); countedInput = performPieceAction((engine) => engine.hold(), "hold"); }
       if ((e.key === "p" || e.key === "P") && mode !== "sprint") { e.preventDefault(); eg.togglePause(); emitSound(eg.getSnapshot().isPaused ? "pause" : "resume"); }
       if (e.key === "r" || e.key === "R" || e.key === "F4") {
         e.preventDefault();
@@ -949,7 +952,7 @@ export function StackerModule() {
         particlesRef.current = [];
       }
       const snapshot = eg.getSnapshot();
-      if (countedInput && !snapshot.isPaused && !snapshot.isGameOver) {
+      if (countedInput) {
         runInputsRef.current += 1;
         pieceInputsRef.current += 1;
         setRunInputs(runInputsRef.current);
@@ -974,7 +977,7 @@ export function StackerModule() {
       window.removeEventListener("blur", releaseHeldKeys);
       releaseHeldKeys();
     };
-  }, [applyDasCut, beginCountdown, buildRestartOptions, cancelCountdown, dasMs, emitSound, ensureAudioReady, mode, runSoftDropBurst, sdfMs, settingsOpen]);
+  }, [applyDasCut, beginCountdown, buildRestartOptions, cancelCountdown, closeSettings, dasMs, emitSound, ensureAudioReady, mode, performPieceAction, runSoftDropBurst, sdfMs, settingsOpen]);
 
   const grid = useMemo(() => (showGhost ? overlay(state) : (() => {
     const out = state.board.map((r) => [...r]);
@@ -988,6 +991,7 @@ export function StackerModule() {
   })()), [showGhost, state]);
 
   const restart = () => {
+    boardRef.current?.focus({ preventScroll: true });
     cancelCountdown();
     emitSound("apply");
     engineRef.current.restart(buildRestartOptions());
@@ -1080,18 +1084,18 @@ export function StackerModule() {
   const sprintWastePieces = mode === "sprint" ? Math.max(0, runPieces - 100) : 0;
   const fxNow = performance.now();
   const shakeRemaining = Math.max(0, shakeUntilRef.current - fxNow);
-  const shakeBase = shakeRemaining > 0 ? Math.min(4.5, (shakeRemaining / 360) * 4.5) * clearFxStrength * Math.max(0, shakeStrength) : 0;
+  const shakeBase = !reducedMotion && shakeRemaining > 0 ? Math.min(2, (shakeRemaining / 360) * 2) * clearFxStrength * Math.max(0, shakeStrength) : 0;
   const shakeX = shakeBase > 0 ? Math.sin(fxNow * 0.13) * shakeBase : 0;
   const shakeY = shakeBase > 0 ? Math.cos(fxNow * 0.17) * shakeBase * 0.65 : 0;
 
   return <section
     className="stacker-shell panel relative flex h-full min-h-0 flex-col overflow-hidden"
-    style={{ ["--stacker-cell" as string]: "clamp(16px, min(2.15vw, calc((100vh - 250px) / 20)), 23px)" }}
+    style={{ ["--stacker-fx" as string]: clearFxStrength, ["--stacker-cell" as string]: "clamp(12px, min(calc((100cqh - 220px) / 20), calc((100cqw - 240px) / 10)), 32px)" }}
   >
     <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-2.5">
       <div className="min-w-[160px]">
         <h1 className="text-base font-semibold tracking-[-0.02em]">Stacker</h1>
-        {!focusMode && <p className="text-[11px] text-[var(--muted)]">Board focus, minimal readout, advanced tuning tucked away.</p>}
+        {!focusMode && <p className="text-[11px] text-[var(--muted)]">Find your rhythm. Make every piece count.</p>}
       </div>
       <div className="flex flex-wrap items-center justify-end gap-1.5 text-xs">
         <Button
@@ -1110,146 +1114,78 @@ export function StackerModule() {
         >
           {state.isPaused ? "Resume" : "Pause"}
         </Button>
-        <Button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>{mode}</Button>
-        <Button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={() => {
-          emitSound("menu");
-          setSettingsOpen((value) => !value);
-        }}>
+        <Button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleMode}>{mode === "sprint" ? "40 line sprint" : "Endless"}</Button>
+        <Button className="stacker-sound-toggle" aria-label={sfxEnabled ? "Mute sound effects" : "Enable sound effects"} title={sfxEnabled ? "Mute sound effects" : "Enable sound effects"} onClick={() => setSfxEnabled((value) => !value)}>
+          {sfxEnabled ? <Volume2 size={15} aria-hidden="true" /> : <VolumeX size={15} aria-hidden="true" />}
+        </Button>
+        <Button className="border border-[var(--border)] px-2.5 py-1.5 hover:bg-[var(--surface2)]" onClick={toggleSettings}
+          disabled={countdownStep !== null || (mode === "sprint" && !state.isPaused && !state.isGameOver)}
+          title={mode === "sprint" && !state.isPaused ? "Finish or restart the sprint before changing settings." : "Stacker settings"}>
           Settings
         </Button>
       </div>
     </div>
 
-    <div className="grid min-h-0 flex-1 place-items-center gap-3 overflow-hidden px-3 py-3 xl:grid-cols-[152px_auto_160px]">
-      <aside className="hidden w-full self-center xl:block">
-        <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
-          <div className="text-sm text-[var(--muted)]">Hold {state.canHold ? "" : "(locked)"}</div>
-          <div className="mb-2 text-xs">{state.holdPiece ? pieceLabel(state.holdPiece.id) : "-"}</div>
-          <div style={{ opacity: state.canHold ? 1 : 0.45 }}>
-            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} palette={piecePalette} />
-          </div>
+    <div className={`stacker-stage ${focusMode ? "is-focused" : ""}`}>
+      <aside className="stacker-left" aria-label="Hold and run statistics">
+        <div className={`stacker-hold ${state.canHold ? "" : "is-locked"}`}>
+          <div className="stacker-rail-label">Hold <kbd>C</kbd></div>
+          <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} palette={piecePalette} />
+          <span className="stacker-hold-status">{state.holdPiece ? state.canHold ? "Available" : "Next piece" : "Save a piece"}</span>
         </div>
-        {!focusMode && <div className="mt-3 border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--muted)]">
-          <div>Piece {pieceLabel(state.activePiece.id)}</div>
-          <div style={{ color: comboTierTone(state.combo) }}>Combo {state.combo > 1 ? `x${state.combo}` : "-"}</div>
-          <div style={{ color: b2bTierTone(state.b2bStreak) }}>B2B {state.b2bStreak >= 2 ? `x${state.b2bStreak - 1}` : "-"}</div>
-        </div>}
+        <dl className="stacker-stats">
+          <div><dt>Score</dt><dd>{state.score.toLocaleString()}</dd></div>
+          <div><dt>{mode === "sprint" ? "Lines left" : "Lines"}</dt><dd>{mode === "sprint" ? sprintLinesLeft : state.lines}<small>{mode === "sprint" ? "/ 40" : `Level ${state.level}`}</small></dd></div>
+          {!focusMode && <div><dt>Pieces / sec</dt><dd>{pps.toFixed(2)}</dd></div>}
+        </dl>
+        <div className="stacker-chains" aria-label="Clear chains">
+          <span style={{ color: comboTierTone(state.combo) }}>Combo <b>{state.combo > 1 ? `×${state.combo - 1}` : "—"}</b></span>
+          <span style={{ color: b2bTierTone(state.b2bStreak) }}>Back to back <b>{state.b2bStreak >= 2 ? `×${state.b2bStreak - 1}` : "—"}</b></span>
+        </div>
+        <div className="stacker-feedback" role="status" aria-live="polite">{feedback && <div key={state.lastClear?.id} className="stacker-callout"><strong>{feedback.text}</strong>{feedback.detail && <span>{feedback.detail}</span>}</div>}</div>
       </aside>
-
-      <main className="flex min-h-0 flex-col items-center justify-center">
-        <div className="mb-2 grid w-full max-w-[500px] grid-cols-4 gap-1.5 text-center text-[11px]">
-          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Score</div><div className="truncate">{state.score}</div></div>
-          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Lines</div><div>{state.lines}</div></div>
-          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Timer</div><div>{formatMs(mode === "sprint" ? sprintElapsedMs : runElapsedMs)}</div></div>
-          <div className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5"><div className="text-[var(--muted)]">Level</div><div>{state.level}</div></div>
-        </div>
-
-        <div className="mb-3 flex gap-3 xl:hidden">
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-2 text-xs">
-            <div className="mb-1 text-[var(--muted)]">Hold</div>
-            <MiniPiece matrix={state.holdPiece?.matrix ?? null} pieceId={state.holdPiece?.id} palette={piecePalette} />
-          </div>
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-2 text-xs">
-            <div className="mb-1 text-[var(--muted)]">Next</div>
-            <MiniPiece matrix={state.nextQueue[0]?.matrix ?? null} pieceId={state.nextQueue[0]?.id} active palette={piecePalette} />
-          </div>
-        </div>
-
-        {feedback && <div className="mb-2 min-h-9 border px-3 py-1 text-center text-xs" style={{ borderColor: feedback.tone, color: feedback.tone }}>
-          <div>{feedback.text}</div>
-          {feedback.detail && <div className="text-[10px] text-[var(--subtle)]">{feedback.detail}</div>}
-        </div>}
-        {(state.isGameOver || doneSprint) && <div className="mb-2 border border-[var(--border)] px-3 py-1 text-xs">{doneSprint ? "SPRINT CLEAR" : "GAME OVER"}</div>}
-
-        <div className={`relative border border-[var(--border)] p-2 shadow-[0_0_8px_rgba(255,255,255,0.08)] ${countdownStep !== null ? "stacker-countdown-board" : ""}`} style={{ background: BOARD_BACKGROUNDS[boardBackground] }}>
-          <div className="relative grid transition-transform" style={{ gridTemplateColumns: `repeat(${W}, var(--stacker-cell))`, gap: GAP, width: `calc(var(--stacker-cell) * ${W} + ${W - 1}px)`, transform: `translate(${shakeX}px, ${shakeY}px)` }}>
+      <div className="stacker-center">
+        <div className="stacker-clock"><span>{mode === "sprint" ? "40 line sprint" : "Endless"}</span><strong>{formatMs(mode === "sprint" ? sprintElapsedMs : runElapsedMs)}</strong></div>
+        <div className={`stacker-board-frame ${countdownStep !== null ? "stacker-countdown-board" : ""}`} style={{ background: BOARD_BACKGROUNDS[boardBackground] }}>
+          <div ref={boardRef} tabIndex={0} className="stacker-board" role="img" aria-label="Stacker playfield" style={{ transform: `translate(${shakeX}px, ${shakeY}px)` }}>
             {grid.flatMap((row, y) => row.map((cell, x) => {
-              const tone = pieceShade(cell, piecePalette);
+              const tone = pieceShade(cell === 8 ? state.activePiece.id : cell, piecePalette);
               const empty = cell === 0;
               const ghost = cell === 8;
-              const background = empty
-                ? `rgba(23,23,19,${0.38 + gridIntensity * 0.32})`
-                : ghost
-                  ? `rgba(232,228,218,${ghostOpacity})`
-                  : pieceSkin === "ice-glass"
-                    ? `linear-gradient(145deg, ${tone}, rgba(142,148,144,0.72))`
-                    : pieceSkin === "wireframe"
-                      ? "transparent"
-                      : tone;
-              return <div
-                key={`${x}-${y}`}
-                style={{
-                  background,
-                  width: "var(--stacker-cell)",
-                  height: "var(--stacker-cell)",
-                  border: `1px solid ${!empty && pieceSkin === "wireframe" ? tone : `rgba(226,222,213,${0.08 + gridIntensity * 0.28})`}`,
-                  boxShadow: !empty && !ghost && pieceSkin === "soft-glow" ? `0 0 6px ${tone}` : pieceSkin === "ice-glass" && !empty && !ghost ? "inset 0 0 4px rgba(255,255,255,0.34)" : "none",
-                }}
-              />;
+              const active = !empty && !ghost && state.activePiece.matrix[y - state.activePiece.y]?.[x - state.activePiece.x] === 1;
+              const background = empty ? "transparent" : ghost ? `color-mix(in srgb, ${tone} ${ghostOpacity * 30}%, transparent)`
+                : pieceSkin === "ice-glass" ? `linear-gradient(145deg, ${tone}, color-mix(in srgb, ${tone} 84%, #141b27))`
+                : pieceSkin === "wireframe" ? "transparent" : tone;
+              return <div key={`${x}-${y}`} data-cell={empty ? "empty" : ghost ? "ghost" : active ? "active" : "settled"} className="stacker-cell"
+                style={{ background, ["--piece-tone" as string]: tone, borderColor: empty ? `rgba(218,230,249,${gridIntensity * 0.09})` : ghost ? `color-mix(in srgb, ${tone} ${Math.min(75, ghostOpacity * 220)}%, transparent)` : pieceSkin === "wireframe" ? tone : "rgba(0,0,0,0.24)", boxShadow: !empty && !ghost && pieceSkin === "soft-glow" ? `0 0 6px ${tone}` : !empty && !ghost && pieceSkin === "ice-glass" ? "inset 0 1px rgba(248,252,255,0.65), inset 1px 0 rgba(230,243,255,0.28), inset 0 -1px rgba(9,17,30,0.18)" : "none" }} />;
             }))}
-            {particlesRef.current.map((particle) => {
-              const alpha = Math.max(0, particle.lifeMs / particle.maxLifeMs) * 0.9;
-              return (
-                <div
-                  key={particle.id}
-                  className="pointer-events-none absolute rounded-[1px]"
-                  style={{
-                    left: Math.round(particle.x),
-                    top: Math.round(particle.y),
-                    width: particle.size,
-                    height: particle.size,
-                    background: particle.tone,
-                    opacity: alpha,
-                    boxShadow: `0 0 4px rgba(232,228,218,${Math.min(0.35, alpha)})`,
-                  }}
-                />
-              );
+            {!reducedMotion && state.lastLock?.cells?.filter((cell) => cell.y >= 0).map((cell, index) => <div key={`lock-${state.lastLock?.id}-${index}`} className="stacker-lock-flash" style={{ left: `${cell.x * 10}%`, top: `${cell.y * 5}%` }} />)}
+            {!reducedMotion && state.lastLock?.lockCause === "hard-drop" && (state.lastLock.dropDistance ?? 0) > 0 && state.lastLock.cells?.filter((cell, index, cells) => cells.findIndex((other) => other.x === cell.x) === index).map((cell) => {
+              const distance = state.lastLock?.dropDistance ?? 0;
+              const start = Math.max(0, cell.y - distance);
+              return <div key={`drop-${state.lastLock?.id}-${cell.x}`} className="stacker-drop-trail" style={{ left: `${cell.x * 10}%`, top: `${start * 5}%`, height: `${Math.max(0, cell.y - start) * 5}%`, ["--piece-tone" as string]: pieceShade(state.lastLock?.pieceId ?? 1, piecePalette) }} />;
             })}
+            {!reducedMotion && feedback && (state.lastClear?.clearedRows ?? []).map((y) => <div key={`${state.lastClear?.id}-${y}`} className="stacker-clear-flash" style={{ top: `${y * 5}%` }} />)}
+            {!reducedMotion && particlesRef.current.map((particle) => <div key={particle.id} className="stacker-particle" style={{ left: `${particle.x / BOARD_PIXEL_W * 100}%`, top: `${particle.y / BOARD_PIXEL_H * 100}%`, width: particle.size, height: particle.size, background: particle.tone, opacity: Math.max(0, particle.lifeMs / particle.maxLifeMs) * 0.9 }} />)}
           </div>
-          {state.isPaused && !state.isGameOver && countdownStep === null && <div className="absolute inset-2 z-[2] grid place-items-center border border-white/10 bg-black/55 text-center">
-            <div>
-              <div className="text-sm font-semibold tracking-[0.22em] text-[var(--text)]">READY</div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">Press Space or Start</div>
-            </div>
-          </div>}
-          {countdownStep !== null && <div key={countdownStep} className={`stacker-countdown-overlay absolute inset-2 z-[3] grid place-items-center border ${countdownStep === "GO" ? "is-go" : ""}`}>
-            <div className="text-center">
-              <div className="stacker-countdown-number font-black leading-none">{countdownStep}</div>
-              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-                {countdownStep === "GO" ? "Stack" : "Get ready"}
-              </div>
-            </div>
-          </div>}
+          {(state.isPaused || state.isGameOver) && countdownStep === null && <div className="stacker-state-overlay"><span>{doneSprint ? "40 / 40" : state.isGameOver ? "Run complete" : runPieces > 0 || runElapsedMs > 0 ? "Take a breath" : "Your next run"}</span><strong>{doneSprint ? "Sprint clear" : state.isGameOver ? "Game over" : runPieces > 0 || runElapsedMs > 0 ? "Paused" : "Ready"}</strong><span>{state.isGameOver ? "Press R to restart" : "Press Space or Start"}</span></div>}
+          {countdownStep !== null && <div key={countdownStep} className={`stacker-countdown-overlay absolute inset-0 z-[3] grid place-items-center ${countdownStep === "GO" ? "is-go" : ""}`}><div className="text-center"><div className="stacker-countdown-number font-black leading-none">{countdownStep}</div><div className="mt-2 text-xs text-[var(--muted)]">{countdownStep === "GO" ? "Stack" : "Get ready"}</div></div></div>}
         </div>
-
-        {!focusMode && <div className="mt-2 text-center text-[11px] text-[var(--muted)]">
-          Space starts the run, then hard drops. Down soft drops, C holds, P pauses. {mode === "sprint" && `Left ${sprintLinesLeft}.`}
-        </div>}
-      </main>
-
-      <aside className="hidden w-full self-center xl:block">
-        <div className="border border-[var(--border)] bg-[var(--surface)] p-3">
-          <div className="text-sm text-[var(--muted)]">Next queue</div>
-          <div className="mt-2 space-y-2">
-            {state.nextQueue.slice(0, focusMode ? 3 : 5).map((piece, index) => (
-              <div key={`q-${index}`}>
-                <div className="mb-0.5 text-[10px] text-[var(--subtle)]">{pieceLabel(piece.id)}</div>
-                <MiniPiece matrix={piece.matrix} pieceId={piece.id} active={index === 0} palette={piecePalette} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </aside>
+        <div className="stacker-board-footer"><span>{state.isGameOver ? "Finished" : state.isPaused ? "Stand by" : "In flow"}</span><span>{runPieces} pieces</span></div>
+        {mode === "sprint" && <div className="stacker-sprint-progress" role="progressbar" aria-label="Sprint lines" aria-valuemin={0} aria-valuemax={40} aria-valuenow={Math.min(40, state.lines)}><span style={{ transform: `scaleX(${Math.min(1, state.lines / 40)})` }} /></div>}
+      </div>
+      <aside className="stacker-right" aria-label="Next pieces"><div className="stacker-rail-label">Next <span>5</span></div><div className="stacker-queue">{state.nextQueue.map((piece, index) => <div key={`q-${index}`} className={`stacker-queue-piece ${index === 0 ? "is-first" : ""}`}><MiniPiece matrix={piece.matrix} pieceId={piece.id} active={index === 0} palette={piecePalette} /></div>)}</div>{!focusMode && <div className="stacker-best"><span>{mode === "sprint" ? "Best time" : "Best score"}</span><strong>{mode === "sprint" ? sprintBestMs ? formatMs(sprintBestMs) : "—" : bestScore?.toLocaleString() ?? "—"}</strong></div>}</aside>
     </div>
+    {!focusMode && <footer className="stacker-key-guide"><span><kbd>←</kbd><kbd>→</kbd> Move</span><span><kbd>↑</kbd><kbd>Z</kbd> Rotate <kbd>A</kbd> 180°</span><span><kbd>↓</kbd> Soft drop</span><span><kbd>Space</kbd> Hard drop</span><span><kbd>R</kbd> Restart</span></footer>}
 
-    {settingsOpen && <div className="absolute inset-0 z-10 bg-black/45" onClick={() => setSettingsOpen(false)}>
-      <aside className="absolute right-0 top-0 h-full w-[360px] max-w-[92vw] overflow-auto border-l border-[var(--border)] bg-[var(--surface)] p-4 text-sm" onClick={(event) => event.stopPropagation()}>
+    {settingsOpen && <div className="absolute inset-0 z-10 bg-black/45" onClick={closeSettings}>
+      <aside className="stacker-settings absolute right-0 top-0 h-full w-[360px] max-w-[92vw] overflow-auto border-l border-[var(--border)] bg-[var(--surface)] p-4 text-sm" onClick={(event) => event.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="font-semibold">Stacker settings</h2>
             <p className="text-xs text-[var(--muted)]">Tuning, replay setup, effects, and run details.</p>
           </div>
-          <Button className="border border-[var(--border)] px-2 py-1 text-xs" onClick={() => setSettingsOpen(false)}>Close</Button>
+          <Button className="border border-[var(--border)] px-2 py-1 text-xs" onClick={closeSettings}>Close</Button>
         </div>
 
         <Disclosure className="mb-3 border border-[var(--border)] p-3">
@@ -1263,7 +1199,7 @@ export function StackerModule() {
             <SettingRow label="DAS" value={`${dasMs}ms`}><Slider label="DAS" className="w-full" min={50} max={220} step={5} value={dasMs} onValueChange={(nextValue) => setDasMs(Number(nextValue))} /></SettingRow>
             <SettingRow label="ARR" value={`${arrMs}ms`}><Slider label="ARR" className="w-full" min={0} max={50} step={1} value={arrMs} onValueChange={(nextValue) => setArrMs(Number(nextValue))} /></SettingRow>
             <SettingRow label="DCD" value={`${dcdMs}ms`}><Slider label="DCD" className="w-full" min={0} max={80} step={1} value={dcdMs} onValueChange={(nextValue) => setDcdMs(Number(nextValue))} /></SettingRow>
-            <SettingRow label="SDF" value={`${sdfMs}ms`}><Slider label="SDF" className="w-full" min={0} max={80} step={1} value={sdfMs} onValueChange={(nextValue) => setSdfMs(Number(nextValue))} /></SettingRow>
+            <SettingRow label="Soft drop interval" value={`${sdfMs}ms`}><Slider label="Soft drop interval" className="w-full" min={0} max={80} step={1} value={sdfMs} onValueChange={(nextValue) => setSdfMs(Number(nextValue))} /></SettingRow>
             <SettingRow label="Lock delay" value={`${lockDelayMs}ms`}><Slider label="Lock delay" className="w-full" min={0} max={900} step={10} value={lockDelayMs} onValueChange={(nextValue) => setLockDelayMs(Number(nextValue))} /></SettingRow>
             <SettingRow label="Lock resets" value={String(lockResetLimit)}><Slider label="Lock resets" className="w-full" min={0} max={20} step={1} value={lockResetLimit} onValueChange={(nextValue) => setLockResetLimit(Number(nextValue))} /></SettingRow>
           </div>
@@ -1319,9 +1255,9 @@ export function StackerModule() {
             <SettingRow label="Sound pack">
               <Select label="Sound pack" className="w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5" value={soundPack} onValueChange={(nextValue) => {
                 setSoundPack(nextValue as StackerSoundPack);
-                emitSound("apply");
+                emitSound("apply", 0, nextValue as StackerSoundPack);
               }}>
-                <option value="void-soft">VOID soft</option>
+                <option value="void-soft">VOID glacial</option>
                 <option value="glass">Glass</option>
                 <option value="mechanical">Mechanical</option>
                 <option value="muted">Muted</option>
@@ -1330,7 +1266,13 @@ export function StackerModule() {
             <SettingRow label="Master volume" value={`${Math.round(volume * 100)}%`}><Slider label="Master volume" className="w-full" min={0} max={1} step={0.01} value={volume} onValueChange={(nextValue) => setVolume(Number(nextValue))} /></SettingRow>
             <SettingRow label="Impact" value={`${Math.round(impactIntensity * 100)}%`}><Slider label="Impact" className="w-full" min={0.25} max={1.75} step={0.05} value={impactIntensity} onValueChange={(nextValue) => setImpactIntensity(Number(nextValue))} /></SettingRow>
             <ToggleRow checked={hearNextPieces} onChange={setHearNextPieces}>Next-piece tone</ToggleRow>
-            <Button className="w-full border border-[var(--border)] px-2.5 py-2 text-left text-xs hover:bg-[var(--surface2)]" onClick={() => emitSound("apply")}>Preview sound pack</Button>
+            <div className="stacker-audio-preview" aria-label="Preview sound pack">
+              <Button onClick={() => emitSound("rotate")}>Rotation</Button>
+              <Button onClick={() => emitSound("hard-drop")}>Drop</Button>
+              <Button onClick={() => emitSound("quad", 4)}>Quad</Button>
+              <Button onClick={() => emitSound("all-clear", 4)}>All clear</Button>
+            </div>
+            <p className="text-xs text-[var(--muted)]">Short feedback for each action. Clear accents build with the chain.</p>
           </div>
         </DisclosureBody></Disclosure>
 

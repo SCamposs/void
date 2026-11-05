@@ -514,7 +514,8 @@ describe("stacker engine", () => {
     for (let i = 0; i < 8; i += 1) engine.moveLeft();
 
     const board = engine.board.map((row) => [...row]);
-    board[0][0] = 9; // block no-kick target for vertical I at x=0
+    board[1][2] = 9; // block the padded I frame at its occupied column
+    board[1][0] = 9; // reject the -2 fallback without overlapping the active row
     engine.board = board;
 
     const before = engine.getSnapshot().activePiece;
@@ -543,7 +544,7 @@ describe("stacker engine", () => {
     engine.moveLeft();
 
     const board = engine.board.map((row) => [...row]);
-    board[0][1] = 9; // block no-kick target for CW at x=1
+    board[2][2] = 9; // block the rotated T lower cell, outside its spawn cells
     engine.board = board;
 
     const before = engine.getSnapshot().activePiece;
@@ -570,7 +571,7 @@ describe("stacker engine", () => {
     for (let i = 0; i < 8; i += 1) engine.moveLeft();
 
     const board = engine.board.map((row) => [...row]);
-    board[0][0] = 9; // block no-kick target at x=0
+    board[1][0] = 9; // 180 I occupies row 2 of its frame (board row 1)
     engine.board = board;
 
     const before = engine.getSnapshot().activePiece;
@@ -598,7 +599,7 @@ describe("stacker engine", () => {
     engine.moveLeft(); // x=1
 
     const board = engine.board.map((row) => [...row]);
-    board[0][1] = 9; // block no-kick target
+    board[2][2] = 9; // block the rotated T bottom tip
     engine.board = board;
 
     const before = engine.getSnapshot().activePiece;
@@ -814,8 +815,8 @@ describe("stacker engine", () => {
     expect(pre.x).toBe(6);
 
     const board = engine.board.map((row) => [...row]);
-    board[0][6] = 9; // block no-kick target cell for vertical I at x=6
-    board[0][8] = 9; // also block first fallback (+2,0), forcing next candidate
+    board[1][7] = 9; // vertical CCW I occupies frame column 1
+    board[1][9] = 9; // reject +2 fallback without overlapping spawn row
     engine.board = board;
 
     engine.rotateCounterClockwise();
@@ -1699,7 +1700,7 @@ describe("stacker engine", () => {
     const snap = engine.getSnapshot();
     expect(snap.lastLock).not.toBeNull();
     expect(snap.activePiece.id).toBe(1);
-    expect(snap.activePiece.y).toBe(0);
+    expect(snap.activePiece.y).toBe(-1);
   });
 
   it("emits exactly one lock event for a single huge grounded update", () => {
@@ -1724,7 +1725,7 @@ describe("stacker engine", () => {
     expect(afterFirst.lastLock).not.toBeNull();
     const firstLockId = afterFirst.lastLock?.id ?? -1;
     expect(afterFirst.activePiece.id).toBe(1); // only one spawn consumed
-    expect(afterFirst.activePiece.y).toBe(0);
+    expect(afterFirst.activePiece.y).toBe(-1);
 
     // A zero update must not create another lock event.
     engine.update(0);
@@ -1756,7 +1757,7 @@ describe("stacker engine", () => {
     expect(snap.lastLock).not.toBeNull();
     expect(snap.lastLock?.pieceId).toBe(2);
     expect(snap.activePiece.id).toBe(1);
-    expect(snap.activePiece.y).toBe(0);
+    expect(snap.activePiece.y).toBe(-1);
 
     // Follow-up tiny frame should not retroactively emit another lock.
     const lockId = snap.lastLock?.id ?? -1;
@@ -1973,12 +1974,10 @@ describe("stacker engine", () => {
     for (let i = 0; i < 40; i += 1) engine.softDrop();
     expect(engine.getSnapshot().lastLock).toBeNull();
 
-    // Block all reachable CW targets from grounded 0>1 at x=3:
-    // x=3 (no-kick), x=1 (-2), x=4 (+1).
+    // The first three padded vertical candidates cross the floor.
+    // Block the remaining upward kick at frame x=4, occupied column x=6.
     const blocked = engine.board.map((row) => [...row]);
-    blocked[16][3] = 9;
-    blocked[16][1] = 9;
-    blocked[16][4] = 9;
+    blocked[16][6] = 9; // only the +1,+2 kick can lift the padded I above the floor
     engine.board = blocked;
 
     engine.update(400);

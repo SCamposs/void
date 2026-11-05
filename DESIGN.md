@@ -40,3 +40,9 @@ Refine Orbit, Typing, Stacker and embedded Mind individually, using these shared
 ## Fixed identity amendment
 
 The App appearance customization section was removed at the maintainer's request. The new identity is fixed by shared tokens rather than by the old theme settings. The shell no longer reads, migrates or writes legacy appearance preferences, and importing an older backup cannot restyle the application. Navigation collapse remains a functional preference. Specialized module controls remain within their existing scope.
+
+## Stacker refinement
+
+Stacker now uses a continuous responsive playfield with open hold/statistics and five-piece preview rails. Its default Ice palette preserves a distinct neon tint for each shape, with cold edge highlights, shape-colored active-piece glow, dimmer settled pieces and an outlined ghost. Shared black surfaces, Barlow/Urbanist typography and controls remain the VOID foundation. Feedback occupies the side rail without shifting the board; reduced motion removes particles, clear flashes and shake. See [the investigation and validation notes](docs/research/stacker-tetrio-reference.md) for the bounded TETR.IO reference and local gameplay corrections.
+
+Stacker’s VOID glacial sound pack uses 23 shortened, filtered and attenuated clips from the recovered TETR.IO atlas, with retained provenance. Sounds confirm successful actions and distinguish clears, spins, chains and completion. Placement-based drop trails and lock highlights stay brief, with a header mute control and individual sound previews in settings.
