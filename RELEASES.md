@@ -19,17 +19,22 @@ developer machine.
    git push origin v0.3.0-alpha
    ```
 
-The `Desktop release` workflow checks out that exact tag, validates the app on
-both platforms, builds an NSIS installer plus DEB and AppImage packages, and
-creates one GitHub Release after every package succeeds. Alpha, beta, and
-release-candidate tags are marked as prereleases. The release job also writes
-the signed update metadata to `updater/latest.json` on `main`, allowing alpha
-builds to discover later alpha releases without relying on GitHub's stable-only
-`releases/latest` alias.
+The `Desktop release` workflow validates that the existing annotated tag belongs to
+`main`, then builds that exact source commit on Windows and Linux without signing
+credentials. A fresh runner in the protected `release-signing` environment signs
+the three packages using an independently locked tool. Approve that environment
+only after reviewing the source, workflow and unsigned build results.
 
-The workflow can also be started manually with an existing tag through
-`workflow_dispatch`. It deliberately checks out the supplied tag and will not
-create a missing tag.
+A separate job without the signing key publishes verified assets and opens a PR
+changing only `updater/latest.json`. Review and merge that PR after `Security checks`
+passes (approve the bot-created workflow run if GitHub requests it). Merging the
+feed PR completes update delivery; publishing the release alone does not. The
+installed `main` feed URL and four platform routes remain unchanged. Existing
+published assets cannot be replaced, and the feed cannot move backwards.
+
+Manual dispatch must run from `main` with an existing tag. `verify_only` defaults
+to true: it builds, signs and verifies without publishing or changing the feed.
+Set it to false only for an intended publication. Tags must not be moved or deleted.
 
 ## Release assets
 
@@ -47,7 +52,8 @@ Each release contains:
 - `latest.json`
 
 The stable filenames keep links and automation predictable. The same files are
-retained as workflow artifacts for diagnostics.
+retained as workflow artifacts for diagnostics for seven days. Use synthetic QA data;
+never upload account profiles, credentials or production conversations.
 
 The Linux feed has explicit `linux-x86_64-deb` and `linux-x86_64-appimage`
 entries so the updater selects the installed package format. The generic Linux
@@ -61,10 +67,11 @@ separate from Windows Authenticode signing and cannot be disabled.
 
 - The public updater key is committed in `desktop/src-tauri/tauri.conf.json`.
 - The private key must remain outside the repository and be backed up securely.
-- The private key content must be stored in the repository secret
-  `TAURI_SIGNING_PRIVATE_KEY` before a release is tagged.
-- The local key created for this project is expected at
-  `C:\Users\zuado\.tauri\void-updater.key`; never commit it.
+- Store the unchanged key only as environment secret `TAURI_SIGNING_PRIVATE_KEY`
+  in `release-signing`, restricted to `main` and version tags with owner approval.
+  Do not keep a duplicate repository-scoped secret. Only the signing step receives it.
+- Keep an access-controlled backup outside all checkouts; never commit the key or
+  publish machine-specific backup locations. Normal validation does not need it.
 
 If this private key is lost, installed builds cannot trust artifacts signed by
 a replacement key. Rotate it only through a planned migration release.
@@ -132,7 +139,7 @@ must not be committed.
 - **The app cannot check for updates:** confirm `updater/latest.json` exists on
   `main` and references the current signed release assets.
 - **The build reports a missing signing key:** configure the
-  `TAURI_SIGNING_PRIVATE_KEY` repository secret before publishing.
+  `TAURI_SIGNING_PRIVATE_KEY` environment secret and approve `release-signing` before signing.
 - **A version mismatch is reported:** keep the frontend and Tauri configuration
   versions aligned before tagging.
 - **Rust or native build errors occur locally:** install the stable Rust
