@@ -14,6 +14,7 @@ export type LastClearEvent = {
   combo: number;
   b2bStreak: number;
   wasBackToBack: boolean;
+  clearedRows?: number[];
 };
 
 export type LastLockEvent = {
@@ -26,6 +27,8 @@ export type LastLockEvent = {
   combo: number;
   b2bStreak: number;
   lockCause: LockCause;
+  cells?: Array<{ x: number; y: number }>;
+  dropDistance?: number;
 };
 
 export type Snapshot = {
@@ -58,13 +61,14 @@ const DEFAULT_LOCK_DELAY_MS = 500;
 const DEFAULT_LOCK_RESET_LIMIT = 15;
 
 const PIECES: PieceDefinition[] = [
-  { id: 1, matrix: [[1, 1, 1, 1]] },
+  // Fixed rotation frames keep pivots stable instead of rotating cropped art.
+  { id: 1, matrix: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]] },
   { id: 2, matrix: [[1, 1], [1, 1]] },
-  { id: 3, matrix: [[0, 1, 0], [1, 1, 1]] },
-  { id: 4, matrix: [[0, 1, 1], [1, 1, 0]] },
-  { id: 5, matrix: [[1, 1, 0], [0, 1, 1]] },
-  { id: 6, matrix: [[1, 0, 0], [1, 1, 1]] },
-  { id: 7, matrix: [[0, 0, 1], [1, 1, 1]] },
+  { id: 3, matrix: [[0, 1, 0], [1, 1, 1], [0, 0, 0]] },
+  { id: 4, matrix: [[0, 1, 1], [1, 1, 0], [0, 0, 0]] },
+  { id: 5, matrix: [[1, 1, 0], [0, 1, 1], [0, 0, 0]] },
+  { id: 6, matrix: [[1, 0, 0], [1, 1, 1], [0, 0, 0]] },
+  { id: 7, matrix: [[0, 0, 1], [1, 1, 1], [0, 0, 0]] },
 ];
 
 function getPieceById(id: number): PieceDefinition {
@@ -128,7 +132,7 @@ function cloneMatrix(matrix: Matrix): Matrix {
 }
 
 function createSpawnPiece(piece: PieceDefinition): ActivePiece {
-  return { id: piece.id, matrix: cloneMatrix(piece.matrix), x: Math.floor((BOARD_WIDTH - piece.matrix[0].length) / 2), y: 0 };
+  return { id: piece.id, matrix: cloneMatrix(piece.matrix), x: Math.floor((BOARD_WIDTH - piece.matrix[0].length) / 2), y: piece.id === 1 ? -1 : 0 };
 }
 
 function rotateMatrixClockwise(matrix: Matrix): Matrix {
@@ -165,6 +169,7 @@ export class StackerEngine {
   private b2bStreak = 0;
   private lastSuccessfulAction: SuccessfulAction = "none";
   private pendingLockCause: LockCause = "gravity";
+  private hardDropStartY: number | null = null;
   private clearEventId = 0;
   private lockEventId = 0;
   private lastClearEvent: LastClearEvent | null = null;
@@ -350,15 +355,20 @@ export class StackerEngine {
     this.canHold = true;
     this.lockTimerMs = 0;
     this.lockResetCount = 0;
+    this.dropAccumulator = 0;
     if (!this.canPlace(this.activePiece.matrix, this.activePiece.x, this.activePiece.y)) this.isGameOver = true;
   }
 
   private lockPieceAndAdvance(): void {
     const lockedPieceId = this.activePiece.id;
+    const cells = this.activePiece.matrix.flatMap((row, y) => row.flatMap((cell, x) => cell ? [{ x: this.activePiece.x + x, y: this.activePiece.y + y }] : []));
+    const dropDistance = this.hardDropStartY === null ? 0 : this.activePiece.y - this.hardDropStartY;
+    // Classify against the placement, before completed rows change its corners.
+    const tSpinKind = this.detectTSpinKind();
     this.mergeActivePiece();
     if (this.isGameOver) return;
+    const clearedRows = this.board.flatMap((row, y) => row.every((cell) => cell !== 0) ? [y] : []);
     const cleared = this.clearCompletedLines();
-    const tSpinKind = this.detectTSpinKind();
     const difficult = this.isDifficultClear(cleared, tSpinKind);
     const prevB2B = this.b2bStreak;
 
@@ -386,6 +396,7 @@ export class StackerEngine {
         combo: this.combo,
         b2bStreak: this.b2bStreak,
         wasBackToBack,
+        clearedRows,
       };
     } else {
       this.lastClearEvent = null;
@@ -401,11 +412,18 @@ export class StackerEngine {
       combo: this.combo,
       b2bStreak: this.b2bStreak,
       lockCause: this.pendingLockCause,
+      cells,
+      dropDistance,
     };
 
     this.pendingLockCause = "gravity";
+    this.hardDropStartY = null;
     this.lastSuccessfulAction = "none";
     this.spawnNextPiece();
+    if (this.mode === "sprint" && this.lines >= 40) {
+      this.isGameOver = true;
+      this.isPaused = true;
+    }
   }
 
   private tryMove(dx: number, dy: number): boolean {
@@ -415,7 +433,9 @@ export class StackerEngine {
     if (!this.canPlace(this.activePiece.matrix, tx, ty)) return false;
     this.activePiece.x = tx;
     this.activePiece.y = ty;
-    this.onTransformSuccess("other");
+    if (dx !== 0) this.onTransformSuccess("other");
+    // Falling after a rotation must preserve spin eligibility. Horizontal
+    // movement still cancels it; downward travel does not spend lock resets.
     return true;
   }
 
@@ -434,6 +454,7 @@ export class StackerEngine {
 
   hardDrop(): void {
     if (this.isGameOver || this.isPaused) return;
+    this.hardDropStartY = this.activePiece.y;
     while (this.tryMove(0, 1)) this.score += 2;
     this.pendingLockCause = "hard-drop";
     this.lockPieceAndAdvance();
@@ -490,6 +511,8 @@ export class StackerEngine {
       this.lastSuccessfulAction = "other";
       this.lockTimerMs = 0;
       this.lockResetCount = 0;
+      this.dropAccumulator = 0;
+      this.pendingLockCause = "gravity";
       if (!this.canPlace(this.activePiece.matrix, this.activePiece.x, this.activePiece.y)) this.isGameOver = true;
       return;
     }
@@ -501,6 +524,8 @@ export class StackerEngine {
     this.lastSuccessfulAction = "other";
     this.lockTimerMs = 0;
     this.lockResetCount = 0;
+    this.dropAccumulator = 0;
+    this.pendingLockCause = "gravity";
     if (!this.canPlace(this.activePiece.matrix, this.activePiece.x, this.activePiece.y)) this.isGameOver = true;
   }
 
@@ -517,6 +542,7 @@ export class StackerEngine {
   }
 
   restart(options?: RestartOptions): void {
+    this.hardDropStartY = null;
     if (options && Object.prototype.hasOwnProperty.call(options, "seed")) {
       if (options.seed === null || options.seed === undefined || Number.isNaN(options.seed)) this.randomState = null;
       else {

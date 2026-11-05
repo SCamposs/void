@@ -1,0 +1,218 @@
+{
+  "source": "https://tetr.io/sfx/tetrio.opus.rsd?hv=68d5c11f9.f2133e6cf8b3.20261023T150006",
+  "sourceSha256": "85d0e54d2b942c7d55cea4b91b8aaf60fe422f64f110e48b5a80a1001fb1b983",
+  "ownership": "Adapted TETR.IO sound recordings, original audio \u00a9 OSK. Not relicensed by VOID.",
+  "pitchRate": 0.97,
+  "sampleRate": 48000,
+  "highpassHz": 85,
+  "lowpassHz": 7800,
+  "clips": [
+    {
+      "file": "move.ogg",
+      "atlasKey": "move",
+      "start": 248.35043334960938,
+      "sourceDuration": 0.1998748779296875,
+      "duration": 0.14,
+      "gain": 0.48,
+      "sha256": "13ac7d37e7a9e040253933fe4847150b92ef502e9e473604390447c33cbe75b5"
+    },
+    {
+      "file": "rotate.ogg",
+      "atlasKey": "rotate",
+      "start": 199.07086181640625,
+      "sourceDuration": 0.1996917724609375,
+      "duration": 0.16,
+      "gain": 0.52,
+      "sha256": "f36cb2153c42966ed01f6e931acf4d6fbaaaf5b2e05885c8f9b7f7349ed6c0a6"
+    },
+    {
+      "file": "soft-drop.ogg",
+      "atlasKey": "softdrop",
+      "start": 315.9130859375,
+      "sourceDuration": 0.09991455078125,
+      "duration": 0.09,
+      "gain": 0.4,
+      "sha256": "487d8f8e313a9701cb6fa46561b4557f88d5530eecbf929ffe091d8faff63574"
+    },
+    {
+      "file": "hard-drop.ogg",
+      "atlasKey": "harddrop",
+      "start": 95.79610443115234,
+      "sourceDuration": 0.399688720703125,
+      "duration": 0.3,
+      "gain": 0.62,
+      "sha256": "f716ba30a65d1333e0c021673a1d0f117222ba5baadea6fa551a6d58bc34ddc6"
+    },
+    {
+      "file": "lock.ogg",
+      "atlasKey": "floor",
+      "start": 421.8177185058594,
+      "sourceDuration": 0.501129150390625,
+      "duration": 0.32,
+      "gain": 0.52,
+      "sha256": "e5916732ab9768ff1480bab4231eef7453f7fcfecbf7611f51cf4f3777f0fcf8"
+    },
+    {
+      "file": "hold.ogg",
+      "atlasKey": "hold",
+      "start": 28.526397705078125,
+      "sourceDuration": 0.3998126983642578,
+      "duration": 0.35,
+      "gain": 0.56,
+      "sha256": "ef6eb150645254f6bd4c4a8921513829d351419e0ddf659dba5e92b6f598e6ae"
+    },
+    {
+      "file": "line-clear.ogg",
+      "atlasKey": "clearline",
+      "start": 145.7620086669922,
+      "sourceDuration": 1.1000518798828125,
+      "duration": 0.65,
+      "gain": 0.58,
+      "sha256": "fcdf6afd9120647617a4563d98406c838d7dca0541d1ba1d2639a4c56ed36a08"
+    },
+    {
+      "file": "quad.ogg",
+      "atlasKey": "clearquad",
+      "start": 16.58727264404297,
+      "sourceDuration": 2.0002079010009766,
+      "duration": 0.95,
+      "gain": 0.56,
+      "sha256": "af0515891309825e0083dd6ffc765abb968686444e41e54db22ae5e090dc9e9c"
+    },
+    {
+      "file": "t-spin.ogg",
+      "atlasKey": "clearspin",
+      "start": 353.2843017578125,
+      "sourceDuration": 2.599578857421875,
+      "duration": 0.95,
+      "gain": 0.56,
+      "sha256": "5ebc5fb686359fcd287793db23a0d7218b4f687fd336b4b41c477470d055d279"
+    },
+    {
+      "file": "all-clear.ogg",
+      "atlasKey": "allclear",
+      "start": 20.55931282043457,
+      "sourceDuration": 2.80029296875,
+      "duration": 1.25,
+      "gain": 0.54,
+      "sha256": "cb5877df8ebb35c59c4c7fc10a3ac919e9595f3746493995c16832cc6018c03e"
+    },
+    {
+      "file": "back-to-back.ogg",
+      "atlasKey": "clearbtb",
+      "start": 292.0411682128906,
+      "sourceDuration": 1.799713134765625,
+      "duration": 0.9,
+      "gain": 0.52,
+      "sha256": "15ba60087a153ed7a4221fe700ffd5f86bb7694f5e568ae8b9e9394e2f3be0c6"
+    },
+    {
+      "file": "combo-1.ogg",
+      "atlasKey": "combo_1",
+      "start": 313.6345520019531,
+      "sourceDuration": 0.9927978515625,
+      "duration": 0.45,
+      "gain": 0.38,
+      "sha256": "228457011812b9014d70969043f981d7921a807e54e1be6a39f742ecfd2732c2"
+    },
+    {
+      "file": "combo-2.ogg",
+      "atlasKey": "combo_2",
+      "start": 160.37310791015625,
+      "sourceDuration": 1.0,
+      "duration": 0.45,
+      "gain": 0.38,
+      "sha256": "7029d665429acce9ee7fca79b20c41d14b5aa75bb12304695b062f0b058946c4"
+    },
+    {
+      "file": "combo-3.ogg",
+      "atlasKey": "combo_3",
+      "start": 69.62468719482422,
+      "sourceDuration": 1.0,
+      "duration": 0.45,
+      "gain": 0.38,
+      "sha256": "13df7f4d5b8a2d57e70d3bde2d4cb7cb580254b706b6b93725330d52a83f534a"
+    },
+    {
+      "file": "combo-4.ogg",
+      "atlasKey": "combo_4",
+      "start": 390.84503173828125,
+      "sourceDuration": 1.0,
+      "duration": 0.45,
+      "gain": 0.38,
+      "sha256": "e17cfee561a9d5ad73e31e41600db5cbcd62d375e2639023a0cda95c71cc719c"
+    },
+    {
+      "file": "countdown-tick.ogg",
+      "atlasKey": "rsg",
+      "start": 44.58035659790039,
+      "sourceDuration": 0.8997688293457031,
+      "duration": 0.38,
+      "gain": 0.46,
+      "sha256": "a3e244907bfe76947bdc957e39c23c91f66f8c27d2e0ae6c7333be1550600fb0"
+    },
+    {
+      "file": "countdown-go.ogg",
+      "atlasKey": "rsg_go",
+      "start": 90.01556396484375,
+      "sourceDuration": 2.9001007080078125,
+      "duration": 0.85,
+      "gain": 0.5,
+      "sha256": "c419f17b177c3d7798fcf306e147c2974b6b2c8a16ec5036bbe9aba2806670bf"
+    },
+    {
+      "file": "pause.ogg",
+      "atlasKey": "pause_start",
+      "start": 60.38356399536133,
+      "sourceDuration": 0.9988746643066406,
+      "duration": 0.42,
+      "gain": 0.44,
+      "sha256": "d57757dd4c5e60a3374638df4ab88f56ac735c55660c660f0d505c327db2840e"
+    },
+    {
+      "file": "resume.ogg",
+      "atlasKey": "pause_continue",
+      "start": 70.62468719482422,
+      "sourceDuration": 0.9930648803710938,
+      "duration": 0.42,
+      "gain": 0.44,
+      "sha256": "cdb7741dcf12d2f6bf80931e4a0d17dc670e86f75c1da3ea022597572ec265a5"
+    },
+    {
+      "file": "game-over.ogg",
+      "atlasKey": "gameover",
+      "start": 106.69591522216797,
+      "sourceDuration": 3.5,
+      "duration": 1.2,
+      "gain": 0.46,
+      "sha256": "59b33a0f9e76e20667de7cd5e0ddac518730aa59da305a76fc3bb51096e64183"
+    },
+    {
+      "file": "sprint-clear.ogg",
+      "atlasKey": "finish",
+      "start": 221.76646423339844,
+      "sourceDuration": 2.697296142578125,
+      "duration": 1.1,
+      "gain": 0.5,
+      "sha256": "d0d706d4976cfd7e56c399603e885c016a9e1af24987c72b776c4c553482c183"
+    },
+    {
+      "file": "menu.ogg",
+      "atlasKey": "menutap",
+      "start": 316.01300048828125,
+      "sourceDuration": 0.09967041015625,
+      "duration": 0.09,
+      "gain": 0.38,
+      "sha256": "d6ca369c35dae57b1425deea1fe90c29949877dc8e1fde10a09834be78b40dc5"
+    },
+    {
+      "file": "apply.ogg",
+      "atlasKey": "menuclick",
+      "start": 112.82079315185547,
+      "sourceDuration": 1.0999832153320312,
+      "duration": 0.35,
+      "gain": 0.44,
+      "sha256": "744614ef20e5b12a74c750fd3a0154d06e77ed30e736aa1aec8c6aa64de816f4"
+    }
+  ]
+}

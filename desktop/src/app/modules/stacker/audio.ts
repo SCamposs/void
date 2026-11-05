@@ -1,3 +1,5 @@
+import { playStackerReferenceSound, stackerOutput } from "./referenceAudio";
+
 export type StackerSoundPack = "void-soft" | "glass" | "mechanical" | "muted";
 
 export type StackerSoundEvent =
@@ -8,6 +10,11 @@ export type StackerSoundEvent =
   | "lock"
   | "hold"
   | "line-clear"
+  | "quad"
+  | "t-spin"
+  | "all-clear"
+  | "back-to-back"
+  | "sprint-clear"
   | "combo"
   | "pause"
   | "resume"
@@ -68,6 +75,13 @@ function eventTones(event: StackerSoundEvent, detail = 0): Tone[] {
         { frequency: 132, durationMs: 44, gain: 0.03, wave: "sine", endFrequency: 176 },
         { frequency: 176, durationMs: 46, gain: 0.025, wave: "triangle", offsetMs: 34, endFrequency: 132 },
       ];
+    case "sprint-clear":
+    case "all-clear":
+      return [0, 4, 7, 12].map((note, index) => ({ frequency: 220 * 2 ** (note / 12), durationMs: 260, gain: .035, wave: "sine", offsetMs: index * 60 }));
+    case "back-to-back":
+      return [{ frequency: 440, endFrequency: 660, durationMs: 160, gain: .025, wave: "sine" }];
+    case "t-spin":
+    case "quad":
     case "line-clear": {
       const lines = Math.max(1, Math.min(4, detail));
       return Array.from({ length: lines + 1 }, (_, index) => ({
@@ -111,16 +125,19 @@ function eventTones(event: StackerSoundEvent, detail = 0): Tone[] {
 }
 
 export function playStackerSound(
-  audio: AudioContext | null,
+  audio: BaseAudioContext | null,
   event: StackerSoundEvent,
   settings: StackerSoundSettings,
   detail = 0,
 ): void {
   const isUiEvent = event === "menu" || event === "apply";
-  if (!audio || audio.state !== "running" || !settings.enabled || (isUiEvent && !settings.uiEnabled)) return;
+  if (!audio || audio.state === "closed") return;
+  const output = stackerOutput(audio, settings);
+  if (!settings.enabled || (isUiEvent && !settings.uiEnabled)) return;
 
   const volume = Math.max(0, Math.min(1, settings.volume));
   if (volume === 0) return;
+  if (playStackerReferenceSound(audio, event, settings, detail)) return;
   const impact = Math.max(0.25, Math.min(1.75, settings.impact));
   const character = PACK_CHARACTER[settings.pack];
   const now = audio.currentTime;
@@ -134,12 +151,12 @@ export function playStackerSound(
   filter.Q.setValueAtTime(settings.pack === "mechanical" ? 2.4 : 0.8, now);
   dry.gain.setValueAtTime(0.82, now);
   delay.delayTime.setValueAtTime(0.085, now);
-  echo.gain.setValueAtTime(character.echo * volume, now);
+  echo.gain.setValueAtTime(character.echo, now);
   filter.connect(dry);
   filter.connect(delay);
   delay.connect(echo);
-  echo.connect(audio.destination);
-  dry.connect(audio.destination);
+  echo.connect(output);
+  dry.connect(output);
 
   let latestStop = now;
   for (const tone of eventTones(event, detail)) {
@@ -154,12 +171,13 @@ export function playStackerSound(
     oscillator.frequency.setValueAtTime(Math.max(24, frequency), start);
     oscillator.frequency.exponentialRampToValueAtTime(Math.max(24, endFrequency), stop);
     envelope.gain.setValueAtTime(0.0001, start);
-    envelope.gain.exponentialRampToValueAtTime(Math.max(0.0001, tone.gain * volume * impact), start + Math.min(0.012, duration / 3));
+    envelope.gain.exponentialRampToValueAtTime(Math.max(0.0001, tone.gain * impact), start + Math.min(0.012, duration / 3));
     envelope.gain.exponentialRampToValueAtTime(0.0001, stop);
     oscillator.connect(envelope);
     envelope.connect(filter);
     oscillator.start(start);
     oscillator.stop(stop + 0.01);
+    oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); };
     latestStop = Math.max(latestStop, stop);
   }
 
