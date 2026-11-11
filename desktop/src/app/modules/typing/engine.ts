@@ -17,6 +17,7 @@ export type TypingInputEvent = {
 };
 
 export type TypingWordTrace = SubmittedWordResult & {
+  confirmed?: boolean;
   index: number;
   startedAtMs: number;
   submittedAtMs: number;
@@ -129,6 +130,10 @@ export function classifyCharacter(expected: string, character: string, index: nu
   return expected[index] === character ? "correct" : "wrong";
 }
 
+export function hasWordError(trace: TypingWordTrace): boolean {
+  return trace.confirmed === false ? trace.wrongCharacters + trace.extraCharacters > 0 : !trace.isCorrectWord;
+}
+
 export function createWordTrace({
   index,
   expectedWord,
@@ -213,13 +218,13 @@ export function buildTypingTimeline(
     const windowStart = Math.max(0, sampleEnd - 5_000);
     const windowSeconds = Math.max(1, (sampleEnd - windowStart) / 1_000);
     const windowCharacters = characterEvents.filter(
-      (event) => event.timestampMs > windowStart && event.timestampMs <= sampleEnd,
+      (event) => (event.timestampMs > windowStart || windowStart === 0 && event.timestampMs === 0) && event.timestampMs <= sampleEnd,
     );
     const correctCharacters = windowCharacters.filter(
       (event) => event.classification === "correct",
     ).length;
     const bucketEvents = events.filter(
-      (event) => event.timestampMs > sampleEnd - 1_000 && event.timestampMs <= sampleEnd,
+      (event) => (event.timestampMs > sampleEnd - 1_000 || sampleIndex === 0 && event.timestampMs === 0) && event.timestampMs <= sampleEnd,
     );
     const errorCount = bucketEvents.reduce((total, event) => {
       if (event.type === "character" && event.classification !== "correct") return total + 1;
@@ -271,7 +276,7 @@ export function computeAdvancedMetrics(
 
   return {
     correctWords: traces.filter((trace) => trace.isCorrectWord).length,
-    incorrectWords: traces.filter((trace) => !trace.isCorrectWord).length,
+    incorrectWords: traces.filter(hasWordError).length,
     correctCharacters,
     wrongCharacters: traces.reduce((sum, trace) => sum + trace.wrongCharacters, 0),
     missedCharacters: traces.reduce((sum, trace) => sum + trace.missedCharacters, 0),

@@ -18,7 +18,7 @@ test("Home identity, navigation size, keyboard dialog and compact layout", async
   await search.fill("typing");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("combobox", { name: "Duration", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Duração", exact: true })).toBeVisible();
   await page.keyboard.press("Control+k");
   await expect(search).toBeFocused();
   await page.keyboard.press("Escape");
@@ -91,12 +91,12 @@ test("Module switches and sliders keep their keyboard and persistence behavior",
 
 test("Typing and embedded Mind keep functional fields and custom controls", async ({ page }, testInfo) => {
   await page.getByRole("button", { name: "Typing", exact: true }).click();
-  const duration = page.getByRole("combobox", { name: "Duration", exact: true });
+  const duration = page.getByRole("combobox", { name: "Duração", exact: true });
   await duration.click();
   await page.screenshot({ path: testInfo.outputPath("select-open.png") });
   await page.getByRole("option", { name: "60s", exact: true }).click();
   await expect(duration).toContainText("60s");
-  const typingInput = page.getByRole("textbox", { name: /^Type the word / });
+  const typingInput = page.getByRole("textbox", { name: /^Digite a palavra / });
   await expect(page.getByRole("listbox")).toHaveCount(0);
   await expect(typingInput).toBeFocused();
   const word = "rápido";

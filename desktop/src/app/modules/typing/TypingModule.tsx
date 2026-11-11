@@ -1,558 +1,237 @@
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Button, Select, Slider, Disclosure, DisclosureTitle, DisclosureBody } from "../../components/ui/Controls";
 import { useConfirm } from "../../components/ui/use-confirm";
-import { Button, Select } from "../../components/ui/Controls";
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import {
-  classifyCharacter,
-  computeLiveWpm,
-  computeTypingAccuracy,
-  createWordTrace,
-  getWordCharacterFeedback,
-  getWordPageEnd,
-  getTypingInactivityDelay,
-  type TypingInputEvent,
-  type TypingWordTrace,
-  type WordCharacterState,
-} from "./engine";
+import { readStoredJson, writeStoredJson, typingRepo } from "../../lib/persistence";
+import { computeLiveWpm, computeTypingAccuracy, hasWordError } from "./engine";
+import { confirmTypingWord, creditedCharacters, finishTypingRun, newTypingRun, updateTypingInput, type TypingRun } from "./session";
+import { generateWordSequence, type TypingLanguage, type TypingVocabulary } from "./words";
 import { TypingResults } from "./TypingResults";
-import { generateWordSequence, type TypingLanguage } from "./words";
-import { typingRepo } from "../../lib/persistence";
+import { TypingAudio } from "./audio";
+import "./typing.css";
 
-type TypingDuration = 15 | 30 | 60 | 120;
-
-const characterClasses: Record<WordCharacterState, string> = {
-  correct: "text-[var(--muted)]",
-  incorrect: "bg-[#a9343d] text-[#fff7f5]",
-  next: "bg-[var(--accent)] text-[var(--bg)]",
-  pending: "text-[var(--text)]",
-};
-
-function WordFeedback({
-  expected,
-  typed,
-  submitted = false,
-  active = false,
-}: {
-  expected: string;
-  typed: string;
-  submitted?: boolean;
-  active?: boolean;
-}) {
-  const characters = getWordCharacterFeedback(expected, typed, submitted);
-  return (
-    <span
-      className={`mr-[0.72ch] inline-flex whitespace-nowrap align-baseline ${
-        active ? "border-b border-[var(--accent)] pb-0.5" : ""
-      }`}
-      aria-label={active ? `Current word: ${expected}` : expected}
-    >
-      {characters.map((character, characterIndex) => (
-        <span
-          key={`${characterIndex}-${character.character}`}
-          className={character.character.length === 0
-            ? "inline-block h-[1.05em] w-[2px] shrink-0 self-center bg-[var(--accent)] shadow-[0_0_7px_rgba(232,228,218,0.55)]"
-            : `inline-block min-w-[0.58ch] text-center ${characterClasses[character.state]}`}
-          aria-hidden={character.character.length === 0 ? "true" : undefined}
-        >
-          {character.character}
-        </span>
-      ))}
-    </span>
-  );
+type Duration = 15 | 30 | 60 | 120;
+type Preferences = { duration: Duration; language: TypingLanguage; vocabulary: TypingVocabulary; sound: boolean; volume: number };
+const preferenceKey = "void.typing.preferences.v1";
+function loadPreferences(): Preferences {
+  const stored = readStoredJson<Partial<Preferences> | null>(preferenceKey, null);
+  return { duration: [15, 30, 60, 120].includes(stored?.duration ?? 0) ? stored!.duration! : 60,
+    language: stored?.language === "en" ? "en" : "pt-BR",
+    vocabulary: stored?.vocabulary === "varied" ? "varied" : "common",
+    sound: stored?.sound === true,
+    volume: typeof stored?.volume === "number" && Number.isFinite(stored.volume) ? Math.max(0, Math.min(100, stored.volume)) : 35 };
+}
+const vocabularyLabels = { common: "Palavras comuns", varied: "Vocabulário amplo", practice: "Revisão de erros" };
+function sessionModeLabel(value: unknown) {
+  const mode = typeof value === "string" ? value : "";
+  return mode.includes("-practice-") ? "Revisão" : mode.includes("-common-") ? "Comuns" : mode.includes("-varied-") ? "Amplo" : "Regra anterior";
 }
 
-function useTwoLineWordWindow(
-  words: string[],
-  pageStart: number,
-  flowRef: RefObject<HTMLDivElement>,
-) {
-  const [windowEnd, setWindowEnd] = useState(() => ({
-    firstLineEnd: Math.min(words.length, pageStart + 9),
-    pageEnd: Math.min(words.length, pageStart + 18),
-  }));
-
-  useEffect(() => {
-    const flow = flowRef.current;
-    if (!flow) return;
-
-    const measure = () => {
-      const style = window.getComputedStyle(flow);
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      context.font = style.font || `${style.fontSize} ${style.fontFamily}`;
-      const gapWidth = context.measureText(" ").width * 0.72;
-      const firstLineEnd = getWordPageEnd(
-        words,
-        pageStart,
-        flow.clientWidth,
-        (word) => context.measureText(word).width,
-        gapWidth,
-        1,
-      );
-      const pageEnd = getWordPageEnd(
-        words,
-        pageStart,
-        flow.clientWidth,
-        (word) => context.measureText(word).width,
-        gapWidth,
-        2,
-      );
-      setWindowEnd({
-        firstLineEnd: Math.max(pageStart + 1, firstLineEnd),
-        pageEnd: Math.max(pageStart + 1, pageEnd),
-      });
+const WordFlow = memo(function WordFlow({ run, focused, onFocus }: { run: TypingRun; focused: boolean; onFocus(): void }) {
+  const viewport = useRef<HTMLDivElement>(null);
+  const flow = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const move = () => {
+      const active = flow.current?.querySelector<HTMLElement>("[data-active]");
+      if (active && viewport.current) viewport.current.scrollTop = active.offsetTop;
     };
+    move();
+    const observer = new ResizeObserver(move);
+    if (viewport.current) observer.observe(viewport.current);
+    let cancelled = false;
+    void document.fonts.ready.then(() => { if (!cancelled) move(); });
+    return () => { cancelled = true; observer.disconnect(); };
+  }, [run.index, run.input, run.words]);
 
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(flow);
-    return () => observer.disconnect();
-  }, [flowRef, pageStart, words]);
-
-  return {
-    firstLineEnd: Math.min(words.length, windowEnd.firstLineEnd),
-    pageEnd: Math.min(words.length, windowEnd.pageEnd),
-  };
-}
-
-function scoreActiveWord(expected: string, typed: string) {
-  let correct = 0;
-  for (let index = 0; index < typed.length; index += 1) {
-    if (index < expected.length && expected[index] === typed[index]) correct += 1;
-  }
-  return correct;
-}
+  return <div className={`typing-field ${focused ? "is-focused" : ""}`} onClick={onFocus} role="group" aria-label="Palavras do teste">
+    <div ref={viewport} className="typing-viewport" aria-hidden="true">
+      <div ref={flow} className="typing-flow">
+        {run.words.map((word, index) => {
+          const trace = run.traces[index];
+          if (index !== run.index) return <span key={index} data-word={index} className={`typing-word ${trace ? trace.isCorrectWord ? "is-correct" : "is-wrong" : ""}`}>{word}</span>;
+          return <span key={index} data-active data-word={index} className="typing-word is-active">
+            {Array.from(word).map((character, i) => <span key={i} className={`${i === run.input.length ? "typing-caret" : ""} ${i < run.input.length ? run.input[i] === character ? "char-correct" : "char-wrong" : ""}`}>{character}</span>)}
+            {run.input.slice(word.length).split("").map((character, i) => <span className="char-wrong" key={`extra-${i}`}>{character}</span>)}
+            {run.input.length >= word.length && <span className="typing-caret typing-caret-end" />}
+          </span>;
+        })}
+      </div>
+    </div>
+    {!focused && <Button className="typing-resume" onClick={onFocus}>Clique para digitar</Button>}
+  </div>;
+});
 
 export function TypingModule() {
   const confirm = useConfirm();
+  const [preferences, setPreferences] = useState(loadPreferences);
+  const [run, setRun] = useState(() => newTypingRun(generateWordSequence(400, preferences.language, preferences.vocabulary)));
+  const current = useRef(run);
   const inputRef = useRef<HTMLInputElement>(null);
-  const wordFlowRef = useRef<HTMLDivElement>(null);
-  const eventsRef = useRef<TypingInputEvent[]>([]);
-  const wordEventStartRef = useRef(0);
-  const wordStartedAtRef = useRef(0);
-
-  const [duration, setDuration] = useState<TypingDuration>(60);
-  const [language, setLanguage] = useState<TypingLanguage>("pt-BR");
-  const [words, setWords] = useState<string[]>(() => generateWordSequence(600, "pt-BR"));
-  const [index, setIndex] = useState(0);
-  const [pageStart, setPageStart] = useState(0);
-  const [input, setInput] = useState("");
-  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const composing = useRef(false);
+  const [composition, setComposition] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [locked, setLocked] = useState(false);
-  const [finalized, setFinalized] = useState(false);
-  const [correctChars, setCorrectChars] = useState(0);
-  const [incorrectChars, setIncorrectChars] = useState(0);
-  const [correctWords, setCorrectWords] = useState(0);
-  const [incorrectWords, setIncorrectWords] = useState(0);
-  const [saved, setSaved] = useState(false);
+  const [notice, setNotice] = useState("");
   const [sessions, setSessions] = useState(() => typingRepo.all());
-  const [traces, setTraces] = useState<TypingWordTrace[]>([]);
-  const [inputFocused, setInputFocused] = useState(false);
-  const [lastActivityAt, setLastActivityAt] = useState<number | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [practiceWords, setPracticeWords] = useState<string[]>([]);
+  const audio = useRef<TypingAudio | null>(null);
+  const recorded = useRef(false);
+  const active = run.startedAt !== null && !run.finished;
+  const { duration, language, vocabulary, sound, volume } = preferences;
+  const mode = `word-flow-v2-${vocabulary}-${duration}s`;
+  const selectedSessions = sessions.filter(session => session.durationSeconds === duration && session.language === language && session.mode === mode);
+  const best = Math.max(0, ...selectedSessions.map(session => session.wpm));
+  const speedLabel = language === "pt-BR" ? "PPM" : "WPM";
+  const score = creditedCharacters(run.traces);
+  const accuracy = computeTypingAccuracy(run.events, run.traces);
+  const play = useCallback((kind: "key" | "space" | "error" | "finish") => {
+    if (sound) (audio.current ??= new TypingAudio()).play(kind, volume);
+  }, [sound, volume]);
+  const commit = useCallback((next: TypingRun) => { current.current = next; setRun(next); }, []);
+  const focusInput = useCallback(() => inputRef.current?.focus(), []);
 
-  const { firstLineEnd, pageEnd } = useTwoLineWordWindow(words, pageStart, wordFlowRef);
-
+  useEffect(() => { inputRef.current?.focus(); return () => audio.current?.close(); }, []);
+  useEffect(() => { writeStoredJson(preferenceKey, preferences); }, [preferences]);
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (!startedAt || locked) return;
-      const next = Math.min(duration, Math.floor((Date.now() - startedAt) / 1_000));
-      setElapsed(next);
-      if (next >= duration) setLocked(true);
-    }, 50);
-    return () => clearInterval(id);
-  }, [duration, startedAt, locked]);
-
-  useEffect(() => {
-    if (!locked || finalized) return;
-    if (input.length > 0 && startedAt !== null) {
-      const submittedAtMs = duration * 1_000;
-      const attemptEvents = eventsRef.current.slice(wordEventStartRef.current);
-      const trace = createWordTrace({
-        index,
-        expectedWord: words[index],
-        typedWord: input,
-        startedAtMs: wordStartedAtRef.current,
-        submittedAtMs,
-        events: attemptEvents,
-      });
-      setTraces((current) => [...current, trace]);
-      setCorrectChars((value) => value + trace.correctCharacters);
-      setIncorrectChars((value) => value + trace.incorrectCharacters);
-      if (trace.isCorrectWord) setCorrectWords((value) => value + 1);
-      else setIncorrectWords((value) => value + 1);
-      setIndex((value) => value + 1);
-      setInput("");
-    }
-    setFinalized(true);
-  }, [duration, finalized, index, input, locked, startedAt, words]);
-
-  useEffect(() => {
-    if (!locked || !finalized || saved) return;
-    const session = {
-      timestamp: new Date().toISOString(),
-      wpm: computeLiveWpm(correctChars, duration),
-      accuracy: computeTypingAccuracy(eventsRef.current, traces),
-      correctWords,
-      incorrectWords,
-      correctChars,
-      incorrectChars,
-      durationSeconds: duration,
-      language,
-      mode: `word-flow-${duration}s`,
+    if (!active) return;
+    const tick = () => {
+      const snapshot = current.current;
+      if (snapshot.startedAt === null || snapshot.finished) return;
+      const seconds = Math.min(duration, (performance.now() - snapshot.startedAt) / 1000);
+      setElapsed(seconds);
+      if (seconds >= duration) commit(finishTypingRun(snapshot, duration));
     };
-    typingRepo.save(session);
+    const id = window.setInterval(tick, 50);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", tick); };
+  }, [active, commit, duration]);
+  useEffect(() => {
+    if (!run.finished || recorded.current) return;
+    recorded.current = true;
+    typingRepo.save({ timestamp: new Date().toISOString(), wpm: computeLiveWpm(score, duration), accuracy,
+      correctWords: run.traces.filter(trace => trace.isCorrectWord).length,
+      incorrectWords: run.traces.filter(hasWordError).length,
+      correctChars: score, incorrectChars: run.traces.reduce((sum, trace) => sum + trace.incorrectCharacters, 0),
+      durationSeconds: duration, language, mode });
     setSessions(typingRepo.all());
-    setSaved(true);
-  }, [
-    correctChars,
-    correctWords,
-    duration,
-    finalized,
-    incorrectChars,
-    incorrectWords,
-    language,
-    locked,
-    saved,
-    traces,
-  ]);
+    setPracticeWords([...new Set(run.traces.filter(trace => hasWordError(trace) || trace.corrections > 0).map(trace => trace.expectedWord))]);
+    play("finish");
+  }, [accuracy, duration, language, mode, play, run, score]);
 
-  const activeScore = useMemo(
-    () => scoreActiveWord(words[index] ?? "", input),
-    [index, input, words],
-  );
-  const liveCorrect = correctChars + activeScore;
-  const liveWpm = useMemo(
-    () => computeLiveWpm(liveCorrect, Math.max(1, elapsed)),
-    [elapsed, liveCorrect],
-  );
-  const liveAcc = computeTypingAccuracy(eventsRef.current, traces);
-  const finalWpm = computeLiveWpm(correctChars, duration);
-  const finalAccuracy = computeTypingAccuracy(eventsRef.current, traces);
-  const selectedSessions = sessions.filter(
-    (session) => session.durationSeconds === duration && session.language === language,
-  );
-  const recent = sessions.slice(0, 5);
-  const selectedBest = selectedSessions.length > 0
-    ? Math.max(...selectedSessions.map((session) => session.wpm))
-    : 0;
-  const tracesByIndex = useMemo(
-    () => new Map(traces.map((trace) => [trace.index, trace])),
-    [traces],
-  );
-
-  const recordEvents = (events: TypingInputEvent[]) => {
-    if (events.length === 0) return;
-    eventsRef.current = [...eventsRef.current, ...events];
-  };
-
-  const submitWord = () => {
-    if (locked || (input.length === 0 && startedAt === null)) return;
-    const now = Date.now();
-    setLastActivityAt(now);
-    setNotice(null);
-    const origin = startedAt ?? now;
-    if (startedAt === null) {
-      setStartedAt(origin);
-      wordStartedAtRef.current = 0;
-    }
-    const submittedAtMs = Math.min(duration * 1_000, now - origin);
-    const attemptEvents = eventsRef.current.slice(wordEventStartRef.current);
-    const trace = createWordTrace({
-      index,
-      expectedWord: words[index],
-      typedWord: input,
-      startedAtMs: wordStartedAtRef.current,
-      submittedAtMs,
-      events: attemptEvents,
-    });
-    const spaceEvent: TypingInputEvent = {
-      timestampMs: submittedAtMs,
-      type: "space",
-      errorCount: trace.missedCharacters,
-    };
-
-    recordEvents([spaceEvent]);
-    wordEventStartRef.current = eventsRef.current.length;
-    wordStartedAtRef.current = submittedAtMs;
-    setCorrectChars((value) => value + trace.correctCharacters);
-    setIncorrectChars((value) => value + trace.incorrectCharacters);
-    if (trace.isCorrectWord) setCorrectWords((value) => value + 1);
-    else setIncorrectWords((value) => value + 1);
-    setTraces((current) => [...current, trace]);
-
-    const nextIndex = index + 1;
-    setIndex(nextIndex);
-    if (nextIndex >= firstLineEnd) setPageStart(firstLineEnd);
-    setInput("");
-  };
-
-  const reset = useCallback((reason: "manual" | "inactivity" = "manual") => {
-    setWords(generateWordSequence(600, language));
-    setIndex(0);
-    setPageStart(0);
-    setInput("");
-    setStartedAt(null);
-    setElapsed(0);
-    setLocked(false);
-    setFinalized(false);
-    setCorrectChars(0);
-    setIncorrectChars(0);
-    setCorrectWords(0);
-    setIncorrectWords(0);
-    setSaved(false);
-    setTraces([]);
-    setLastActivityAt(null);
-    setNotice(reason === "inactivity"
-      ? "Test reset after 5 seconds of inactivity. The run was not recorded."
-      : null);
-    eventsRef.current = [];
-    wordEventStartRef.current = 0;
-    wordStartedAtRef.current = 0;
+  const restart = useCallback((nextPreferences = preferences, nextPractice = practiceWords) => {
+    commit(newTypingRun(generateWordSequence(400, nextPreferences.language, nextPreferences.vocabulary, nextPractice)));
+    setElapsed(0); setNotice(""); setComposition(null); composing.current = false; recorded.current = false;
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, [language]);
-
-  const configure = (nextDuration: TypingDuration, nextLanguage: TypingLanguage) => {
-    setDuration(nextDuration);
-    setLanguage(nextLanguage);
-    setWords(generateWordSequence(600, nextLanguage));
-    setIndex(0);
-    setPageStart(0);
-    setInput("");
-    setStartedAt(null);
-    setElapsed(0);
-    setLocked(false);
-    setFinalized(false);
-    setCorrectChars(0);
-    setIncorrectChars(0);
-    setCorrectWords(0);
-    setIncorrectWords(0);
-    setSaved(false);
-    setTraces([]);
-    setLastActivityAt(null);
-    setNotice(null);
-    eventsRef.current = [];
-    wordEventStartRef.current = 0;
-    wordStartedAtRef.current = 0;
-  };
-
-  const handleInput = (rawValue: string) => {
-    const nextInput = rawValue.replace(/\s/g, "");
-    const now = Date.now();
-    const origin = startedAt ?? now;
-    if (startedAt === null && nextInput.length > 0) {
-      setStartedAt(origin);
-      wordStartedAtRef.current = 0;
-    }
-    if (startedAt === null && nextInput.length === 0) {
-      setInput(nextInput);
-      return;
-    }
-
-    const timestampMs = Math.min(duration * 1_000, now - origin);
-    const events: TypingInputEvent[] = [];
-    if (nextInput.length > input.length) {
-      for (let characterIndex = input.length; characterIndex < nextInput.length; characterIndex += 1) {
-        events.push({
-          timestampMs,
-          type: "character",
-          classification: classifyCharacter(words[index], nextInput[characterIndex], characterIndex),
-        });
-      }
-    } else if (nextInput.length < input.length) {
-      for (let characterIndex = input.length - 1; characterIndex >= nextInput.length; characterIndex -= 1) {
-        events.push({
-          timestampMs,
-          type: "correction",
-          removedClassification: classifyCharacter(words[index], input[characterIndex], characterIndex),
-        });
-      }
-    } else if (nextInput !== input) {
-      for (let characterIndex = 0; characterIndex < nextInput.length; characterIndex += 1) {
-        if (nextInput[characterIndex] === input[characterIndex]) continue;
-        events.push({
-          timestampMs,
-          type: "correction",
-          removedClassification: classifyCharacter(words[index], input[characterIndex], characterIndex),
-        });
-        events.push({
-          timestampMs,
-          type: "character",
-          classification: classifyCharacter(words[index], nextInput[characterIndex], characterIndex),
-        });
-      }
-    }
-    recordEvents(events);
-    if (events.length > 0) {
-      setLastActivityAt(now);
-      setNotice(null);
-    }
-    setInput(nextInput);
-  };
-
+  }, [commit, preferences, practiceWords]);
   useEffect(() => {
-    if (startedAt === null || lastActivityAt === null || locked) return;
-    const delay = getTypingInactivityDelay(lastActivityAt, Date.now());
-    const timeout = window.setTimeout(() => reset("inactivity"), delay);
-    return () => window.clearTimeout(timeout);
-  }, [lastActivityAt, locked, reset, startedAt]);
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey) && !composing.current &&
+        !(event.target instanceof Element && event.target.closest('[role="dialog"], [role="alertdialog"]'))) {
+        event.preventDefault(); restart();
+      }
+    };
+    window.addEventListener("keydown", keydown);
+    return () => window.removeEventListener("keydown", keydown);
+  }, [restart]);
+  const configure = (change: Partial<Preferences>) => {
+    const next = { ...preferences, ...change };
+    setPreferences(next); restart(next);
+  };
+  const handleInput = (value: string) => {
+    const previous = current.current;
+    const next = updateTypingInput(previous, value, performance.now(), duration);
+    if (next !== previous) {
+      commit(next);
+      if (!next.finished) {
+        const last = next.events[next.events.length - 1];
+        play(last?.type === "character" && last.classification !== "correct" ? "error" : "key");
+      }
+    }
+  };
+  const submit = () => {
+    const previous = current.current;
+    let next = confirmTypingWord(previous, performance.now(), duration);
+    if (next === previous) return;
+    if (!next.finished && next.index >= next.words.length - 40) next = { ...next,
+      words: [...next.words, ...generateWordSequence(200, language, vocabulary, practiceWords)] };
+    commit(next);
+    if (!next.finished) play(next.traces[next.traces.length - 1]?.isCorrectWord ? "space" : "error");
+  };
 
-  return <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[1fr_300px]">
-    <div className="panel min-h-0 overflow-auto p-4">
-      {!locked ? <>
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
-          <label className="flex items-center gap-2">Duration
-            <Select label="Duration" finalFocus={inputRef}
-              className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1"
-              value={duration}
-              disabled={startedAt !== null}
-              onValueChange={(nextValue) => configure(Number(nextValue) as TypingDuration, language)}
-            >
-              <option value={15}>15s</option>
-              <option value={30}>30s</option>
-              <option value={60}>60s</option>
-              <option value={120}>120s</option>
-            </Select>
-          </label>
-          <label className="flex items-center gap-2">Language
-            <Select label="Language" finalFocus={inputRef}
-              className="border border-[var(--border)] bg-[var(--surface)] px-2 py-1"
-              value={language}
-              disabled={startedAt !== null}
-              onValueChange={(nextValue) => configure(duration, nextValue as TypingLanguage)}
-            >
-              <option value="pt-BR">PT-BR</option>
-              <option value="en">EN</option>
-            </Select>
-          </label>
-          <span className="ml-auto text-[var(--muted)]">Timer starts on first input</span>
+  return <div className={`typing-module ${active ? "is-running" : ""}`}>
+    <section className="typing-main" aria-label="Teste de digitação">
+      <header className="typing-toolbar">
+        <div className="typing-configuration">
+          <Select label="Duração" finalFocus={inputRef} value={duration} disabled={active} onValueChange={value => configure({ duration: Number(value) as Duration })}>
+            {[15, 30, 60, 120].map(seconds => <option key={seconds} value={seconds}>{seconds}s</option>)}
+          </Select>
+          <Select label="Idioma" finalFocus={inputRef} value={language} disabled={active} onValueChange={value => configure({ language: value as TypingLanguage, vocabulary: "common" })}>
+            <option value="pt-BR">Português BR</option><option value="en">English</option>
+          </Select>
+          <Select label="Vocabulário" finalFocus={inputRef} value={vocabulary} disabled={active} onValueChange={value => configure({ vocabulary: value as TypingVocabulary })}>
+            <option value="common">Palavras comuns</option><option value="varied">Vocabulário amplo</option>
+            {vocabulary === "practice" && <option value="practice">Revisão de erros</option>}
+          </Select>
         </div>
-        <div className="flex items-end justify-between">
-          <div className="text-5xl leading-none">{duration - elapsed}s</div>
-          <div className="text-right text-sm text-[var(--muted)]">
-            {language === "pt-BR" ? "PPM" : "WPM"} {liveWpm.toFixed(2)}<br />
-            Accuracy {liveAcc.toFixed(2)}%
-          </div>
+        <Button className="typing-sound" aria-label={sound ? "Desativar som" : "Ativar som"} aria-pressed={sound} title={sound ? "Desativar som" : "Ativar som"} onClick={() => {
+          setPreferences({ ...preferences, sound: !sound });
+          if (!sound) (audio.current ??= new TypingAudio()).play("key", volume);
+          inputRef.current?.focus();
+        }}>{sound ? <Volume2 size={17} /> : <VolumeX size={17} />}</Button>
+      </header>
+      {!run.finished ? <div className="typing-stage">
+        <div className="typing-live" aria-label="Progresso do teste">
+          <span className="typing-timer" role="timer" aria-label="Tempo restante">{String(Math.floor(Math.ceil(duration - elapsed) / 60)).padStart(2, "0")}:{String(Math.ceil(duration - elapsed) % 60).padStart(2, "0")}</span>
+          <span>{computeLiveWpm(score, Math.max(1, elapsed)).toFixed(0)} <span className="typing-unit">{speedLabel}</span></span>
+          <span>{accuracy.toFixed(0)}<span className="typing-unit">% precisão</span></span>
+          <span className="typing-state">{active ? "Encontre seu ritmo" : "Comece a digitar"}</span>
         </div>
-        <div
-          className={`relative mt-5 cursor-text overflow-hidden border bg-[#0d0d0b] px-4 py-4 ${
-            inputFocused ? "border-[var(--accent)]" : "border-[var(--border)]"
-          }`}
-          onClick={() => inputRef.current?.focus()}
-          role="group"
-          aria-label="Typing word flow"
-        >
-          <div
-            ref={wordFlowRef}
-            key={pageStart}
-            className="flex h-[6.65rem] flex-wrap content-start overflow-hidden text-[1.75rem] leading-[1.65] sm:h-[7.35rem] sm:text-[2rem]"
-            aria-hidden="true"
-          >
-            {words.slice(pageStart, pageEnd).map((word, pageOffset) => {
-              const wordIndex = pageStart + pageOffset;
-              const trace = tracesByIndex.get(wordIndex);
-              if (trace) {
-                return <WordFeedback
-                  key={`${wordIndex}-${word}`}
-                  expected={trace.expectedWord}
-                  typed={trace.typedWord}
-                  submitted
-                />;
-              }
-              if (wordIndex === index) {
-                return <WordFeedback key={`${wordIndex}-${word}`} expected={word} typed={input} active />;
-              }
-              return <span
-                key={`${wordIndex}-${word}`}
-                className="mr-[0.72ch] inline-block whitespace-nowrap text-[var(--text)]"
-              >
-                {word}
-              </span>;
-            })}
-          </div>
-          {!inputFocused && (
-            <Button
-              type="button"
-              className="absolute bottom-2 right-2 border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[10px] text-[var(--muted)] hover:bg-[var(--surface2)] hover:text-[var(--text)]"
-              onClick={() => inputRef.current?.focus()}
-            >
-              Continue typing
-            </Button>
-          )}
+        <WordFlow run={run} focused={focused} onFocus={focusInput} />
+        <input ref={inputRef} className="sr-only" value={composition ?? run.input} aria-label={`Digite a palavra ${run.words[run.index]}`} aria-describedby="typing-instructions" autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={run.finished}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          onPaste={event => { event.preventDefault(); setNotice("A colagem está desativada durante o teste."); }}
+          onDrop={event => event.preventDefault()}
+          onCompositionStart={() => { composing.current = true; setComposition(current.current.input); }}
+          onCompositionEnd={event => { composing.current = false; setComposition(null); handleInput(event.currentTarget.value); }}
+          onChange={event => { if (composing.current || (event.nativeEvent as InputEvent).isComposing) setComposition(event.target.value); else handleInput(event.target.value); }}
+          onKeyDown={event => {
+            if (composing.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
+            if (event.key === " ") { event.preventDefault(); submit(); }
+          }} />
+        <div className="typing-instructions" id="typing-instructions"><span>Espaço confirma · Backspace corrige a palavra atual</span><span>Ctrl + Enter reinicia</span></div>
+        <div className="typing-progress" role="progressbar" aria-label="Tempo decorrido" aria-valuenow={Math.floor(elapsed)} aria-valuemax={duration}><i style={{ transform: `scaleX(${elapsed / duration})` }} /></div>
+        <div className="typing-stage-footer"><span role="status">{notice || (active ? `${run.traces.length} palavras confirmadas` : "O tempo começa no primeiro caractere. Acentos fazem parte do teste.")}</span>
+          <Button onClick={() => restart()}><RotateCcw size={14} /> Reiniciar</Button>
         </div>
-        {/* Hidden gameplay capture keeps its native input/IME semantics, without form styling. */}
-        <input
-          ref={inputRef}
-          value={input}
-          aria-label={`Type the word ${words[index]}`}
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          onFocus={() => setInputFocused(true)}
-          onBlur={() => setInputFocused(false)}
-          onChange={(event) => handleInput(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === " ") {
-              event.preventDefault();
-              submitWord();
-            }
-          }}
-          className="sr-only"
-        />
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <div className="text-xs text-[var(--muted)]">
-            <div>Space confirms the word. The next line stays ready below.</div>
-            {notice && <div className="mt-1 text-[#d69a4b]" role="status">{notice}</div>}
-          </div>
-          <Button
-            type="button"
-            onClick={() => reset()}
-            className="shrink-0 border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-[var(--surface2)]"
-          >
-            Reset test
-          </Button>
+      </div> : <>
+        <TypingResults traces={run.traces} events={run.events} duration={duration} wpm={computeLiveWpm(score, duration)} accuracy={accuracy} language={language} onRestart={() => restart()} />
+        <div className="typing-result-actions"><span>Salvo no histórico local. {vocabularyLabels[vocabulary]} · {duration}s</span>
+          {practiceWords.length > 0 && <Button onClick={() => { const next = { ...preferences, vocabulary: "practice" as const }; setPreferences(next); restart(next, practiceWords); }}>Praticar {practiceWords.length} palavras difíceis</Button>}
         </div>
-      </> : <TypingResults
-        traces={traces}
-        events={eventsRef.current}
-        duration={duration}
-        wpm={finalWpm}
-        accuracy={finalAccuracy}
-        language={language}
-        onRestart={reset}
-      />}
-    </div>
-
-    <div className="panel min-h-0 overflow-auto p-3 text-sm">
-      <div className="mb-2 text-[var(--muted)]">Selected mode</div>
-      <div>Best {language === "pt-BR" ? "PPM" : "WPM"}: {selectedBest.toFixed(2)}</div>
-      <div>Runs: {selectedSessions.length}</div>
-      <div className="mt-3 text-[var(--muted)]">Recent sessions</div>
-      <div className="mt-1 space-y-1">
-        {recent.length === 0 && <div className="text-[var(--subtle)]">No sessions yet.</div>}
-        {recent.map((session) => <div key={session.timestamp} className="border border-[var(--border)] p-2">
-          <div>{session.wpm} {session.language === "pt-BR" ? "PPM" : "WPM"} | {session.accuracy}%</div>
-          <div className="mt-0.5 text-[10px] text-[var(--subtle)]">
-            {session.language} | {session.durationSeconds}s | {new Date(session.timestamp).toLocaleString()}
-          </div>
-        </div>)}
+      </>}
+      <div className="typing-bottom">
+        <Disclosure><DisclosureTitle>Ajustar som</DisclosureTitle><DisclosureBody>
+          <div className="typing-audio-settings"><span>Volume {volume}%</span><Slider label="Volume do teclado" min={0} max={100} step={5} value={volume} onValueChange={value => setPreferences({ ...preferences, volume: value })} />
+            <Button onClick={() => (audio.current ??= new TypingAudio()).play("key", volume)}>Ouvir amostra</Button></div>
+          <p className="typing-explanation">Som sintetizado suave para teclas, confirmação, erro e conclusão. Desligado por padrão.</p>
+        </DisclosureBody></Disclosure>
+        <Disclosure><DisclosureTitle>Como o resultado é calculado</DisclosureTitle><DisclosureBody><p className="typing-explanation">{speedLabel} = caracteres de palavras inteiramente corretas ÷ 5 ÷ minutos. Espaços confirmados dessas palavras também contam. Uma palavra completa no último instante vale sem espaço; um fragmento não rende velocidade. A precisão considera erros corrigidos e letras omitidas ao confirmar. O relógio continua ao sair do campo. Resultados anteriores usam outra regra e ficam separados dos novos recordes.</p></DisclosureBody></Disclosure>
       </div>
-      <Button
-        type="button"
-        className="mt-3 border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--surface2)]"
-        onClick={async () => {
-          if (!await confirm("Reset typing history?")) return;
-          typingRepo.reset();
-          setSessions([]);
-        }}
-      >
-        Reset typing history
-      </Button>
-    </div>
+    </section>
+    <aside className="typing-history" aria-label="Histórico local">
+      <h2>Seu ritmo</h2><p className="typing-history-mode">{vocabularyLabels[vocabulary]} · {duration}s · {language.toUpperCase()}</p>
+      <dl className="typing-record"><div><dt>Melhor marca</dt><dd>{best ? best.toFixed(0) : "—"} <small>{speedLabel}</small></dd></div><div><dt>Testes neste modo</dt><dd>{selectedSessions.length}</dd></div></dl>
+      <h3>Últimos testes</h3>
+      {sessions.length === 0
+        ? <p className="typing-explanation">Complete seu primeiro teste para acompanhar a evolução por aqui.</p>
+        : <ol className="typing-session-list">{sessions.slice(0, 7).map((session, i) => <li key={`${session.timestamp}-${i}`}>
+          <div><strong>{session.wpm.toFixed(0)} {session.language === "pt-BR" ? "PPM" : "WPM"}</strong><span>{session.accuracy.toFixed(0)}%</span></div>
+          <p>{session.language} · {session.durationSeconds}s · {sessionModeLabel(session.mode)}</p>
+          <time>{new Date(session.timestamp).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</time>
+        </li>)}</ol>}
+      {sessions.length > 0 && <Button className="typing-clear" onClick={async () => {
+        if (await confirm("Apagar todo o histórico de digitação?")) { typingRepo.reset(); setSessions([]); }
+      }}>Apagar histórico</Button>}
+    </aside>
   </div>;
 }
