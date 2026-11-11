@@ -123,22 +123,20 @@ export function MindSetup() {
   };
 
   return (
-    <section className="mind-setup panel h-full overflow-auto">
+    <section className="mind-setup h-full overflow-auto">
       <div className="mind-setup__intro">
         <MindOrbit state={runtimeState} />
         <div>
-          <p className="mind-kicker">VOID MIND / LOCAL INFERENCE</p>
           <h1>Connect a model you control.</h1>
           <p>
-            VOID Mind talks only to a llama-server bound to this computer. No account, cloud inference,
-            telemetry, model download, or conversation upload is included.
+            Connect a GGUF model through a local llama-server to start a conversation.
           </p>
         </div>
       </div>
 
-      <div className="mind-setup__modes" role="tablist" aria-label="Runtime setup mode">
-        <Button className={mode === "external" ? "is-active" : ""} onClick={() => setMode("external")}>Use running server</Button>
-        <Button className={mode === "managed" ? "is-active" : ""} onClick={() => setMode("managed")}>Let VOID start it</Button>
+      <div className="mind-setup__modes" role="group" aria-label="Runtime setup mode">
+        <Button aria-pressed={mode === "external"} className={mode === "external" ? "is-active" : ""} onClick={() => setMode("external")}>Use running server</Button>
+        <Button aria-pressed={mode === "managed"} className={mode === "managed" ? "is-active" : ""} onClick={() => setMode("managed")}>Let VOID start it</Button>
       </div>
 
       {mode === "external" ? (
