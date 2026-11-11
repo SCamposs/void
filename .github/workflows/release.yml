@@ -8,6 +8,10 @@ on:
         description: Existing annotated version tag on main
         required: true
         type: string
+      ubuntu_archive_ip:
+        description: Optional current public IPv4 for the official archive when runner DNS fails
+        type: string
+        default: ""
       verify_only:
         description: Build, sign and verify without publishing or changing the feed
         type: boolean
@@ -117,11 +121,16 @@ jobs:
           npm test
           npm run build
       - name: Use the official Ubuntu archive directly
+        env:
+          UBUNTU_ARCHIVE_IP_OVERRIDE: ${{ inputs.ubuntu_archive_ip }}
         run: |
           # Resolve only the archive host for this ephemeral, credential-free runner.
-          ubuntu_archive_ip="$(timeout 15s getent ahostsv4 archive.ubuntu.com | awk 'NR == 1 {print $1}' || true)"
+          ubuntu_archive_ip="${UBUNTU_ARCHIVE_IP_OVERRIDE:-}"
           if [ -z "$ubuntu_archive_ip" ]; then
-            ubuntu_archive_ip="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --resolve dns.google:443:8.8.8.8 'https://dns.google/resolve?name=archive.ubuntu.com&type=A&edns_client_subnet=0.0.0.0/0' | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["Status"] == 0, "Archive DNS query status: " + str(r["Status"]); print(next(a["data"] for a in r["Answer"] if a.get("type") == 1))')"
+            ubuntu_archive_ip="$(timeout 15s getent ahostsv4 archive.ubuntu.com | awk 'NR == 1 {print $1}' || true)"
+            if [ -z "$ubuntu_archive_ip" ]; then
+              ubuntu_archive_ip="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --resolve dns.google:443:8.8.8.8 'https://dns.google/resolve?name=archive.ubuntu.com&type=A&edns_client_subnet=0.0.0.0/0' | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["Status"] == 0, "Archive DNS query status: " + str(r["Status"]); print(next(a["data"] for a in r["Answer"] if a.get("type") == 1))')"
+            fi
           fi
           UBUNTU_ARCHIVE_IP="$ubuntu_archive_ip" python3 -c 'import ipaddress,os; a=ipaddress.ip_address(os.environ["UBUNTU_ARCHIVE_IP"]); assert a.version == 4 and a.is_global, "Archive DNS did not return a public IPv4 address"'
           printf '%s archive.ubuntu.com\n' "$ubuntu_archive_ip" | sudo tee -a /etc/hosts > /dev/null

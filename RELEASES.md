@@ -36,6 +36,12 @@ Manual dispatch must run from `main` with an existing tag. `verify_only` default
 to true: it builds, signs and verifies without publishing or changing the feed.
 Set it to false only for an intended publication. Tags must not be moved or deleted.
 
+If a hosted Linux runner cannot resolve the Ubuntu archive, manual dispatch also
+accepts `ubuntu_archive_ip`: a current public IPv4 obtained from a trusted DNS
+lookup. Leave it empty normally. The override maps only `archive.ubuntu.com` in
+the temporary build runner; HTTPS hostname and Ubuntu package-signature checks
+stay enabled. Never commit an address or change the installed application feed.
+
 ## Release assets
 
 Each release contains:
