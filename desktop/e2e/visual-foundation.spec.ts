@@ -15,6 +15,12 @@ test("Home identity, navigation size, keyboard dialog and compact layout", async
   await find.click();
   const search = page.getByRole("textbox", { name: "Search modules" });
   await expect(search).toBeFocused();
+  for (const icon of await page.locator(".palette-results > button > svg:first-child").all()) {
+    const bounds = (await icon.boundingBox())!;
+    expect(bounds.width).toBe(18);
+    expect(bounds.height).toBe(18);
+  }
+  await page.screenshot({ path: testInfo.outputPath("navigation-icons.png") });
   await search.fill("typing");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
@@ -32,6 +38,62 @@ test("Home identity, navigation size, keyboard dialog and compact layout", async
   expect((await sidebar.boundingBox())!.width).toBeLessThan(compactWidth);
   await expect(page.getByRole("button", { name: "Typing Find your rhythm", exact: false })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("home-compact.png") });
+});
+
+test("Orbit selects stay inside their rows at desktop, compact and enlarged text sizes", async ({ page }, testInfo) => {
+  await page.getByRole("button", { name: "Orbit", exact: true }).click();
+  await page.getByRole("button", { name: "Open Orbit settings", exact: true }).click();
+  const panel = page.getByRole("dialog", { name: "Orbit settings", exact: true });
+  for (const size of [{ width: 1280, height: 800 }, { width: 720, height: 560 }]) {
+    await page.setViewportSize(size);
+    for (const fontSize of ["16px", "20px"]) {
+      await page.evaluate((value) => { document.documentElement.style.fontSize = value; }, fontSize);
+      for (const row of await panel.locator(".orbit-setting-row").all()) {
+        const field = (await row.getByRole("combobox").boundingBox())!;
+        const bounds = (await row.boundingBox())!;
+        expect(field.x).toBeGreaterThanOrEqual(bounds.x);
+        expect(field.x + field.width).toBeLessThanOrEqual(bounds.x + bounds.width + .5);
+      }
+    }
+  }
+  await panel.getByRole("combobox", { name: "Quality", exact: true }).click();
+  await page.getByRole("option", { name: "Performance", exact: true }).click();
+  await expect(panel.getByRole("combobox", { name: "Quality", exact: true })).toContainText("Performance");
+  await page.screenshot({ path: testInfo.outputPath("orbit-select-containment.png") });
+});
+
+test("Sidebar width interpolates in both directions and respects reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  const widths = await page.evaluate(async () => {
+    const shell = document.querySelector<HTMLElement>(".void-shell")!;
+    const sidebar = document.querySelector<HTMLElement>(".void-sidebar")!;
+    const toggle = document.querySelector<HTMLButtonElement>(".sidebar-toggle")!;
+    const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const expanded = sidebar.getBoundingClientRect().width;
+    const sample = async () => {
+      toggle.click();
+      await frame(); await frame();
+      const animation = shell.getAnimations()[0];
+      if (!animation) throw new Error("Sidebar changes without a width transition");
+      animation.pause();
+      animation.currentTime = Number(animation.effect!.getTiming().duration) / 2;
+      const middle = sidebar.getBoundingClientRect().width;
+      animation.finish();
+      await frame();
+      return { middle, end: sidebar.getBoundingClientRect().width };
+    };
+    const closing = await sample();
+    const opening = await sample();
+    return { expanded, closing, opening };
+  });
+  expect(widths.closing.middle).toBeLessThan(widths.expanded);
+  expect(widths.closing.middle).toBeGreaterThan(widths.closing.end);
+  expect(widths.opening.middle).toBeGreaterThan(widths.closing.end);
+  expect(widths.opening.middle).toBeLessThan(widths.expanded);
+  expect(widths.opening.end).toBe(widths.expanded);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.getByRole("button", { name: "Collapse navigation", exact: true }).click();
+  expect(await page.locator(".void-shell").evaluate((element) => element.getAnimations().length)).toBe(0);
 });
 
 test("Settings removes legacy appearance and keeps safe data confirmation", async ({ page }, testInfo) => {
