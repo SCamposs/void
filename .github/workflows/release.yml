@@ -99,6 +99,11 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           persist-credentials: false
+      - name: Use the official Ubuntu archive directly
+        run: |
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          fi
       - name: Install platform dependencies
         run: sudo apt-get update && sudo apt-get install --yes libayatana-appindicator3-dev librsvg2-dev libwebkit2gtk-4.1-dev patchelf
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
