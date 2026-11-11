@@ -1,0 +1,64 @@
+.typing-module { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 32px; height: 100%; overflow: auto; padding: 12px 8px; }
+.typing-main { min-width: 0; display: flex; flex-direction: column; }
+.typing-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.typing-configuration { display: flex; gap: 8px; flex-wrap: wrap; }
+.typing-configuration .void-select { width: auto; min-width: 88px; }
+.typing-module button { min-height: 34px; }
+.typing-sound { display: grid; place-items: center; width: 36px; flex-shrink: 0; color: var(--muted); }
+.typing-sound[aria-pressed="true"] { color: var(--accent); }
+.typing-stage { margin: auto 0; padding: 56px 0; }
+.typing-live { display: flex; align-items: baseline; gap: 24px; margin-bottom: 24px; color: var(--text); font-variant-numeric: tabular-nums; }
+.typing-timer { font-size: 28px; font-weight: 500; color: var(--accent); }
+.typing-unit { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.typing-state { margin-left: auto; color: var(--muted); font-size: 13px; }
+.typing-field { position: relative; padding: 16px 0; cursor: text; border-bottom: 1px solid var(--border); }
+.typing-field.is-focused { border-color: var(--border-strong); }
+.typing-viewport { height: 3.8em; font-size: 30px; overflow: hidden; overflow-anchor: none; }
+.typing-flow { position: relative; line-height: 1.9; color: var(--muted); font-family: var(--font-body); font-weight: 400; }
+.typing-word { display: inline-block; white-space: nowrap; margin-right: .65ch; position: relative; }
+.typing-word.is-correct { color: var(--text); }
+.typing-word.is-wrong { color: var(--error); text-decoration: underline; text-underline-offset: 6px; }
+.typing-word.is-active { color: var(--accent); }
+.typing-word .char-correct { color: var(--accent); }
+.typing-word .char-wrong { color: var(--error); background: oklch(23% .045 357); text-decoration: underline; text-underline-offset: 6px; }
+.typing-caret { position: relative; }
+.typing-caret::before { content: ""; position: absolute; left: -1px; top: .04em; height: 1.12em; width: 2px; background: var(--accent); }
+.typing-caret-end { display: inline; }
+.typing-caret-end::before { top: .18em; }
+.typing-resume { position: absolute; inset: 0; width: 100%; background: oklch(0% 0 0 / .9); color: var(--text); font-size: 15px; }
+.typing-instructions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 16px; }
+.typing-progress { height: 2px; background: var(--surface-raised); margin-top: 28px; overflow: hidden; }
+.typing-progress i { display: block; height: 100%; width: 100%; transform-origin: left; background: var(--accent); transition: transform 100ms linear; }
+.typing-stage-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; font-size: 12px; color: var(--muted); }
+.typing-stage-footer button { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.typing-bottom { margin-top: auto; }
+.typing-audio-settings { display: flex; align-items: center; gap: 20px; max-width: 500px; font-size: 13px; }
+.typing-audio-settings .void-slider { flex: 1; min-width: 80px; }
+.typing-explanation { font-size: 13px; line-height: 1.65; color: var(--muted); max-width: 70ch; margin: 8px 0; }
+.typing-history { min-width: 0; padding-left: 24px; border-left: 1px solid var(--border); }
+.typing-history h2 { font-size: 20px; font-weight: 500; margin: 0 0 8px; }
+.typing-history h3 { font-size: 14px; font-weight: 500; margin: 28px 0 8px; }
+.typing-history-mode { font-size: 12px; line-height: 1.6; color: var(--muted); }
+.typing-record { margin-top: 24px; font-variant-numeric: tabular-nums; }
+.typing-record > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 12px 0; }
+.typing-record dt { color: var(--muted); font-size: 13px; }
+.typing-record dd { font-size: 21px; }
+.typing-record small { color: var(--muted); font-size: 11px; }
+.typing-session-list { list-style: none; padding: 0; margin: 0; }
+.typing-session-list li { padding: 12px 0; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.typing-session-list li > div { display: flex; justify-content: space-between; font-size: 15px; }
+.typing-session-list strong { font-weight: 500; }
+.typing-session-list span, .typing-session-list p, .typing-session-list time { color: var(--muted); font-size: 12px; }
+.typing-session-list p { margin: 4px 0 0; }
+.typing-clear { margin-top: 16px; color: var(--muted); font-size: 12px; }
+.typing-result-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 24px 0; font-size: 13px; color: var(--muted); }
+.typing-results { padding-top: 24px; }
+.typing-result-views { display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px; }
+.typing-result-views button { padding: 6px 12px; color: var(--muted); }
+.typing-result-views button[aria-pressed="true"] { color: var(--bg); background: var(--accent); }
+.typing-result-summary { display: flex; flex-wrap: wrap; gap: 20px 32px; padding: 20px 0; border-bottom: 1px solid var(--border); }
+.typing-result-summary dt { font-size: 12px; color: var(--muted); }
+.typing-result-summary dd { font-size: 22px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) { .typing-module { grid-template-columns: minmax(0, 1fr); gap: 24px; } .typing-history { border-left: 0; border-top: 1px solid var(--border); padding: 20px 0 0; } .typing-stage { padding: 40px 0; } .typing-session-list { display: flex; flex-wrap: wrap; gap: 24px; } .typing-session-list li { min-width: 150px; } .typing-record { display: flex; gap: 32px; } .typing-record > div { gap: 16px; } }
+@media (max-width: 640px) { .typing-module { padding: 0; } .typing-viewport { font-size: 25px; } .typing-state { display: none; } .typing-live { gap: 16px; } .typing-stage { padding: 28px 0; } .typing-audio-settings { flex-wrap: wrap; gap: 12px; } .typing-record { flex-wrap: wrap; gap: 0 24px; } }
+@media (prefers-reduced-motion: reduce) { .typing-progress i { transition: none; } }

@@ -403,7 +403,21 @@ export const EN_WORDS: string[] = [
 
 export type TypingLanguage = "pt-BR" | "en";
 
-export function generateWordSequence(count = 450, language: TypingLanguage = "pt-BR"): string[] {
-  const pool = language === "en" ? EN_WORDS : PT_BR_WORDS;
-  return Array.from({ length: Math.max(0, count) }, () => pool[Math.floor(Math.random() * pool.length)]);
+// VOID's own selection of everyday words, not the site's proprietary word list.
+export const PT_BR_COMMON = [...new Set(`a o de que e é do da em um para com não uma os no se na por mais as dos como mas foi ao ele das tem à seu sua ou ser quando muito há nos já está eu também só pelo pela até isso ela entre era depois sem mesmo aos ter seus quem nas me esse eles você essa num nem suas meu às minha têm numa pelos elas havia seja qual será nós tenho lhe deles essas esses pelas este fosse dele tu te vocês vos lhes meus minhas teu tua teus tuas nosso nossa nossos nossas dela delas esta estes estas aquele aquela aqueles aquelas isto aquilo estou estamos estão estava estavam sou somos são fui foram era eram fazer dizer pode tudo bem ainda sobre ano dia vez agora tempo hoje aqui assim então dois três cada novo grande maior outro outra outros outras parte tanto pouco primeiro homem mulher vida mundo país casa trabalho lugar antes durante sempre onde ver saber encontrar dar ficar chegar passar ir vai vem volta água mãe pai filho filha gente cidade escola hora noite manhã tarde nada algo ninguém alguém porque enquanto dentro fora cima baixo perto longe sim bom boa melhor último próximo certo forma conta lado fim meio início nome número força fato ponto caso coisa gente anos dias meses semana mês após além menos apenas desde contra cerca governo poder estado nacional real preço dinheiro mercado sistema empresa grupo equipe informação saúde ação coração razão história música família criança cabeça atenção possível rápido fácil difícil você português`.split(/\s+/))];
+
+export const EN_COMMON = `the be to of and a in that have I it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us is are was were has had did does been being more much many very home world life word water place school family friend house night long short right left great small large never always today`.toLowerCase().split(/\s+/);
+
+export type TypingVocabulary = "common" | "varied" | "practice";
+
+export function generateWordSequence(count = 450, language: TypingLanguage = "pt-BR", vocabulary: TypingVocabulary = "varied", practiceWords: string[] = []): string[] {
+  const pool = [...new Set(vocabulary === "practice" && practiceWords.length ? practiceWords
+    : language === "en" ? vocabulary === "common" ? EN_COMMON : EN_WORDS : vocabulary === "common" ? PT_BR_COMMON : PT_BR_WORDS)];
+  let previous = -1;
+  return Array.from({ length: Math.max(0, count) }, () => {
+    let selected = Math.floor(Math.random() * pool.length);
+    if (selected === previous && pool.length > 1) selected = (selected + 1) % pool.length;
+    previous = selected;
+    return pool[selected];
+  });
 }
