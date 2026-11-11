@@ -71,8 +71,7 @@ progress::-moz-progress-bar {
 
 
 .mind-shell {
-  --mind-error: #c79a9a;
-  --mind-ready: var(--accent);
+  --mind-error: var(--error);
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -103,23 +102,19 @@ progress::-moz-progress-bar {
   font-weight: 600;
 }
 
+.mind-header__identity,
+.mind-header__identity > div { min-width: 0; }
+.mind-header__identity span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .mind-header__identity span,
 .mind-controls__status span,
 .mind-setup__status span {
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: .75rem;
 }
 
-.mind-privacy-strip {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-}
-
-.mind-privacy-strip span,
 .mind-model-facts span,
 .mind-setup__summary span {
   border: 1px solid var(--border);
@@ -130,6 +125,7 @@ progress::-moz-progress-bar {
 
 .mind-header__mobile-actions {
   display: none;
+  flex: none;
   gap: 6px;
 }
 
@@ -142,6 +138,7 @@ progress::-moz-progress-bar {
 
 .mind-chat-sidebar,
 .mind-controls-wrap {
+  min-width: 0;
   min-height: 0;
   background: var(--surface);
 }
@@ -168,7 +165,7 @@ progress::-moz-progress-bar {
   padding: 8px 9px;
   color: var(--text);
   font: inherit;
-  font-size: 0.72rem;
+  font-size: .8125rem;
 }
 
 .mind-chat-search::placeholder,
@@ -176,13 +173,15 @@ progress::-moz-progress-bar {
 .mind-path-field input::placeholder,
 .mind-setup__form input::placeholder,
 .mind-composer textarea::placeholder {
-  color: #8d8981;
+  color: var(--subtle);
 }
 
 .mind-chat-list {
+  min-width: 0;
   min-height: 0;
   flex: 1;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .mind-chat-row {
@@ -211,7 +210,7 @@ progress::-moz-progress-bar {
 
 .mind-chat-row strong {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: .8125rem;
   font-weight: 500;
 }
 
@@ -234,7 +233,7 @@ progress::-moz-progress-bar {
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  background: radial-gradient(circle at 50% 28%, rgba(232, 237, 244, 0.035), transparent 38%), var(--bg);
+  background: var(--bg);
 }
 
 .mind-messages {
@@ -266,21 +265,21 @@ progress::-moz-progress-bar {
 .mind-conversation-title span {
   flex: none;
   color: var(--subtle);
-  font-size: 0.65rem;
+  font-size: .75rem;
 }
 
 .mind-message {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr);
   gap: 14px;
-  border-bottom: 1px solid rgba(42, 42, 37, 0.72);
+  border-bottom: 1px solid var(--border);
   padding: 20px 0;
 }
 
 .mind-message__role {
   padding-top: 2px;
   color: var(--subtle);
-  font-size: 0.66rem;
+  font-size: .8125rem;
 }
 
 .mind-message--assistant .mind-message__role {
@@ -290,8 +289,8 @@ progress::-moz-progress-bar {
 .mind-message__body {
   min-width: 0;
   color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-family: var(--font-body);
+  font-size: .9375rem;
   line-height: 1.75;
 }
 
@@ -373,8 +372,8 @@ progress::-moz-progress-bar {
   border: 1px solid var(--border);
   background: #050505;
   padding: 12px;
-  color: #ebe8df;
-  font-size: 0.72rem;
+  color: var(--text);
+  font-size: .8125rem;
   line-height: 1.6;
 }
 
@@ -414,8 +413,10 @@ progress::-moz-progress-bar {
 }
 
 .mind-composer {
-  border-top: 1px solid var(--border);
-  padding: 10px max(18px, calc((100% - 780px) / 2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin: var(--space-3) max(18px, calc((100% - 780px) / 2));
+  padding: var(--space-3);
   background: var(--surface);
 }
 
@@ -449,12 +450,12 @@ progress::-moz-progress-bar {
   background: var(--accent);
   padding: 8px 11px;
   color: var(--bg);
-  font-size: 0.72rem;
+  font-size: .8125rem;
   font-weight: 600;
 }
 
 .mind-primary-button:hover {
-  background: #d8d4ca;
+  background: var(--text);
 }
 
 .mind-primary-button:disabled {
@@ -475,14 +476,15 @@ progress::-moz-progress-bar {
 }
 
 .mind-empty h2 {
-  margin: 22px 0 6px;
-  font-size: 1rem;
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 1.5rem;
+  font-weight: 450;
 }
 
 .mind-empty p {
   max-width: 58ch;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: .8125rem;
   line-height: 1.7;
 }
 
@@ -505,7 +507,7 @@ progress::-moz-progress-bar {
   border: 1px solid var(--border);
   padding: 7px 9px;
   color: var(--muted);
-  font-size: 0.68rem;
+  font-size: .75rem;
 }
 
 .mind-empty button:hover,
@@ -561,7 +563,7 @@ progress::-moz-progress-bar {
   display: grid;
   gap: 5px;
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: .8125rem;
 }
 
 .mind-control-group textarea {
@@ -597,6 +599,7 @@ progress::-moz-progress-bar {
 
 .mind-path-field {
   display: grid;
+  gap: var(--space-2);
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
@@ -627,14 +630,14 @@ progress::-moz-progress-bar {
   display: grid;
   gap: 5px;
   color: var(--muted);
-  font-size: 0.66rem;
+  font-size: .8125rem;
 }
 
 .mind-help,
 .mind-controls__notice {
   margin: 0;
   color: var(--muted);
-  font-size: 0.65rem;
+  font-size: .75rem;
   line-height: 1.55;
 }
 
@@ -648,10 +651,12 @@ progress::-moz-progress-bar {
 }
 
 .mind-orbit {
-  position: relative;
-  width: 126px;
-  height: 126px;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
   flex: none;
+  color: var(--accent);
 }
 
 .mind-orbit--compact {
@@ -659,66 +664,16 @@ progress::-moz-progress-bar {
   height: 28px;
 }
 
-.mind-orbit__halo,
-.mind-orbit__ring,
-.mind-orbit__core {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  border-radius: 999px;
-  transform: translate(-50%, -50%);
+.mind-orbit__mark { width: 100%; height: 100%; }
+
+.mind-orbit[data-state="checking"] .mind-orbit__mark,
+.mind-orbit[data-state="loading"] .mind-orbit__mark,
+.mind-orbit[data-state="thinking"] .mind-orbit__mark,
+.mind-orbit[data-state="generating"] .mind-orbit__mark {
+  animation: mind-cursor 900ms ease-in-out infinite alternate;
 }
 
-.mind-orbit__halo {
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(232, 237, 244, 0.16), rgba(232, 237, 244, 0.025) 46%, transparent 68%);
-}
-
-.mind-orbit__ring {
-  border: 1px solid rgba(232, 237, 244, 0.28);
-}
-
-.mind-orbit__ring--outer {
-  width: 70%;
-  height: 70%;
-}
-
-.mind-orbit__ring--inner {
-  width: 44%;
-  height: 44%;
-}
-
-.mind-orbit__core {
-  width: 19%;
-  height: 19%;
-  background: var(--mind-ready);
-  box-shadow: 0 0 14px rgba(232, 237, 244, 0.7);
-}
-
-.mind-orbit[data-state="checking"] .mind-orbit__ring--outer,
-.mind-orbit[data-state="loading"] .mind-orbit__ring--outer {
-  animation: mind-orbit-spin 2.2s linear infinite;
-  border-top-color: transparent;
-}
-
-.mind-orbit[data-state="thinking"] .mind-orbit__ring--inner,
-.mind-orbit[data-state="generating"] .mind-orbit__ring--inner {
-  animation: mind-orbit-breathe 850ms ease-in-out infinite alternate;
-}
-
-.mind-orbit[data-state="generating"] .mind-orbit__core {
-  animation: mind-orbit-signal 620ms ease-in-out infinite alternate;
-}
-
-.mind-orbit[data-state="error"] .mind-orbit__core {
-  background: var(--mind-error);
-  box-shadow: 0 0 12px rgba(199, 154, 154, 0.55);
-}
-
-.mind-orbit[data-state="stopped"],
-.mind-orbit[data-state="idle"] {
-  opacity: 0.62;
-}
+.mind-orbit[data-state="error"] { color: var(--mind-error); }
 
 .mind-setup {
   padding: 28px;
@@ -726,22 +681,16 @@ progress::-moz-progress-bar {
 
 .mind-setup__intro {
   display: flex;
-  max-width: 820px;
+  max-width: 720px;
   align-items: center;
   gap: 26px;
   margin: 0 auto 28px;
 }
 
-.mind-kicker {
-  margin: 0 0 8px;
-  color: var(--subtle);
-  font-size: 0.66rem;
-  letter-spacing: 0.12em;
-}
-
 .mind-setup__intro h1 {
   margin: 0 0 8px;
-  font-size: 1.45rem;
+  font-size: 1.8rem;
+  font-weight: 450;
   letter-spacing: -0.025em;
   text-wrap: balance;
 }
@@ -766,16 +715,14 @@ progress::-moz-progress-bar {
 .mind-setup__modes {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border: 1px solid var(--border);
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-3);
 }
 
 .mind-setup__modes button {
   border: 0;
   padding: 10px;
-}
-
-.mind-setup__modes button + button {
-  border-left: 1px solid var(--border);
 }
 
 .mind-setup__modes button.is-active {
@@ -786,17 +733,12 @@ progress::-moz-progress-bar {
 .mind-setup__form {
   display: grid;
   gap: 14px;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  padding: 20px;
+  padding: var(--space-5) 0;
 }
 
 .mind-setup__status {
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  border-left: 1px solid var(--border);
-  padding: 12px 20px;
+  border-block: 1px solid var(--border);
+  padding: var(--space-4) 0;
 }
 
 .mind-setup__status[data-state="error"] strong {
@@ -816,20 +758,6 @@ progress::-moz-progress-bar {
   color: var(--muted);
   font-size: 0.64rem;
   line-height: 1.5;
-}
-
-@keyframes mind-orbit-spin {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-@keyframes mind-orbit-breathe {
-  from { transform: translate(-50%, -50%) scale(0.9); opacity: 0.45; }
-  to { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
-}
-
-@keyframes mind-orbit-signal {
-  from { transform: translate(-50%, -50%) scale(0.82); }
-  to { transform: translate(-50%, -50%) scale(1.15); }
 }
 
 @keyframes mind-cursor {
@@ -883,10 +811,6 @@ progress::-moz-progress-bar {
 
   .mind-header {
     min-height: 62px;
-  }
-
-  .mind-privacy-strip {
-    display: none;
   }
 
   .mind-layout {

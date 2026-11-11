@@ -154,17 +154,11 @@ button.is-active .orbit-control-state {
 }
 
 .orbit-setting-row {
-  grid-template-columns: minmax(0, 1fr) 128px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 150px);
 }
 
-.orbit-setting-row select {
-  width: 100%;
-  border: 1px solid rgba(220, 231, 240, 0.16);
-  border-radius: 0;
-  background: #090c10;
-  padding: 6px 24px 6px 7px;
-  color: #dce9f2;
-  font: inherit;
+.orbit-setting-row .void-select {
+  font-size: .8rem;
 }
 
 .orbit-setting-range input {

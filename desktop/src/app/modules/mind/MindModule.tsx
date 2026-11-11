@@ -138,14 +138,11 @@ export function MindModule() {
   };
 
   return (
-    <section className="mind-shell panel h-full min-h-0 overflow-hidden">
+    <section className="mind-shell h-full min-h-0 overflow-hidden">
       <header className="mind-header">
         <div className="mind-header__identity">
           <MindOrbit state={store.runtimeState} compact />
-          <div><h1>Mind</h1><span>{mindStateLabel(store.runtimeState)} · {selectedModel?.version ?? "no model"}</span></div>
-        </div>
-        <div className="mind-privacy-strip" aria-label="Privacy status">
-          <span>local inference</span><span>loopback only</span><span>telemetry off</span>
+          <div><h1>Mind</h1><span>{selectedModel?.displayName ?? "Choose a model"} · {mindStateLabel(store.runtimeState)}</span></div>
         </div>
         <div className="mind-header__mobile-actions">
           <Button onClick={() => setShowChats((value) => !value)}>Chats</Button>
@@ -156,7 +153,7 @@ export function MindModule() {
       <div className="mind-layout">
         <aside className={`mind-chat-sidebar ${showChats ? "is-open" : ""}`}>
           <Button className="mind-primary-button" onClick={() => { store.createChat(); setShowChats(false); }}>New conversation</Button>
-          <Input className="mind-chat-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" />
+          <Input className="mind-chat-search" type="search" aria-label="Search conversations" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations" />
           <div className="mind-chat-list">
             {filteredChats.map((chat) => (
               <div className={`mind-chat-row ${chat.id === store.activeChatId ? "is-active" : ""}`} key={chat.id}>
@@ -182,7 +179,7 @@ export function MindModule() {
                   <div className="mind-message__body">
                     {editingId === message.id ? (
                       <div className="mind-message__edit">
-                        <Textarea value={editingContent} onChange={(event) => setEditingContent(event.target.value)} rows={5} />
+                        <Textarea aria-label="Edit message" value={editingContent} onChange={(event) => setEditingContent(event.target.value)} rows={5} />
                         <div><Button onClick={() => void saveEdit(message)}>Save and regenerate</Button><Button onClick={() => setEditingId(null)}>Cancel</Button></div>
                       </div>
                     ) : message.content ? (
@@ -206,13 +203,14 @@ export function MindModule() {
             <div className="mind-empty">
               <MindOrbit state={store.runtimeState} />
               <h2>What should we think through?</h2>
-              <p>Start a local conversation. Nothing here is sent beyond the loopback runtime you selected.</p>
+              <p>Choose an idea below, or write your own message.</p>
               <div>{STARTERS.map((starter) => <Button key={starter} onClick={() => setDraft(starter)}>{starter}</Button>)}</div>
             </div>
           )}
 
           <div className="mind-composer">
             <Textarea
+              aria-label="Message"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
