@@ -1,23 +1,23 @@
 {
-  "version": "0.5.0-alpha",
-  "notes": "See the GitHub release notes for v0.5.0-alpha.",
-  "pub_date": "2026-11-11T03:01:42.772Z",
+  "version": "0.6.0-alpha",
+  "notes": "See the GitHub release notes for v0.6.0-alpha.",
+  "pub_date": "2026-11-11T14:45:28.564Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1hzTGl3RmZMNFVYZDZTN1dhaHBOakFJM20yZTlqTVRtVjQxdXJOQ3JNNUY2ejB2bmRERDkyTEp1TXRjWUxwMUdNNER5WDllTVE4ZmIxYnZzMm9GUWdrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MzY2MTAxCWZpbGU6Vk9JRC1XaW5kb3dzLXg2NC1zZXR1cC5leGUKeDlZR2NydHRKcUZ2bS9rZytqY3NOYmtQOFBhaXVrb3lQUGJnUjN5MmdDcnZpTlg5cVRZay9NQmN1MVFvc2h3REN3NjBWQk5yTzY4ZFNHQmRqZVdDQVE9PQo=",
-      "url": "https://github.com/SCamposs/void/releases/download/v0.5.0-alpha/VOID-Windows-x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb2VoZGhoYU5OYVhiNGE2UHg3UHE0dzZtTzBpT2NNRTYycHRyZHdhS3dTQWQyNE40K2R2bmZIZUI1WUNOdUw0cVVOUGpSZVdnL2pUZVRUWCs4TFlnRGdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDA4MzI3CWZpbGU6Vk9JRC1XaW5kb3dzLXg2NC1zZXR1cC5leGUKSHNaTzlWU2NUZGIyNTlyWHhSTThTc0l0ZnMwandEL0JwTmpGYzBJUEVUSk4wT0Z6K2tjUm1KUy81VFdkYVFiTDZJWWswTmM5bGVaVmNTMXVpTWNRQkE9PQo=",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.6.0-alpha/VOID-Windows-x64-setup.exe"
     },
     "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1pwWUptUC9lU05HUmMrZXJiVDNwSjRaRi9vRVZrcTZ2WDhNenhjMGRYQldMcmNVTTJCWFFkTmlyZXE1QzUzVTJ4UjV3aVd6MmgxbFVlMHJmb0FwY2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MzY2MTAyCWZpbGU6Vk9JRC1MaW51eC14NjQuQXBwSW1hZ2UKTFB5eklzR2hYSk4yV1c0NGJKaythN1NBelVrSTdmREpXYVhnT2NtdE1mMWgxcUxza2dhaXVIbGJKM0ZEVC9PMDZMbi92UW1JdHpQaGViQnNlZGVhQWc9PQo=",
-      "url": "https://github.com/SCamposs/void/releases/download/v0.5.0-alpha/VOID-Linux-x64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1lVa3NEYkpWQnJhR0pCZWZ4bmRtQ1NDTVR0d0Rsam85YnUyZTU5WGsxMGZWaGVJdk1ES3d1T3JmK2IxU2pEbVlJSU5SdUpLSjJVODlQQUh2bTRJakFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDA4MzI4CWZpbGU6Vk9JRC1MaW51eC14NjQuQXBwSW1hZ2UKVitrTmdOTDR1TkNZM1RuK2RxcHRVTzNPZE1sWVVDKzNEVVpUMjZIbi85dzBacHU1bjQ0N3NBdU0rZnhTbVU4Rm5OQ3dscElQMGR2aVFySEFDOXR0QUE9PQo=",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.6.0-alpha/VOID-Linux-x64.AppImage"
     },
     "linux-x86_64-appimage": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1pwWUptUC9lU05HUmMrZXJiVDNwSjRaRi9vRVZrcTZ2WDhNenhjMGRYQldMcmNVTTJCWFFkTmlyZXE1QzUzVTJ4UjV3aVd6MmgxbFVlMHJmb0FwY2d3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MzY2MTAyCWZpbGU6Vk9JRC1MaW51eC14NjQuQXBwSW1hZ2UKTFB5eklzR2hYSk4yV1c0NGJKaythN1NBelVrSTdmREpXYVhnT2NtdE1mMWgxcUxza2dhaXVIbGJKM0ZEVC9PMDZMbi92UW1JdHpQaGViQnNlZGVhQWc9PQo=",
-      "url": "https://github.com/SCamposs/void/releases/download/v0.5.0-alpha/VOID-Linux-x64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1lVa3NEYkpWQnJhR0pCZWZ4bmRtQ1NDTVR0d0Rsam85YnUyZTU5WGsxMGZWaGVJdk1ES3d1T3JmK2IxU2pEbVlJSU5SdUpLSjJVODlQQUh2bTRJakFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDA4MzI4CWZpbGU6Vk9JRC1MaW51eC14NjQuQXBwSW1hZ2UKVitrTmdOTDR1TkNZM1RuK2RxcHRVTzNPZE1sWVVDKzNEVVpUMjZIbi85dzBacHU1bjQ0N3NBdU0rZnhTbVU4Rm5OQ3dscElQMGR2aVFySEFDOXR0QUE9PQo=",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.6.0-alpha/VOID-Linux-x64.AppImage"
     },
     "linux-x86_64-deb": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb1dxZWF6Rk90eit3SUVEQkVZWHBneVBRVy95OHB4ejI4UGxCZzJyd2habjJyOGNmaFcyaXQwamRaenNKU0UyalpGS3c2M1BQSWVLaU1NWG5xT1pCcUFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0MzY2MTAyCWZpbGU6Vk9JRC1MaW51eC14NjQuZGViCkcxcHdMU25peUZUNHBOUFBkNlhiaXFTY1VmMWZZY3hDMm1UUVA4S2VHS0E1SHQ1UkhaQW1ic1FScHJLZHNPRWhCUkZ3Mk0ySVI5ZlZLaFp6N3RzYkRRPT0K",
-      "url": "https://github.com/SCamposs/void/releases/download/v0.5.0-alpha/VOID-Linux-x64.deb"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVRUzI0UytrRXNzb2Jjc1RhNUdqY0RHL0xRWSsyeFdLWk51Yk5pRXhWZHZVdnkzMWgxQWVaR2xKOW8ybHNjVmtrbW5xYTNyWStpNnFxMzFTUFNBMVQ5SFJiUkZUeHdPMnd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NDA4MzI3CWZpbGU6Vk9JRC1MaW51eC14NjQuZGViCkpYZ0NxbzVSdXlvano5UzlYNmkyWm8ybDhjeE92Wlhvc1NEcG14MDU0N1ZkRWd3NTY1RlhsZVZKSldHWlRDRTlib3I5UnZCdjhSc3lNMUFFYXN3bUNBPT0K",
+      "url": "https://github.com/SCamposs/void/releases/download/v0.6.0-alpha/VOID-Linux-x64.deb"
     }
   }
 }
