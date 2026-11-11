@@ -34,9 +34,9 @@ jobs:
           # Resolve only the archive host for this ephemeral, credential-free runner.
           ubuntu_archive_ip="$(timeout 15s getent ahostsv4 archive.ubuntu.com | awk 'NR == 1 {print $1}' || true)"
           if [ -z "$ubuntu_archive_ip" ]; then
-            ubuntu_archive_ip="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --resolve dns.google:443:8.8.8.8 'https://dns.google/resolve?name=archive.ubuntu.com&type=A&edns_client_subnet=0.0.0.0/0' | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["Status"] == 0; print(next(a["data"] for a in r["Answer"] if a.get("type") == 1))')"
+            ubuntu_archive_ip="$(curl --fail --silent --show-error --connect-timeout 10 --max-time 20 --resolve dns.google:443:8.8.8.8 'https://dns.google/resolve?name=archive.ubuntu.com&type=A&edns_client_subnet=0.0.0.0/0' | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["Status"] == 0, "Archive DNS query status: " + str(r["Status"]); print(next(a["data"] for a in r["Answer"] if a.get("type") == 1))')"
           fi
-          UBUNTU_ARCHIVE_IP="$ubuntu_archive_ip" python3 -c 'import ipaddress,os; a=ipaddress.ip_address(os.environ["UBUNTU_ARCHIVE_IP"]); assert a.version == 4 and a.is_global'
+          UBUNTU_ARCHIVE_IP="$ubuntu_archive_ip" python3 -c 'import ipaddress,os; a=ipaddress.ip_address(os.environ["UBUNTU_ARCHIVE_IP"]); assert a.version == 4 and a.is_global, "Archive DNS did not return a public IPv4 address"'
           printf '%s archive.ubuntu.com\n' "$ubuntu_archive_ip" | sudo tee -a /etc/hosts > /dev/null
           if [ -f /etc/apt/apt-mirrors.txt ]; then
             printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
