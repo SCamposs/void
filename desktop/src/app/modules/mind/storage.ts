@@ -2,12 +2,13 @@ import { readStoredJson, storageKeys, writeStoredJson } from "../../lib/persiste
 import { DEFAULT_GENERATION_SETTINGS } from "./profiles";
 import type { MindChat, MindPersistedState } from "./types";
 
-export const MIND_STATE_VERSION = 2;
+export const MIND_STATE_VERSION = 3;
 
 export const DEFAULT_MIND_STATE: MindPersistedState = {
   version: MIND_STATE_VERSION,
   onboardingComplete: false,
   activeChatId: null,
+  newDraft: "",
   chats: [],
   models: [],
   selectedModelId: null,
@@ -44,11 +45,15 @@ export function migrateMindState(value: unknown): MindPersistedState {
   const policy = isRecord(value.policy) ? value.policy : {};
   const runtime = isRecord(value.runtime) ? value.runtime : {};
   const models = Array.isArray(value.models) ? value.models : [];
+  const chats = validChats(value.chats).filter((chat) =>
+    chat.messages.length > 0 || chat.title !== "New conversation" || chat.titleManuallyEdited || chat.draft,
+  ).map((chat) => ({ ...chat, draft: typeof chat.draft === "string" ? chat.draft : "" }));
   const migrated: MindPersistedState = {
     ...DEFAULT_MIND_STATE,
     onboardingComplete: value.onboardingComplete === true,
     activeChatId: typeof value.activeChatId === "string" ? value.activeChatId : null,
-    chats: validChats(value.chats),
+    newDraft: typeof value.newDraft === "string" ? value.newDraft : "",
+    chats,
     models: models.filter((model): model is MindPersistedState["models"][number] => {
       if (!isRecord(model)) return false;
       return (
@@ -70,7 +75,7 @@ export function migrateMindState(value: unknown): MindPersistedState {
     runtime: { ...DEFAULT_MIND_STATE.runtime, ...runtime },
     version: MIND_STATE_VERSION,
   };
-  if (!migrated.chats.some((chat) => chat.id === migrated.activeChatId)) {
+  if (value.activeChatId !== null && !migrated.chats.some((chat) => chat.id === migrated.activeChatId)) {
     migrated.activeChatId = migrated.chats[0]?.id ?? null;
   }
   if (!migrated.models.some((model) => model.id === migrated.selectedModelId)) {

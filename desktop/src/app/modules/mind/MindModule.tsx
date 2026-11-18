@@ -1,8 +1,11 @@
+import "./mini.css";
 import { useConfirm } from "../../components/ui/use-confirm";
 import { Button, Input, Textarea } from "../../components/ui/Controls";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LlamaServerProvider } from "./provider";
-import { applyInputPolicy, applyOutputPolicy } from "./policy";
+import { Dialog } from "@base-ui/react/dialog";
+import { History, Plus, SlidersHorizontal, X, Pencil } from "lucide-react";
+import { mindGeneration } from "./generation";
+import { applyInputPolicy } from "./policy";
 import { useMindStore } from "./store";
 import { MarkdownMessage } from "./MarkdownMessage";
 import { MindControls } from "./MindControls";
@@ -22,89 +25,53 @@ export function MindModule() {
   const store = useMindStore();
   const activeChat = store.chats.find((chat) => chat.id === store.activeChatId);
   const selectedModel = store.models.find((model) => model.id === store.selectedModelId);
-  const [draft, setDraft] = useState("");
+  const draft = activeChat?.draft ?? store.newDraft;
+  const setDraft = store.updateDraft;
+  const [showRename, setShowRename] = useState(false);
+  const [title, setTitle] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const renameTrigger = useRef<HTMLButtonElement>(null);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showChats, setShowChats] = useState(false);
   const [showControls, setShowControls] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+  const historyTrigger = useRef<HTMLButtonElement>(null);
+  const settingsTrigger = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const followResponse = useRef(true);
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
-  const busy = store.runtimeState === "thinking" || store.runtimeState === "generating";
+  const busy = Boolean(store.generation);
+  const runtimePending = store.runtimeState === "checking" || store.runtimeState === "loading";
   const filteredChats = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return query ? store.chats.filter((chat) => chat.title.toLocaleLowerCase().includes(query)) : store.chats;
   }, [search, store.chats]);
 
+  useEffect(() => { followResponse.current = true; }, [store.activeChatId]);
+
   useEffect(() => {
-    conversationEndRef.current?.scrollIntoView({ behavior: busy ? "auto" : "smooth" });
+    if (followResponse.current) conversationEndRef.current?.scrollIntoView({ behavior: "auto" });
   }, [activeChat?.messages, busy]);
+
+  useEffect(() => {
+    const leave = () => { mindGeneration.stop(); useMindStore.getState().persistNow(); };
+    window.addEventListener("pagehide", leave);
+    return () => { window.removeEventListener("pagehide", leave); leave(); };
+  }, []);
 
   if (!store.onboardingComplete) return <MindSetup />;
 
-  const runGeneration = async (chatId: string, assistantId: string) => {
-    const snapshot = useMindStore.getState();
-    const chat = snapshot.chats.find((item) => item.id === chatId);
-    const model = snapshot.models.find((item) => item.id === snapshot.selectedModelId);
-    if (!chat || !model) {
-      snapshot.setRuntimeStatus("error", "Select a model before generating.");
-      return;
-    }
-    const modelId = model.serverModelId || model.modelPath || model.manifest?.name;
-    if (!modelId) {
-      snapshot.setRuntimeStatus("error", "The selected model is not connected to llama-server.");
-      return;
-    }
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-    snapshot.setRuntimeStatus("thinking", "Preparing local context.");
-    try {
-      const provider = new LlamaServerProvider(snapshot.runtime.endpoint);
-      const health = await provider.health(controller.signal);
-      if (!health.ok) throw new Error(health.detail || "llama-server is not ready.");
-      const messages = [
-        { role: "system" as const, content: snapshot.settings.systemPrompt },
-        ...chat.messages
-          .filter((message) => message.id !== assistantId)
-          .map((message) => ({ role: message.role, content: message.content })),
-      ];
-      let receivedToken = false;
-      for await (const chunk of provider.generate(
-        { model: modelId, messages, settings: snapshot.settings },
-        controller.signal,
-      )) {
-        if (chunk.type === "error") throw new Error(chunk.message);
-        if (chunk.type === "done") break;
-        const content = applyOutputPolicy(chunk.content, snapshot.policy.outputPolicyEnabled);
-        if (!content) continue;
-        if (!receivedToken) {
-          receivedToken = true;
-          snapshot.setRuntimeStatus("generating", "Receiving tokens from local llama-server.");
-        }
-        snapshot.appendMessage(chatId, assistantId, content);
-      }
-      snapshot.persistNow();
-      snapshot.setRuntimeStatus("ready", `Ready · ${model.displayName}`);
-    } catch (error) {
-      snapshot.persistNow();
-      if (controller.signal.aborted) snapshot.setRuntimeStatus("stopped", "Generation stopped by user.");
-      else snapshot.setRuntimeStatus("error", error instanceof Error ? error.message : "Generation failed.");
-    } finally {
-      if (abortRef.current === controller) abortRef.current = null;
-    }
-  };
+  const runGeneration = mindGeneration.start;
 
   const sendMessage = async () => {
-    if (busy) return;
+    if (busy || runtimePending) return;
     try {
       const content = applyInputPolicy(draft, store.policy.inputPolicyEnabled);
-      const chatId = store.activeChatId ?? store.createChat();
-      store.addMessage(chatId, "user", content);
-      const assistantId = store.addMessage(chatId, "assistant", "");
-      setDraft("");
+      followResponse.current = true;
+      const { chatId, assistantId } = store.addUserMessage(content);
       setShowChats(false);
       await runGeneration(chatId, assistantId);
     } catch (error) {
@@ -142,37 +109,33 @@ export function MindModule() {
       <header className="mind-header">
         <div className="mind-header__identity">
           <MindOrbit state={store.runtimeState} compact />
-          <div><h1>Mind</h1><span>{selectedModel?.displayName ?? "Choose a model"} · {mindStateLabel(store.runtimeState)}</span></div>
+          <div><h1>Mind Mini</h1><span>{selectedModel?.displayName ?? "Choose a model"} · {mindStateLabel(store.runtimeState)}</span></div>
         </div>
-        <div className="mind-header__mobile-actions">
-          <Button onClick={() => setShowChats((value) => !value)}>Chats</Button>
-          <Button onClick={() => setShowControls((value) => !value)}>Controls</Button>
+        <div className="mind-mini-actions">
+          <Button aria-label="New conversation" disabled={busy || !activeChat} onClick={() => { store.startNewChat(); setEditingId(null); }}><Plus size={16} /></Button>
+          <Button ref={historyTrigger} aria-label="Conversations" disabled={busy} onClick={() => setShowChats(true)}><History size={16} /></Button>
+          <Button ref={settingsTrigger} aria-label="Model settings" disabled={busy} onClick={() => setShowControls(true)}><SlidersHorizontal size={16} /></Button>
         </div>
       </header>
 
-      <div className="mind-layout">
-        <aside className={`mind-chat-sidebar ${showChats ? "is-open" : ""}`}>
-          <Button className="mind-primary-button" onClick={() => { store.createChat(); setShowChats(false); }}>New conversation</Button>
-          <Input className="mind-chat-search" type="search" aria-label="Search conversations" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations" />
-          <div className="mind-chat-list">
-            {filteredChats.map((chat) => (
-              <div className={`mind-chat-row ${chat.id === store.activeChatId ? "is-active" : ""}`} key={chat.id}>
-                <Button onClick={() => { store.selectChat(chat.id); setShowChats(false); }}>
-                  <strong>{chat.title}</strong><span>{new Date(chat.updatedAt).toLocaleDateString()}</span>
-                </Button>
-                <Button aria-label={`Delete ${chat.title}`} onClick={async () => {
-                  if (await confirm(`Delete “${chat.title}”?`)) store.deleteChat(chat.id);
-                }}>×</Button>
-              </div>
-            ))}
-            {filteredChats.length === 0 && <p className="mind-help">No matching conversations.</p>}
+      <Dialog.Root open={showChats} onOpenChange={setShowChats}><Dialog.Portal><Dialog.Backdrop className="void-dialog-backdrop" />
+        <Dialog.Popup className="mind-mini-panel" initialFocus={searchRef} finalFocus={historyTrigger}>
+          <div className="mind-mini-panel__heading"><Dialog.Title>Conversations</Dialog.Title><Dialog.Close render={<Button aria-label="Close conversations"><X size={16} /></Button>} /></div>
+          <Dialog.Description className="mind-help">Your conversations stay on this device.</Dialog.Description>
+          <Button disabled={!activeChat} onClick={() => { store.startNewChat(); setShowChats(false); }}>New conversation</Button>
+          <Input ref={searchRef} type="search" aria-label="Search conversations" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations" />
+          <div className="mind-mini-history">
+            {filteredChats.map((chat) => <div className={`mind-mini-history-row ${chat.id === store.activeChatId ? "is-active" : ""}`} key={chat.id}>
+              <Button onClick={() => { store.selectChat(chat.id); setShowChats(false); setEditingId(null); }}><strong title={chat.title}>{chat.title}</strong><span>{new Date(chat.updatedAt).toLocaleDateString()}</span></Button>
+              <Button aria-label={`Delete ${chat.title}`} onClick={async () => { if (await confirm(`Delete ${chat.title}?`)) store.deleteChat(chat.id); }}><X size={14} /></Button>
+            </div>)}
+            {!filteredChats.length && <p className="mind-help">{store.chats.length ? "No matching conversations." : "Conversations appear after your first message."}</p>}
           </div>
-        </aside>
-
+        </Dialog.Popup></Dialog.Portal></Dialog.Root>
         <main className="mind-conversation">
           {activeChat ? (
-            <div className="mind-messages">
-              <div className="mind-conversation-title"><h2>{activeChat.title}</h2><span>{selectedModel?.displayName ?? "No model selected"}</span></div>
+            <div className="mind-messages" onScroll={(event) => { const area = event.currentTarget; followResponse.current = area.scrollHeight - area.scrollTop - area.clientHeight < 80; }}>
+              <div className="mind-conversation-title"><h2>{activeChat.title}</h2><Button ref={renameTrigger} aria-label="Rename conversation" disabled={busy} onClick={() => { setTitle(activeChat.title); setShowRename(true); }}><Pencil size={14} /></Button><span>{selectedModel?.displayName ?? "No model selected"}</span></div>
               {activeChat.messages.map((message) => (
                 <article className={`mind-message mind-message--${message.role}`} key={message.id}>
                   <div className="mind-message__role">{message.role === "user" ? "You" : "Mind"}</div>
@@ -185,13 +148,13 @@ export function MindModule() {
                     ) : message.content ? (
                       <MarkdownMessage content={message.content} />
                     ) : (
-                      <div className="mind-generating-line"><span />{store.runtimeState === "thinking" ? "Thinking locally…" : "Generating…"}</div>
+                      <div className="mind-generating-line">{store.generation?.assistantId === message.id ? <><span />{store.runtimeState === "thinking" ? "Thinking locally…" : "Generating…"}</> : <><span aria-hidden="true" />Response interrupted. <Button disabled={busy} onClick={() => void regenerate(message)}>Retry response</Button></>}</div>
                     )}
                     {message.content && editingId !== message.id && (
                       <div className="mind-message__actions">
                         <Button onClick={() => void copyMessage(message)}>{copiedId === message.id ? "Copied" : "Copy"}</Button>
-                        {message.role === "user" && <Button onClick={() => { setEditingId(message.id); setEditingContent(message.content); }}>Edit</Button>}
-                        {message.role === "assistant" && <Button disabled={busy} onClick={() => void regenerate(message)}>Regenerate</Button>}
+                        {message.role === "user" && <Button disabled={busy} onClick={() => { setEditingId(message.id); setEditingContent(message.content); }}>Edit</Button>}
+                        {message.role === "assistant" && message.id === activeChat.messages[activeChat.messages.length - 1].id && <Button disabled={busy} onClick={() => void regenerate(message)}>Regenerate</Button>}
                       </div>
                     )}
                   </div>
@@ -208,33 +171,52 @@ export function MindModule() {
             </div>
           )}
 
+          {(store.runtimeState === "error" || store.runtimeState === "stopped") && <div className="mind-mini-notice" role={store.runtimeState === "error" ? "alert" : "status"}>
+            <span>{store.runtimeDetail}</span>
+            {activeChat?.messages.some((message) => message.role === "user") && <Button disabled={busy} onClick={() => {
+              const last = activeChat.messages[activeChat.messages.length - 1];
+              const id = last?.role === "assistant" ? last.id : store.addMessage(activeChat.id, "assistant", "");
+              if (last?.role === "assistant") store.clearAssistantMessage(activeChat.id, id);
+              void runGeneration(activeChat.id, id);
+            }}>Retry response</Button>}
+            <Button disabled={busy} onClick={() => setShowControls(true)}>Model settings</Button>
+          </div>}
           <div className="mind-composer">
             <Textarea
               aria-label="Message"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
+                if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
                   event.preventDefault();
                   void sendMessage();
                 }
               }}
-              placeholder={selectedModel ? `Message ${selectedModel.displayName}` : "Select a model in Controls"}
+              placeholder={selectedModel ? `Message ${selectedModel.displayName}` : "Choose a model in Model settings"}
               disabled={!selectedModel}
               rows={2}
             />
             <div>
               <span>Enter to send · Shift+Enter for newline</span>
-              {busy ? <Button onClick={() => abortRef.current?.abort()}>Stop</Button> : <Button className="mind-primary-button" disabled={!selectedModel || !draft.trim()} onClick={() => void sendMessage()}>Send message</Button>}
+              {busy ? <Button onClick={() => mindGeneration.stop()}>Stop</Button> : <Button className="mind-primary-button" disabled={!selectedModel || !draft.trim() || runtimePending} onClick={() => void sendMessage()}>Send message</Button>}
             </div>
           </div>
         </main>
 
-        <div className={`mind-controls-wrap ${showControls ? "is-open" : ""}`}>
-          <Button className="mind-controls-close" onClick={() => setShowControls(false)}>Close controls</Button>
+      <Dialog.Root open={showRename} onOpenChange={setShowRename}><Dialog.Portal><Dialog.Backdrop className="void-dialog-backdrop" />
+        <Dialog.Popup className="mind-mini-panel" initialFocus={titleRef} finalFocus={renameTrigger}>
+          <Dialog.Title>Rename conversation</Dialog.Title><Dialog.Description className="mind-help">Choose a title you can find later.</Dialog.Description>
+          <form className="mind-mini-rename" onSubmit={(event) => { event.preventDefault(); if (activeChat && title.trim()) { store.renameChat(activeChat.id, title); setShowRename(false); } }}>
+            <Input ref={titleRef} aria-label="Conversation title" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
+            <div className="mind-mini-actions"><Button onClick={() => setShowRename(false)}>Cancel</Button><Button type="submit" disabled={!title.trim()}>Save title</Button></div>
+          </form>
+        </Dialog.Popup></Dialog.Portal></Dialog.Root>
+      <Dialog.Root open={showControls} onOpenChange={setShowControls}><Dialog.Portal><Dialog.Backdrop className="void-dialog-backdrop" />
+        <Dialog.Popup className="mind-mini-panel mind-mini-panel--settings" finalFocus={settingsTrigger}>
+          <div className="mind-mini-panel__heading"><Dialog.Title>Model settings</Dialog.Title><Dialog.Close render={<Button aria-label="Close model settings"><X size={16} /></Button>} /></div>
+          <Dialog.Description className="mind-help">Manage your local model and response preferences.</Dialog.Description>
           <MindControls />
-        </div>
-      </div>
+        </Dialog.Popup></Dialog.Portal></Dialog.Root>
     </section>
   );
 }

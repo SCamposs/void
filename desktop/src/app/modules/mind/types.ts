@@ -25,6 +25,8 @@ export type MindChat = {
   updatedAt: string;
   messages: MindMessage[];
   modelId?: string;
+  draft?: string;
+  titleManuallyEdited?: boolean;
 };
 
 export type MindProfileId = "general" | "creative" | "analytical" | "concise" | "custom";
@@ -109,9 +111,10 @@ export type MindRuntimeConfig = {
 };
 
 export type MindPersistedState = {
-  version: 2;
+  version: 3;
   onboardingComplete: boolean;
   activeChatId: string | null;
+  newDraft: string;
   chats: MindChat[];
   models: MindModel[];
   selectedModelId: string | null;
