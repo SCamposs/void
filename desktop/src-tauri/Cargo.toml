@@ -4,6 +4,7 @@ version = "0.6.0-alpha"
 edition = "2021"
 
 [dependencies]
+void-library = { path = "../library-core" }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
