@@ -41,3 +41,10 @@ Still pending: background command adapter, UI, attachment/reference integration,
 
 
 Checkpoint 2 (native adapter): Tauri commands now wrap the core in blocking-worker tasks; indexing owns an independent thread with progress, cooperative cancellation, concurrency gating and shutdown cancellation. The database is scoped to `app_data_dir()/library/library.sqlite`. Source registration, read/search/pagination, source snapshots, linked notes, source removal and clear operations are exposed. `cargo test --manifest-path desktop/src-tauri/Cargo.toml` passes 3 native tests, including a 100-file background job and rejection of a concurrent job. No WebView, picker or installed app was opened. CI now includes locked core tests on both Linux and Windows.
+
+
+Checkpoint 3 (first interface pass): Library is a lazy-loaded VOID module with shared Base UI controls and scroll areas. Sources, literal full-text search, format filters, paginated documents/passages, a page/line reader, linked-note editing, confirmed removals and clear-data controls are implemented. Reader metadata and passages are loaded in one SQLite read transaction; bulk source registration is atomic. Reader keyboard entry/return and compact layout are covered. The browser-only preview explains native file access availability instead of pretending to index files.
+
+Two headless Library tests pass against controlled native-command fixtures; desktop and 720x560 reader screenshots were inspected. Build and the existing 154 frontend unit tests pass. The complete expanded E2E suite is being checked. Native/manual acceptance is tracked at https://github.com/SCamposs/void/issues/14. No installed app, file picker or desktop surface has been controlled.
+
+Remaining mandatory work: Mind Mini explicit selection/context/reference integration and saved-answer notes; source freshness behavior between refreshes; durable unfinished-note handling; PDF parser CPU/memory isolation; mixed corpus, memory/latency and failure evaluation; final native/frontend/CI verification and acceptance audit. Library is not release-ready yet.

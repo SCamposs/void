@@ -154,11 +154,7 @@ pub async fn library_add_paths(
             .map_err(|_| "Library is busy.".to_string())?;
         state.idle()?;
         let library = state.open()?;
-        let mut roots = Vec::new();
-        for path in paths {
-            roots.push(library.add_root(std::path::Path::new(&path))?);
-        }
-        Ok(roots)
+        library.add_roots(&paths.into_iter().map(PathBuf::from).collect::<Vec<_>>())
     })
     .await
     .map_err(|_| "Source registration stopped unexpectedly.".to_string())?
@@ -181,13 +177,31 @@ pub fn library_progress(state: State<'_, LibraryManager>) -> Result<IndexProgres
 pub async fn library_documents(
     app: tauri::AppHandle,
     root: Option<i64>,
+    kind: Option<String>,
     offset: Option<u32>,
 ) -> Result<Vec<Document>, String> {
     read(app, move |library| {
-        library.documents(root, offset.unwrap_or(0))
+        library.documents_filtered(root, kind.as_deref(), offset.unwrap_or(0))
     })
     .await
 }
+#[tauri::command]
+pub async fn library_reader(
+    app: tauri::AppHandle,
+    document: i64,
+    offset: Option<u32>,
+) -> Result<ReaderPage, String> {
+    read(app, move |library| {
+        library.reader(document, offset.unwrap_or(0))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn library_document(app: tauri::AppHandle, id: i64) -> Result<Document, String> {
+    read(app, move |library| library.document(id)).await
+}
+
 #[tauri::command]
 pub async fn library_passages(
     app: tauri::AppHandle,

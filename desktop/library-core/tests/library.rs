@@ -391,3 +391,25 @@ fn symbolic_links_never_expand_the_registered_source() {
         .is_empty());
     assert!(library.add_root(&sources.join("link.txt")).is_err());
 }
+
+#[test]
+fn bulk_registration_rolls_back_and_format_filter_applies_before_pagination() {
+    let (_temp, sources, mut library) = fixture();
+    let first = sources.join("first.txt");
+    fs::write(&first, "first").unwrap();
+    let wrong = sources.join("wrong.exe");
+    fs::write(&wrong, "wrong").unwrap();
+    assert!(library.add_roots(&[first, wrong]).is_err());
+    assert!(library.roots().unwrap().is_empty());
+    for i in 0..101 {
+        fs::write(sources.join(format!("{i:03}.txt")), "text").unwrap();
+    }
+    fs::write(sources.join("z-final.md"), "# Final Markdown").unwrap();
+    library.add_root(&sources).unwrap();
+    run(&mut library);
+    let filtered = library.documents_filtered(None, Some("md"), 0).unwrap();
+    assert_eq!(filtered.len(), 1);
+    assert_eq!(filtered[0].title, "z-final.md");
+    let reader = library.reader(filtered[0].id, 0).unwrap();
+    assert_eq!(reader.document.id, reader.passages[0].document_id);
+}

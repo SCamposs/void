@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { ArrowRight, AudioLines, Home as HomeIcon, Keyboard, Layers3, PanelLeft, Search, Settings, X } from "lucide-react";
+import { ArrowRight, AudioLines, BookOpen, Home as HomeIcon, Keyboard, Layers3, PanelLeft, Search, Settings, X } from "lucide-react";
 import { useAppStore, type ModuleId } from "./store/appStore";
 import { TypingModule } from "./modules/typing/TypingModule";
 import { StackerModule } from "./modules/stacker/StackerModule";
@@ -12,11 +12,13 @@ import { VoidMark } from "./components/ui/VoidMark";
 import { WindowControls } from "./components/shell/WindowControls";
 import { SettingsModule } from "./components/shell/SettingsModule";
 
+const LibraryModule = lazy(() => import("./modules/library/LibraryModule").then((module) => ({ default: module.LibraryModule })));
 const MindModule = lazy(() => import("./modules/mind/MindModule").then((module) => ({ default: module.MindModule })));
 const OrbitModule = lazy(() => import("./modules/orbit/OrbitModule").then((module) => ({ default: module.OrbitModule })));
 const destinations = [
   { id: "home", label: "Home", icon: HomeIcon, detail: "Your space to begin." },
   { id: "mind", label: "Mind", icon: VoidMark, detail: "Think and write with a local model." },
+  { id: "library", label: "Library", icon: BookOpen, detail: "Find and use your local documents." },
   { id: "typing", label: "Typing", icon: Keyboard, detail: "Find your rhythm, one word at a time." },
   { id: "orbit", label: "Orbit", icon: AudioLines, detail: "A visual instrument that responds to sound." },
   { id: "stacker", label: "Stacker", icon: Layers3, detail: "Make room for the next piece." },
@@ -61,6 +63,7 @@ export function App() {
   }, [jump]);
   const content = useMemo(() => {
     if (module === "typing") return <TypingModule />;
+    if (module === "library") return <LibraryModule />;
     if (module === "mind") return <MindModule />;
     if (module === "orbit") return <OrbitModule />;
     if (module === "stacker") return <StackerModule />;

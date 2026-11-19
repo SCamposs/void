@@ -116,12 +116,31 @@ impl Library {
         })
     }
 
+    pub fn add_roots(&self, paths: &[std::path::PathBuf]) -> Result<Vec<Root>> {
+        let transaction = self.connection.unchecked_transaction().map_err(err)?;
+        let roots = paths
+            .iter()
+            .map(|path| self.add_root(path))
+            .collect::<Result<Vec<_>>>()?;
+        transaction.commit().map_err(err)?;
+        Ok(roots)
+    }
+
     pub fn documents(&self, root: Option<i64>, offset: u32) -> Result<Vec<Document>> {
-        let sql = format!("SELECT {DOC} FROM documents d WHERE (?1 IS NULL OR root_id=?1) ORDER BY title COLLATE NOCASE,id LIMIT 100 OFFSET ?2");
+        self.documents_filtered(root, None, offset)
+    }
+
+    pub fn documents_filtered(
+        &self,
+        root: Option<i64>,
+        kind: Option<&str>,
+        offset: u32,
+    ) -> Result<Vec<Document>> {
+        let sql = format!("SELECT {DOC} FROM documents d WHERE (?1 IS NULL OR root_id=?1) AND (?2 IS NULL OR kind=?2) ORDER BY title COLLATE NOCASE,id LIMIT 100 OFFSET ?3");
         self.connection
             .prepare(&sql)
             .map_err(err)?
-            .query_map(params![root, offset], document_row)
+            .query_map(params![root, kind, offset], document_row)
             .map_err(err)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(err)
@@ -140,6 +159,16 @@ impl Library {
     pub fn passages(&self, document: i64, offset: u32) -> Result<Vec<Passage>> {
         self.connection.prepare("SELECT id,document_id,ordinal,page,line_start,line_end,text FROM passages WHERE document_id=?1 ORDER BY ordinal LIMIT 100 OFFSET ?2").map_err(err)?
             .query_map(params![document,offset], passage_row).map_err(err)?.collect::<rusqlite::Result<Vec<_>>>().map_err(err)
+    }
+
+    pub fn reader(&self, document: i64, offset: u32) -> Result<ReaderPage> {
+        let transaction = self.connection.unchecked_transaction().map_err(err)?;
+        let page = ReaderPage {
+            document: self.document(document)?,
+            passages: self.passages(document, offset)?,
+        };
+        transaction.commit().map_err(err)?;
+        Ok(page)
     }
 
     pub fn snapshot(&self, passage: i64) -> Result<SourceSnapshot> {
@@ -320,7 +349,7 @@ impl Library {
 
     pub fn notes(&self) -> Result<Vec<Note>> {
         self.connection.prepare("SELECT id,title,content,sources,updated_at FROM notes ORDER BY updated_at DESC,id DESC LIMIT 500").map_err(err)?
-            .query_map([], |row| { let json: String = row.get(3)?; Ok(Note { id:row.get(0)?,title:row.get(1)?,content:row.get(2)?,sources:serde_json::from_str(&json).unwrap_or_default(),updated_at:row.get(4)? }) }).map_err(err)?
+            .query_map([], |row| { let json: String = row.get(3)?; Ok(Note { id:row.get(0)?,title:row.get(1)?,content:row.get(2)?,sources:serde_json::from_str(&json).map_err(|error| rusqlite::Error::FromSqlConversionFailure(3,rusqlite::types::Type::Text,Box::new(error)))?,updated_at:row.get(4)? }) }).map_err(err)?
             .collect::<rusqlite::Result<Vec<_>>>().map_err(err)
     }
 

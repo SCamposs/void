@@ -27,6 +27,8 @@ fn main() {
             library::library_cancel,
             library::library_progress,
             library::library_documents,
+            library::library_document,
+            library::library_reader,
             library::library_passages,
             library::library_search,
             library::library_snapshots,

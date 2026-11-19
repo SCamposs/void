@@ -166,6 +166,7 @@ pub fn refresh(
         ..Default::default()
     };
     update(&progress);
+    let mut incomplete = false;
     for root in library.roots()? {
         if cancelled(cancel) {
             break;
@@ -177,6 +178,7 @@ pub fn refresh(
         progress.skipped += discovery.skipped;
         progress.errors += discovery.errors;
         if !discovery.complete {
+            incomplete = true;
             progress.detail =
                 "Source scan was incomplete. Existing entries outside this scan were retained."
                     .into();
@@ -250,10 +252,19 @@ pub fn refresh(
     }
     progress.phase = if cancelled(cancel) {
         "cancelled"
+    } else if incomplete {
+        "partial"
     } else {
         "complete"
     }
     .into();
+    progress.detail = if cancelled(cancel) {
+        "Completed documents were kept. Refresh to resume.".into()
+    } else if incomplete {
+        "Some entries could not be scanned, or a safety limit was reached. Existing unscanned entries were retained.".into()
+    } else {
+        String::new()
+    };
     progress.finished_at = Some(now());
     progress.current.clear();
     update(&progress);

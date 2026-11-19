@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { readStoredJson, storageKeys, writeStoredJson } from "../lib/persistence";
 
-export type ModuleId = "home" | "mind" | "typing" | "orbit" | "stacker" | "settings";
+export type ModuleId = "home" | "library" | "mind" | "typing" | "orbit" | "stacker" | "settings";
 
 type AppState = {
   module: ModuleId;
