@@ -57,3 +57,12 @@
 @media (max-width: 760px) { .library-header { padding: 14px 16px; } .library-layout, .library-layout[data-reading="true"] { grid-template-columns: 142px minmax(0,1fr); } .library-sources { padding: 12px 8px; gap: 12px; } .library-passage { padding: 16px; } .library-reader-heading { padding: 14px; } .library-notice, .library-progress { padding: 10px 16px; } }
 
 .library-reader-heading h2:focus { outline: none; }
+.library-source-dialog { width: min(680px,calc(100vw - 32px)); }
+.library-source-scroll { flex: 1; min-height: 0; height: auto; max-height: 50vh; }
+.library-source-scroll p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: 14px; }
+.library-source-dialog > small { color: var(--muted); overflow-wrap: anywhere; font-size: 11px; }
+.library-citation { color: var(--accent); text-decoration: underline; padding: 0 3px; }
+.library-citation-warning { color: var(--muted); font-size: 12px; }
+.mind-library-sources { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.mind-library-sources > span { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; }
+.mind-library-sources > span > button:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,3 +1,4 @@
+import { libraryApi } from "../app/modules/library/api";
 import { describe, expect, it, vi } from "vitest";
 import { createMindStore } from "../app/modules/mind/store";
 import { createMindGeneration } from "../app/modules/mind/generation";
@@ -109,4 +110,20 @@ describe("Mind Mini request ownership", () => {
     expect(store.getState().runtimeState).toBe("ready");
     expect(store.getState().chats[0].messages.map((message) => message.content)).toEqual(["First", "Kept", "Next", "New response"]);
   });
+});
+
+
+it("does not start inference when a selected Library source changed", async () => {
+  const { store } = fixture();
+  store.getState().attachSource({documentId:1,passageId:1,title:"Source",path:"source.txt",fingerprint:"a".repeat(64),page:null,lineStart:1,lineEnd:1,text:"Budget 42."});
+  const request = store.getState().addUserMessage("What is the budget?");
+  const validate = vi.spyOn(libraryApi,"validateSources").mockRejectedValueOnce(new Error("Original document changed. Refresh Library."));
+  const generate = vi.fn(async function* (): AsyncGenerator<ProviderChunk> { yield {type:"done"}; });
+  try {
+    await createMindGeneration(store,() => ({health,generate})).start(request.chatId,request.assistantId);
+    expect(generate).not.toHaveBeenCalled();
+    expect(store.getState().runtimeDetail).toContain("changed");
+    expect(store.getState().generation).toBeNull();
+    expect(store.getState().chats[0].messages).toHaveLength(1);
+  } finally { validate.mockRestore(); }
 });

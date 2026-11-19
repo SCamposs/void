@@ -1,3 +1,4 @@
+import type { SourceSnapshot } from "../library/types";
 export type MindRole = "system" | "user" | "assistant";
 export type MindRuntimeMode = "external" | "managed";
 export type MindRuntimeState =
@@ -16,6 +17,7 @@ export type MindMessage = {
   content: string;
   createdAt: string;
   editedAt?: string;
+  sources?: SourceSnapshot[];
 };
 
 export type MindChat = {
@@ -26,6 +28,7 @@ export type MindChat = {
   messages: MindMessage[];
   modelId?: string;
   draft?: string;
+  draftSources?: SourceSnapshot[];
   titleManuallyEdited?: boolean;
 };
 
@@ -111,10 +114,11 @@ export type MindRuntimeConfig = {
 };
 
 export type MindPersistedState = {
-  version: 3;
+  version: 4;
   onboardingComplete: boolean;
   activeChatId: string | null;
   newDraft: string;
+  newDraftSources: SourceSnapshot[];
   chats: MindChat[];
   models: MindModel[];
   selectedModelId: string | null;

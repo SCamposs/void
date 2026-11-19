@@ -32,6 +32,7 @@ fn main() {
             library::library_passages,
             library::library_search,
             library::library_snapshots,
+            library::library_validate_sources,
             library::library_save_note,
             library::library_delete_note,
             library::library_remove_root,

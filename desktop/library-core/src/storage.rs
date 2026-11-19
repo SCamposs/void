@@ -163,11 +163,18 @@ impl Library {
 
     pub fn reader(&self, document: i64, offset: u32) -> Result<ReaderPage> {
         let transaction = self.connection.unchecked_transaction().map_err(err)?;
-        let page = ReaderPage {
+        let mut page = ReaderPage {
+            source_warning: None,
             document: self.document(document)?,
             passages: self.passages(document, offset)?,
         };
         transaction.commit().map_err(err)?;
+        if let Some(passage) = page.passages.first() {
+            page.source_warning = self
+                .snapshot(passage.id)
+                .and_then(|source| self.validate_source(&source))
+                .err();
+        }
         Ok(page)
     }
 
@@ -188,6 +195,31 @@ impl Library {
             line_end: p.line_end,
             text: p.text,
         })
+    }
+
+    pub fn validate_source(&self, source: &SourceSnapshot) -> Result<()> {
+        use sha2::{Digest, Sha256};
+        let current = self.snapshot(source.passage_id).map_err(|_| {
+            "Selected source is no longer indexed. Refresh Library and select it again.".to_string()
+        })?;
+        if current.fingerprint != source.fingerprint
+            || current.document_id != source.document_id
+            || current.path != source.path
+            || current.text != source.text
+            || current.page != source.page
+            || current.line_start != source.line_start
+            || current.line_end != source.line_end
+        {
+            return Err(
+                "Selected source changed. Refresh Library and select the updated passage.".into(),
+            );
+        }
+        let path = Path::new(&current.path);
+        let bytes = crate::index::read_source(path)?;
+        if format!("{:x}", Sha256::digest(&bytes)) != current.fingerprint {
+            return Err("An original document changed since indexing. Refresh Library and select the updated passage.".into());
+        }
+        Ok(())
     }
 
     pub fn search(

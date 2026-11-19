@@ -1,3 +1,9 @@
+import { isTauriRuntime } from "./runtime";
+import { libraryApi } from "../library/api";
+import { sourceId } from "../library/context";
+import { SourceDialog } from "../library/SourceDialog";
+import { passageLocation, type SourceSnapshot } from "../library/types";
+import { useAppStore } from "../../store/appStore";
 import "./mini.css";
 import { useConfirm } from "../../components/ui/use-confirm";
 import { Button, Input, Textarea } from "../../components/ui/Controls";
@@ -27,6 +33,9 @@ export function MindModule() {
   const selectedModel = store.models.find((model) => model.id === store.selectedModelId);
   const draft = activeChat?.draft ?? store.newDraft;
   const setDraft = store.updateDraft;
+  const [openSource, setOpenSource] = useState<SourceSnapshot | null>(null);
+  const [savedNote, setSavedNote] = useState<string | null>(null);
+  const draftSources = activeChat?.draftSources ?? store.newDraftSources;
   const [showRename, setShowRename] = useState(false);
   const [title, setTitle] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
@@ -146,12 +155,13 @@ export function MindModule() {
                         <div><Button onClick={() => void saveEdit(message)}>Save and regenerate</Button><Button onClick={() => setEditingId(null)}>Cancel</Button></div>
                       </div>
                     ) : message.content ? (
-                      <MarkdownMessage content={message.content} />
+                      <MarkdownMessage content={message.content} sources={message.role === "assistant" ? message.sources : []} onOpenSource={setOpenSource} validateReferences={!busy} />
                     ) : (
                       <div className="mind-generating-line">{store.generation?.assistantId === message.id ? <><span />{store.runtimeState === "thinking" ? "Thinking locally…" : "Generating…"}</> : <><span aria-hidden="true" />Response interrupted. <Button disabled={busy} onClick={() => void regenerate(message)}>Retry response</Button></>}</div>
                     )}
                     {message.content && editingId !== message.id && (
                       <div className="mind-message__actions">
+                        {message.role === "assistant" && <Button disabled={!isTauriRuntime() || busy} onClick={() => { void libraryApi.saveNote(activeChat.title,message.content,message.sources ?? []).then(() => setSavedNote(message.id)).catch((error) => store.setRuntimeStatus("error",String(error))); }}>{savedNote === message.id ? "Saved to Library" : "Save as note"}</Button>}
                         <Button onClick={() => void copyMessage(message)}>{copiedId === message.id ? "Copied" : "Copy"}</Button>
                         {message.role === "user" && <Button disabled={busy} onClick={() => { setEditingId(message.id); setEditingContent(message.content); }}>Edit</Button>}
                         {message.role === "assistant" && message.id === activeChat.messages[activeChat.messages.length - 1].id && <Button disabled={busy} onClick={() => void regenerate(message)}>Regenerate</Button>}
@@ -182,6 +192,7 @@ export function MindModule() {
             <Button disabled={busy} onClick={() => setShowControls(true)}>Model settings</Button>
           </div>}
           <div className="mind-composer">
+            <div className="mind-library-sources"><Button disabled={busy} onClick={() => useAppStore.getState().setModule("library")}>Add Library sources</Button>{draftSources.map((source) => <span key={sourceId(source)}><Button onClick={() => setOpenSource(source)}>{source.title} · {passageLocation(source)}</Button><Button aria-label={`Remove source ${source.title} ${passageLocation(source)}`} disabled={busy} onClick={() => store.detachSource(sourceId(source))}><X size={12} /></Button></span>)}</div>
             <Textarea
               aria-label="Message"
               value={draft}
@@ -203,6 +214,7 @@ export function MindModule() {
           </div>
         </main>
 
+      <SourceDialog source={openSource} onClose={() => setOpenSource(null)} />
       <Dialog.Root open={showRename} onOpenChange={setShowRename}><Dialog.Portal><Dialog.Backdrop className="void-dialog-backdrop" />
         <Dialog.Popup className="mind-mini-panel" initialFocus={titleRef} finalFocus={renameTrigger}>
           <Dialog.Title>Rename conversation</Dialog.Title><Dialog.Description className="mind-help">Choose a title you can find later.</Dialog.Description>

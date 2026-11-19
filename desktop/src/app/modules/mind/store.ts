@@ -1,3 +1,5 @@
+import type { SourceSnapshot } from "../library/types";
+import { sourceId } from "../library/context";
 import { create } from "zustand";
 import { applyProfile } from "./profiles";
 import { mindRepo } from "./storage";
@@ -17,6 +19,8 @@ export type MindStore = MindPersistedState & {
   runtimeState: MindRuntimeState;
   runtimeDetail: string;
   generation: { chatId: string; assistantId: string } | null;
+  attachSource: (source: SourceSnapshot) => void;
+  detachSource: (id: string) => void;
   startNewChat: () => void;
   updateDraft: (content: string) => void;
   addUserMessage: (content: string) => { chatId: string; assistantId: string };
@@ -60,7 +64,8 @@ function titleFrom(content: string): string {
 function persistedState(state: MindStore): MindPersistedState {
   const retain = state.policy.retainConversations;
   return {
-    version: 3,
+    version: 4,
+    newDraftSources: retain ? state.newDraftSources : [],
     newDraft: retain ? state.newDraft : "",
     onboardingComplete: state.onboardingComplete,
     activeChatId: retain ? state.activeChatId : null,
@@ -88,6 +93,17 @@ export function createMindStore(repo = mindRepo) {
       runtimeState: "idle",
       runtimeDetail: "Runtime not checked.",
       generation: null,
+      attachSource: (source) => mutate((state) => {
+        const chat = state.chats.find((c) => c.id === state.activeChatId);
+        const sources = chat?.draftSources ?? state.newDraftSources;
+        if (sources.some((s) => sourceId(s) === sourceId(source))) return {};
+        if (sources.length >= 24) throw new Error("Choose at most 24 passages.");
+        const next = [...sources,source];
+        return chat ? { chats: state.chats.map((c) => c.id === chat.id ? { ...c,draftSources:next } : c) } : { newDraftSources:next };
+      }),
+      detachSource: (id) => mutate((state) => state.activeChatId
+        ? { chats: state.chats.map((c) => c.id === state.activeChatId ? { ...c,draftSources:(c.draftSources ?? []).filter((s) => sourceId(s) !== id) } : c) }
+        : { newDraftSources:state.newDraftSources.filter((s) => sourceId(s) !== id) }),
       startNewChat: () => mutate(() => ({ activeChatId: null })),
       updateDraft: (content) => mutate((state) => state.activeChatId
         ? { chats: state.chats.map((chat) => chat.id === state.activeChatId ? { ...chat, draft: content } : chat) }
@@ -97,12 +113,13 @@ export function createMindStore(repo = mindRepo) {
         if (get().generation) throw new Error("Stop the current response before sending another message.");
         const state = get();
         const chat = state.chats.find((item) => item.id === state.activeChatId) ?? makeChat();
+        const sources = state.activeChatId ? (chat.draftSources ?? []) : state.newDraftSources;
         const now = new Date().toISOString();
-        const user: MindMessage = { id: createId("message"), role: "user", content, createdAt: now };
-        const assistant: MindMessage = { id: createId("message"), role: "assistant", content: "", createdAt: now };
-        const next = { ...chat, draft: "", updatedAt: now, messages: [...chat.messages, user, assistant],
+        const user: MindMessage = { id: createId("message"), role: "user", content, sources, createdAt: now };
+        const assistant: MindMessage = { id: createId("message"), role: "assistant", content: "", sources, createdAt: now };
+        const next = { ...chat, draft: "", draftSources: sources, updatedAt: now, messages: [...chat.messages, user, assistant],
           title: !chat.titleManuallyEdited && !chat.messages.some((message) => message.role === "user") ? titleFrom(content) : chat.title };
-        mutate((current) => ({ activeChatId: chat.id, newDraft: current.activeChatId ? current.newDraft : "",
+        mutate((current) => ({ activeChatId: chat.id, newDraft: current.activeChatId ? current.newDraft : "", newDraftSources: current.activeChatId ? current.newDraftSources : [],
           chats: current.chats.some((item) => item.id === chat.id)
             ? current.chats.map((item) => item.id === chat.id ? next : item) : [next, ...current.chats] }));
         return { chatId: chat.id, assistantId: assistant.id };
@@ -130,6 +147,7 @@ export function createMindStore(repo = mindRepo) {
           role,
           content,
           createdAt: new Date().toISOString(),
+          sources: role === "assistant" ? [...(get().chats.find((c) => c.id === chatId)?.messages ?? [])].reverse().find((m) => m.role === "user")?.sources : undefined,
         };
         mutate((state) => ({
           chats: state.chats.map((chat) => {

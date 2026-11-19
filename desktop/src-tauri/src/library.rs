@@ -246,6 +246,23 @@ pub async fn library_snapshots(
     .await
 }
 #[tauri::command]
+pub async fn library_validate_sources(
+    app: tauri::AppHandle,
+    sources: Vec<SourceSnapshot>,
+) -> Result<(), String> {
+    if sources.len() > 24 {
+        return Err("Choose at most 24 sources.".into());
+    }
+    read(app, move |library| {
+        for source in sources {
+            library.validate_source(&source)?;
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
 pub async fn library_save_note(
     app: tauri::AppHandle,
     id: Option<i64>,

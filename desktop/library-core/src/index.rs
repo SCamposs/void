@@ -130,7 +130,12 @@ fn discover(root: &Root, cancel: &AtomicBool) -> Discovery {
     result
 }
 
-fn read_source(path: &Path) -> Result<Vec<u8>> {
+pub(crate) fn read_source(path: &Path) -> Result<Vec<u8>> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| "Original file is unavailable. Refresh Library.".to_string())?;
+    if is_link(&metadata) || path.canonicalize().map_err(|e| e.to_string())? != path {
+        return Err("Source now resolves through a link. Select the original file again.".into());
+    }
     let file = File::open(path)
         .map_err(|_| "Original file could not be opened. Check its permissions.".to_string())?;
     let limit = if extract::kind(path) == Some("pdf") {

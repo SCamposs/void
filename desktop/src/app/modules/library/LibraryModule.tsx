@@ -1,3 +1,5 @@
+import { useMindStore } from "../mind/store";
+import { useAppStore } from "../../store/appStore";
 import "./library.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BookOpen, FilePlus2, FolderPlus, RefreshCw, Search, Trash2, X } from "lucide-react";
@@ -24,10 +26,12 @@ export function LibraryModule() {
   const [more, setMore] = useState(false);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
   const [document, setDocument] = useState<LibraryDocument | null>(null);
+  const [sourceWarning, setSourceWarning] = useState<string | null>(null);
   const [passages, setPassages] = useState<LibraryPassage[]>([]);
   const [readerOffset, setReaderOffset] = useState(0);
   const [targetPassage, setTargetPassage] = useState<number | null>(null);
@@ -86,7 +90,7 @@ export function LibraryModule() {
     if (selected === null || !native) { setDocument(null); setPassages([]); return; }
     setLoading(true);
     libraryApi.reader(selected, readerOffset)
-      .then(({ document, passages }) => { if (live) { setDocument(document); setPassages(passages); } })
+      .then(({ document, passages, sourceWarning }) => { if (live) { setDocument(document); setPassages(passages); setSourceWarning(sourceWarning ?? null); } })
       .catch((e) => { if (live) setError(message(e)); })
       .finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
@@ -117,6 +121,7 @@ export function LibraryModule() {
       <Tooltip label="Refresh sources"><Button aria-label="Refresh sources" disabled={!native || pending || indexing || !overview.roots.length} onClick={() => void action(async () => { await libraryApi.refresh(); await reload(); })}><RefreshCw size={17} /></Button></Tooltip>
     </div></header>
     {!native && <p className="library-notice" role="status">Open the installed VOID app to import and search your local documents.</p>}
+    {notice && <div className="library-notice" role="status"><span>{notice}</span><Button onClick={() => useAppStore.getState().setModule("mind")}>Open Mind Mini</Button><Button aria-label="Dismiss source notice" onClick={() => setNotice("")}><X size={15} /></Button></div>}
     {error && <div className="library-notice" role="alert"><span>{error}</span><Button aria-label="Dismiss Library error" onClick={() => setError("")}><X size={15} /></Button></div>}
     {overview.progress.phase && <div className="library-progress" role="status"><span>{indexing ? `Indexing ${overview.progress.current || "selected sources"}` : overview.progress.phase === "cancelled" ? "Indexing stopped. Refresh to resume." : overview.progress.phase === "error" ? overview.progress.detail : `${overview.progress.indexed} indexed · ${overview.progress.unchanged} unchanged · ${overview.progress.errors} errors · ${overview.progress.missing} missing · ${overview.progress.skipped} skipped`}</span>{indexing ? <Button onClick={() => void action(() => libraryApi.cancel())}>Stop indexing</Button> : overview.progress.detail && <small>{overview.progress.detail}</small>}</div>}
     <div className="library-layout" data-reading={selected !== null || note !== null}>
@@ -143,7 +148,10 @@ export function LibraryModule() {
         {tab === "documents" && (offset > 0 || more) && <div className="library-pagination"><Button disabled={offset === 0} onClick={() => setOffset((v) => Math.max(0,v - (query.trim() ? 40 : 100)))}>Previous</Button><span>Page {Math.floor(offset / (query.trim() ? 40 : 100)) + 1}</span><Button disabled={!more} onClick={() => setOffset((v) => v + (query.trim() ? 40 : 100))}>Next</Button></div>}
       </section>
       {(selected !== null || note !== null) && <section className="library-reader" aria-label="Library reader"><div className="library-reader-heading"><div><h2 ref={readerHeading} tabIndex={-1}>{note ? note.id ? "Edit note" : "New note" : document?.title ?? "Opening document…"}</h2>{document && !note && <small>Indexed {new Date(document.indexedAt).toLocaleString()} · snapshot {document.fingerprint.slice(0,8)}</small>}</div><Button aria-label="Close reader" onClick={closeReader}><X size={17} /></Button></div>
-        {note ? <div className="library-note-editor"><Input aria-label="Note title" placeholder="Note title" maxLength={120} value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} /><Textarea aria-label="Note content" placeholder="Write what matters…" maxLength={100000} value={noteText} onChange={(e) => setNoteText(e.target.value)} /><div className="library-note-sources">{note.sources.map((source,index) => <Disclosure key={`${source.passageId}-${index}`}><DisclosureTitle>{source.title} · {passageLocation(source)}</DisclosureTitle><DisclosureBody><p>{source.text}</p><small>Saved snapshot {source.fingerprint.slice(0,8)}</small></DisclosureBody></Disclosure>)}</div><div className="library-actions"><Button className="is-primary" disabled={pending || !noteTitle.trim()} onClick={() => void action(async () => { const saved = await libraryApi.saveNote(noteTitle,noteText,note.sources,note.id || null); setNote(saved); await reload(); })}>Save note</Button>{note.id > 0 && <Button aria-label="Delete note" disabled={pending} onClick={() => void action(async () => { if (await confirm(`Delete “${note.title}”?`)) { await libraryApi.deleteNote(note.id); setNote(null); await reload(); } })}><Trash2 size={16} /></Button>}</div></div> : <ScrollSurface className="library-reader-scroll" label="Document passages"><div ref={reader}>{document?.status !== "ready" && <p className="library-notice">{document?.detail}</p>}{passages.map((passage) => <article className="library-passage" data-passage={passage.id} data-selected={passage.id === targetPassage} key={passage.id}><header><small>{passageLocation(passage)}</small></header><p>{passage.text}</p></article>)}</div></ScrollSurface>}
+        {note ? <div className="library-note-editor"><Input aria-label="Note title" placeholder="Note title" maxLength={120} value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} /><Textarea aria-label="Note content" placeholder="Write what matters…" maxLength={100000} value={noteText} onChange={(e) => setNoteText(e.target.value)} /><div className="library-note-sources">{note.sources.map((source,index) => <Disclosure key={`${source.passageId}-${index}`}><DisclosureTitle>{source.title} · {passageLocation(source)}</DisclosureTitle><DisclosureBody><p>{source.text}</p><small>Saved snapshot {source.fingerprint.slice(0,8)}</small></DisclosureBody></Disclosure>)}</div><div className="library-actions"><Button className="is-primary" disabled={pending || !noteTitle.trim()} onClick={() => void action(async () => { const saved = await libraryApi.saveNote(noteTitle,noteText,note.sources,note.id || null); setNote(saved); await reload(); })}>Save note</Button>{note.id > 0 && <Button aria-label="Delete note" disabled={pending} onClick={() => void action(async () => { if (await confirm(`Delete “${note.title}”?`)) { await libraryApi.deleteNote(note.id); setNote(null); await reload(); } })}><Trash2 size={16} /></Button>}</div></div> : <ScrollSurface className="library-reader-scroll" label="Document passages"><div ref={reader}>{sourceWarning && <p className="library-notice" role="status">{sourceWarning} Showing the saved indexed snapshot.</p>}{document?.status !== "ready" && <p className="library-notice">{document?.detail}</p>}{passages.map((passage) => <article className="library-passage" data-passage={passage.id} data-selected={passage.id === targetPassage} key={passage.id}><header><small>{passageLocation(passage)}</small><Button disabled={pending || indexing || !!sourceWarning} onClick={() => void action(async () => {
+          const sources = await libraryApi.snapshots([passage.id]); await libraryApi.validateSources(sources);
+          sources.forEach((source) => useMindStore.getState().attachSource(source)); setNotice("Passage added to the current Mind draft. Choose more passages or open Mind Mini.");
+        })}>Use in Mind</Button></header><p>{passage.text}</p></article>)}</div></ScrollSurface>}
         {!note && document && document.passageCount > 100 && <div className="library-pagination"><Button disabled={readerOffset === 0} onClick={() => setReaderOffset((v) => Math.max(0,v-100))}>Previous passages</Button><Button disabled={readerOffset+100 >= document.passageCount} onClick={() => setReaderOffset((v) => v+100)}>Next passages</Button></div>}
       </section>}
     </div>

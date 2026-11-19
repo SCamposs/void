@@ -413,3 +413,34 @@ fn bulk_registration_rolls_back_and_format_filter_applies_before_pagination() {
     let reader = library.reader(filtered[0].id, 0).unwrap();
     assert_eq!(reader.document.id, reader.passages[0].document_id);
 }
+
+#[test]
+fn sources_are_rechecked_against_originals_before_model_use() {
+    let (_temp, sources, mut library) = fixture();
+    let file = sources.join("facts.txt");
+    fs::write(&file, "The budget is 42.").unwrap();
+    library.add_root(&sources).unwrap();
+    run(&mut library);
+    let hit = library.search("budget", None, None, 0).unwrap().remove(0);
+    let snapshot = library.snapshot(hit.passage.id).unwrap();
+    assert!(library.validate_source(&snapshot).is_ok());
+    assert!(library
+        .reader(hit.document.id, 0)
+        .unwrap()
+        .source_warning
+        .is_none());
+    fs::write(&file, "The budget is 43.").unwrap();
+    assert!(library
+        .validate_source(&snapshot)
+        .unwrap_err()
+        .contains("changed"));
+    assert!(library
+        .reader(hit.document.id, 0)
+        .unwrap()
+        .source_warning
+        .unwrap()
+        .contains("changed"));
+    run(&mut library);
+    assert!(library.validate_source(&snapshot).is_err());
+    assert_eq!(snapshot.text.trim(), "The budget is 42.");
+}

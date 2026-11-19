@@ -1,3 +1,5 @@
+import { libraryPrompt } from "../library/context";
+import { libraryApi } from "../library/api";
 import type { StoreApi } from "zustand";
 import { LlamaServerProvider } from "./provider";
 import { applyOutputPolicy } from "./policy";
@@ -37,10 +39,11 @@ export function createMindGeneration(
       if (!current()) return;
       if (!health.ok) throw new Error(health.status === "loading" ? "Your model is still loading. Wait a moment and retry." : "The local server is unavailable. Check Model settings and retry.");
       let completed = false;
-      for await (const chunk of provider.generate({ model: modelId, settings: snapshot.settings, messages: [
-        { role: "system", content: snapshot.settings.systemPrompt },
-        ...chat.messages.filter((message) => message.id !== assistantId && message.content).map(({ role, content }) => ({ role, content })),
-      ] }, request.controller.signal)) {
+      const sources = chat.messages.find((m) => m.id === assistantId)?.sources ?? [];
+      if (sources.length) await libraryApi.validateSources(sources);
+      if (!current()) return;
+      const messages = libraryPrompt(chat,assistantId,snapshot.settings);
+      for await (const chunk of provider.generate({ model: modelId, settings: snapshot.settings, messages }, request.controller.signal)) {
         if (!current()) return;
         if (chunk.type === "error") throw new Error(chunk.message);
         if (chunk.type === "done") { completed = true; break; }

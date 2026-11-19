@@ -89,6 +89,7 @@ pub struct IndexProgress {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReaderPage {
+    pub source_warning: Option<String>,
     pub document: Document,
     pub passages: Vec<Passage>,
 }

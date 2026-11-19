@@ -1,14 +1,16 @@
+import { validSources } from "../library/context";
 import { readStoredJson, storageKeys, writeStoredJson } from "../../lib/persistence";
 import { DEFAULT_GENERATION_SETTINGS } from "./profiles";
 import type { MindChat, MindPersistedState } from "./types";
 
-export const MIND_STATE_VERSION = 3;
+export const MIND_STATE_VERSION = 4;
 
 export const DEFAULT_MIND_STATE: MindPersistedState = {
   version: MIND_STATE_VERSION,
   onboardingComplete: false,
   activeChatId: null,
   newDraft: "",
+  newDraftSources: [],
   chats: [],
   models: [],
   selectedModelId: null,
@@ -47,12 +49,13 @@ export function migrateMindState(value: unknown): MindPersistedState {
   const models = Array.isArray(value.models) ? value.models : [];
   const chats = validChats(value.chats).filter((chat) =>
     chat.messages.length > 0 || chat.title !== "New conversation" || chat.titleManuallyEdited || chat.draft,
-  ).map((chat) => ({ ...chat, draft: typeof chat.draft === "string" ? chat.draft : "" }));
+  ).map((chat) => ({ ...chat, draft: typeof chat.draft === "string" ? chat.draft : "", draftSources: validSources(chat.draftSources), messages: chat.messages.map((message) => ({ ...message, sources: validSources(message.sources) })) }));
   const migrated: MindPersistedState = {
     ...DEFAULT_MIND_STATE,
     onboardingComplete: value.onboardingComplete === true,
     activeChatId: typeof value.activeChatId === "string" ? value.activeChatId : null,
     newDraft: typeof value.newDraft === "string" ? value.newDraft : "",
+    newDraftSources: validSources(value.newDraftSources),
     chats,
     models: models.filter((model): model is MindPersistedState["models"][number] => {
       if (!isRecord(model)) return false;
