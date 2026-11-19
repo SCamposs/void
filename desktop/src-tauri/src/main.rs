@@ -7,6 +7,9 @@ use mind_runtime::MindRuntimeManager;
 use tauri::Manager;
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some(void_library::process::WORKER_ARG) {
+        std::process::exit(void_library::process::worker_main());
+    }
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())

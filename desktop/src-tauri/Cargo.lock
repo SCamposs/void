@@ -4492,11 +4492,13 @@ dependencies = [
 name = "void-library"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "pdf-extract",
  "rusqlite",
  "serde",
  "serde_json",
  "sha2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

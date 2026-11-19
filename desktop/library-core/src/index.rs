@@ -163,7 +163,18 @@ pub(crate) fn read_source(path: &Path) -> Result<Vec<u8>> {
 pub fn refresh(
     library: &mut Library,
     cancel: &AtomicBool,
+    update: impl FnMut(&IndexProgress),
+) -> Result<IndexProgress> {
+    refresh_with(library, cancel, update, |path, bytes, _cancel| {
+        extract::extract(path, bytes)
+    })
+}
+
+pub fn refresh_with(
+    library: &mut Library,
+    cancel: &AtomicBool,
     mut update: impl FnMut(&IndexProgress),
+    mut extractor: impl FnMut(&Path, &[u8], &AtomicBool) -> Result<Vec<crate::models::Passage>>,
 ) -> Result<IndexProgress> {
     let mut progress = IndexProgress {
         phase: "running".into(),
@@ -212,7 +223,7 @@ pub fn refresh(
                     if library.fingerprint(&path_string)?.as_deref() == Some(&fingerprint) {
                         progress.unchanged += 1;
                     } else {
-                        let result = extract::extract(&path, &bytes);
+                        let result = extractor(&path, &bytes, cancel);
                         if cancelled(cancel) {
                             break;
                         }

@@ -792,12 +792,14 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "void-library"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "pdf-extract",
  "rusqlite",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
+ "windows-sys",
 ]
 
 [[package]]

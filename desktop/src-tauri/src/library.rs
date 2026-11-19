@@ -73,11 +73,20 @@ impl LibraryManager {
             .spawn(move || {
                 let result = std::panic::catch_unwind(|| {
                     let mut library = Library::open(&path)?;
-                    index::refresh(&mut library, &cancel, |next| {
-                        if let Ok(mut value) = progress.lock() {
-                            *value = next.clone();
-                        }
-                    })
+                    index::refresh_with(
+                        &mut library,
+                        &cancel,
+                        |next| {
+                            if let Ok(mut value) = progress.lock() {
+                                *value = next.clone();
+                            }
+                        },
+                        |path, bytes, cancel| {
+                            let executable = std::env::current_exe().map_err(|e| e.to_string())?;
+                            void_library::process::ProcessExtractor::new(executable)
+                                .extract(path, bytes, cancel)
+                        },
+                    )
                 });
                 if let Ok(mut value) = progress.lock() {
                     match result {

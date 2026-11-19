@@ -444,3 +444,35 @@ fn sources_are_rechecked_against_originals_before_model_use() {
     assert!(library.validate_source(&snapshot).is_err());
     assert_eq!(snapshot.text.trim(), "The budget is 42.");
 }
+
+#[test]
+fn isolated_pdf_reader_produces_same_pages_and_recovers_after_timeout() {
+    use void_library::process::ProcessExtractor;
+    let executable = std::path::PathBuf::from(env!("CARGO_BIN_EXE_library-worker"));
+    let cancel = AtomicBool::new(false);
+    let bytes = pdf(&["Budget 42", "Review on Tuesday"]);
+    let extractor = ProcessExtractor::new(executable.clone());
+    let passages = extractor
+        .extract(Path::new("fixture.pdf"), &bytes, &cancel)
+        .unwrap();
+    assert!(passages
+        .iter()
+        .any(|p| p.page == Some(2) && p.text.contains("Tuesday")));
+    let timeout = ProcessExtractor::with_timeout(executable.clone(), std::time::Duration::ZERO);
+    assert!(timeout
+        .extract(Path::new("fixture.pdf"), &bytes, &cancel)
+        .unwrap_err()
+        .contains("exceeded"));
+    assert!(extractor
+        .extract(Path::new("fixture.pdf"), &bytes, &cancel)
+        .is_ok());
+    cancel.store(true, Ordering::Relaxed);
+    assert!(extractor
+        .extract(Path::new("fixture.pdf"), &bytes, &cancel)
+        .unwrap_err()
+        .contains("cancelled"));
+    assert!(extractor
+        .extract(Path::new("broken.pdf"), b"broken", &AtomicBool::new(false))
+        .unwrap_err()
+        .contains("could not be read"));
+}
