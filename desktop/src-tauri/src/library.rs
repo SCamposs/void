@@ -129,6 +129,7 @@ async fn read<T: Send + 'static>(
 pub struct LibraryOverview {
     roots: Vec<Root>,
     notes: Vec<Note>,
+    note_count: u64,
     progress: IndexProgress,
     storage_bytes: u64,
 }
@@ -140,6 +141,7 @@ pub async fn library_overview(app: tauri::AppHandle) -> Result<LibraryOverview, 
         Ok(LibraryOverview {
             roots: library.roots()?,
             notes: library.notes()?,
+            note_count: library.note_count()?,
             storage_bytes: library.storage_bytes()?,
             progress,
         })
@@ -267,6 +269,21 @@ pub async fn library_validate_sources(
             library.validate_source(&source)?;
         }
         Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn library_notes(
+    app: tauri::AppHandle,
+    query: String,
+    offset: Option<u32>,
+) -> Result<Vec<Note>, String> {
+    if query.chars().count() > 500 {
+        return Err("Search is limited to 500 characters.".into());
+    }
+    read(app, move |library| {
+        library.notes_page(&query, offset.unwrap_or(0))
     })
     .await
 }

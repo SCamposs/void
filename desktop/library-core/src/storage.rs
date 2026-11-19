@@ -380,9 +380,47 @@ impl Library {
     }
 
     pub fn notes(&self) -> Result<Vec<Note>> {
-        self.connection.prepare("SELECT id,title,content,sources,updated_at FROM notes ORDER BY updated_at DESC,id DESC LIMIT 500").map_err(err)?
-            .query_map([], |row| { let json: String = row.get(3)?; Ok(Note { id:row.get(0)?,title:row.get(1)?,content:row.get(2)?,sources:serde_json::from_str(&json).map_err(|error| rusqlite::Error::FromSqlConversionFailure(3,rusqlite::types::Type::Text,Box::new(error)))?,updated_at:row.get(4)? }) }).map_err(err)?
-            .collect::<rusqlite::Result<Vec<_>>>().map_err(err)
+        self.notes_page("", 0)
+    }
+    pub fn note_count(&self) -> Result<u64> {
+        self.connection
+            .query_row("SELECT count(*) FROM notes", [], |row| row.get::<_, i64>(0))
+            .map(|count| count as u64)
+            .map_err(err)
+    }
+    pub fn notes_page(&self, query: &str, offset: u32) -> Result<Vec<Note>> {
+        let needle = query.to_lowercase();
+        let mut statement = self.connection.prepare("SELECT id,title,content,sources,updated_at FROM notes ORDER BY updated_at DESC,id DESC").map_err(err)?;
+        let mut rows = statement.query([]).map_err(err)?;
+        let mut matches = 0;
+        let mut notes = Vec::new();
+        while let Some(row) = rows.next().map_err(err)? {
+            let title: String = row.get(1).map_err(err)?;
+            let content: String = row.get(2).map_err(err)?;
+            if !needle.is_empty()
+                && !format!("{title} {content}")
+                    .to_lowercase()
+                    .contains(&needle)
+            {
+                continue;
+            }
+            if matches < offset {
+                matches += 1;
+                continue;
+            }
+            let json: String = row.get(3).map_err(err)?;
+            notes.push(Note {
+                id: row.get(0).map_err(err)?,
+                title,
+                content,
+                sources: serde_json::from_str(&json).map_err(err)?,
+                updated_at: row.get(4).map_err(err)?,
+            });
+            if notes.len() == 40 {
+                break;
+            }
+        }
+        Ok(notes)
     }
 
     pub fn delete_note(&self, id: i64) -> Result<()> {

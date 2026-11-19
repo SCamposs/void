@@ -17,6 +17,7 @@ export const libraryApi = {
   validateSources: (sources: SourceSnapshot[]) => invoke<void>("library_validate_sources", { sources }),
   removeRoot: (id: number) => invoke<void>("library_remove_root", { id }),
   clear: () => invoke<void>("library_clear"),
+  notes: (query: string, offset = 0) => invoke<LibraryNote[]>("library_notes", { query, offset }),
   saveNote: (title: string, content: string, sources: SourceSnapshot[], id: number | null = null) => invoke<LibraryNote>("library_save_note", { id, title, content, sources }),
   deleteNote: (id: number) => invoke<void>("library_delete_note", { id }),
   async chooseSources(directory: boolean): Promise<LibraryRoot[]> {

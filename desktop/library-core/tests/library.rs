@@ -559,3 +559,53 @@ fn mixed_collection_evaluation_uses_real_extractors_and_all_search_pages() {
         library.storage_bytes().unwrap()
     );
 }
+
+#[test]
+fn password_protected_pdf_is_reported_without_returning_its_text() {
+    use pdf_extract::{
+        Document, EncryptionState, EncryptionVersion, Object, Permissions, StringFormat,
+    };
+    let mut document = Document::load_mem(&pdf(&["Protected fixture text"])).unwrap();
+    document.trailer.set(
+        b"ID",
+        Object::Array(vec![
+            Object::String(vec![7; 16], StringFormat::Hexadecimal),
+            Object::String(vec![7; 16], StringFormat::Hexadecimal),
+        ]),
+    );
+    let state = EncryptionState::try_from(EncryptionVersion::V1 {
+        document: &document,
+        owner_password: "fixture-owner",
+        user_password: "fixture-user",
+        permissions: Permissions::all(),
+    })
+    .unwrap();
+    document.encrypt(&state).unwrap();
+    let mut bytes = Vec::new();
+    document.save_to(&mut bytes).unwrap();
+    let error = extract::extract(Path::new("protected.pdf"), &bytes).unwrap_err();
+    assert!(error.contains("encrypted"));
+    assert!(!error.contains("Protected fixture text"));
+}
+
+#[test]
+fn note_search_reaches_older_notes_and_paginates_without_losing_unicode() {
+    let (_temp, _sources, library) = fixture();
+    library
+        .save_note(None, "Árvore antiga", "unique-old evidence", &[])
+        .unwrap();
+    for i in 0..81 {
+        library
+            .save_note(None, &format!("Note {i}"), "Recent notes", &[])
+            .unwrap();
+    }
+    assert_eq!(library.note_count().unwrap(), 82);
+    assert_eq!(library.notes_page("", 0).unwrap().len(), 40);
+    assert_eq!(library.notes_page("", 40).unwrap().len(), 40);
+    assert_eq!(library.notes_page("", 80).unwrap().len(), 2);
+    assert_eq!(
+        library.notes_page("unique-old", 0).unwrap()[0].title,
+        "Árvore antiga"
+    );
+    assert_eq!(library.notes_page("ÁRVORE", 0).unwrap().len(), 1);
+}

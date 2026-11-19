@@ -11,6 +11,7 @@ test("Library sends selected snapshots to Mind, opens references and saves linke
     Object.defineProperty(window, "__TAURI_INTERNALS__", { value: { invoke: async (command: string, args: Record<string, unknown>) => {
       switch (command) {
         case "library_overview": return structuredClone(state);
+        case "library_notes": return state.notes.filter((note) => `${note.title} ${note.content}`.toLowerCase().includes(String(args.query).toLowerCase()));
         case "library_documents": return state.roots.length ? [doc] : [];
         case "library_search": return state.roots.length && String(args.query).toLowerCase().includes("orçamento") ? [{ document: doc, passage, excerpt: passage.text }] : [];
         case "library_snapshots": return [{documentId:1,passageId:10,title:doc.title,path:doc.path,fingerprint:doc.fingerprint,page:null,lineStart:1,lineEnd:3,text:passage.text}];

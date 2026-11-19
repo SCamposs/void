@@ -5,7 +5,7 @@ export type SourceSnapshot = Pick<LibraryDocument, "title" | "path" | "fingerpri
 export type LibraryHit = { document: LibraryDocument; passage: LibraryPassage; excerpt: string };
 export type LibraryNote = { id: number; title: string; content: string; sources: SourceSnapshot[]; updatedAt: number };
 export type IndexProgress = { phase: string; visited: number; indexed: number; unchanged: number; errors: number; skipped: number; missing: number; current: string; detail: string; startedAt: number; finishedAt: number | null };
-export type LibraryOverview = { roots: LibraryRoot[]; notes: LibraryNote[]; progress: IndexProgress; storageBytes: number };
+export type LibraryOverview = { roots: LibraryRoot[]; notes: LibraryNote[]; noteCount?: number; progress: IndexProgress; storageBytes: number };
 
 export function passageLocation(source: Pick<LibraryPassage, "page" | "lineStart" | "lineEnd">): string {
   if (source.page !== null) return `Page ${source.page}`;
