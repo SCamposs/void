@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 body {
   margin: 0;
   background: var(--bg);
@@ -26,7 +25,6 @@ button {
 button:disabled {
   cursor: default;
 }
-
 
 input[type="range"] {
   accent-color: var(--accent);
@@ -68,7 +66,6 @@ progress::-moz-progress-bar {
 .orbit-shell {
   contain: layout paint;
 }
-
 
 .mind-shell {
   --mind-error: var(--error);
@@ -123,35 +120,6 @@ progress::-moz-progress-bar {
   font-size: 0.64rem;
 }
 
-.mind-header__mobile-actions {
-  display: none;
-  flex: none;
-  gap: 6px;
-}
-
-.mind-layout {
-  display: grid;
-  min-height: 0;
-  flex: 1;
-  grid-template-columns: 218px minmax(0, 1fr) 286px;
-}
-
-.mind-chat-sidebar,
-.mind-controls-wrap {
-  min-width: 0;
-  min-height: 0;
-  background: var(--surface);
-}
-
-.mind-chat-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border-right: 1px solid var(--border);
-  padding: 10px;
-}
-
-.mind-chat-search,
 .mind-control-group input,
 .mind-control-group select,
 .mind-control-group textarea,
@@ -168,64 +136,11 @@ progress::-moz-progress-bar {
   font-size: .8125rem;
 }
 
-.mind-chat-search::placeholder,
 .mind-control-group input::placeholder,
 .mind-path-field input::placeholder,
 .mind-setup__form input::placeholder,
 .mind-composer textarea::placeholder {
   color: var(--subtle);
-}
-
-.mind-chat-list {
-  min-width: 0;
-  min-height: 0;
-  flex: 1;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.mind-chat-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
-  border-bottom: 1px solid var(--border);
-}
-
-.mind-chat-row > button:first-child {
-  min-width: 0;
-  padding: 10px 6px;
-  text-align: left;
-}
-
-.mind-chat-row > button:last-child {
-  color: var(--subtle);
-}
-
-.mind-chat-row strong,
-.mind-chat-row span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mind-chat-row strong {
-  color: var(--muted);
-  font-size: .8125rem;
-  font-weight: 500;
-}
-
-.mind-chat-row span {
-  margin-top: 3px;
-  color: var(--subtle);
-  font-size: 0.62rem;
-}
-
-.mind-chat-row.is-active {
-  background: var(--surface2);
-}
-
-.mind-chat-row.is-active strong {
-  color: var(--accent);
 }
 
 .mind-conversation {
@@ -501,9 +416,7 @@ progress::-moz-progress-bar {
 .mind-control-group button,
 .mind-setup__modes button,
 .mind-path-field button,
-.mind-message__edit button,
-.mind-header__mobile-actions button,
-.mind-controls-close {
+.mind-message__edit button {
   border: 1px solid var(--border);
   padding: 7px 9px;
   color: var(--muted);
@@ -514,16 +427,9 @@ progress::-moz-progress-bar {
 .mind-control-group button:hover,
 .mind-setup__modes button:hover,
 .mind-path-field button:hover,
-.mind-message__edit button:hover,
-.mind-header__mobile-actions button:hover,
-.mind-controls-close:hover {
+.mind-message__edit button:hover {
   border-color: var(--accent);
   color: var(--accent);
-}
-
-.mind-controls-wrap {
-  border-left: 1px solid var(--border);
-  overflow: hidden;
 }
 
 .mind-controls {
@@ -646,9 +552,6 @@ progress::-moz-progress-bar {
   color: var(--accent);
 }
 
-.mind-controls-close {
-  display: none;
-}
 
 .mind-orbit {
   display: grid;
@@ -764,38 +667,6 @@ progress::-moz-progress-bar {
   to { opacity: 0.28; }
 }
 
-@media (max-width: 1180px) {
-  .mind-layout {
-    grid-template-columns: 200px minmax(0, 1fr);
-  }
-
-  .mind-controls-wrap {
-    position: absolute;
-    z-index: 12;
-    top: 54px;
-    right: 0;
-    bottom: 0;
-    display: none;
-    width: min(340px, calc(100vw - 70px));
-    box-shadow: -8px 0 8px rgba(0, 0, 0, 0.38);
-  }
-
-  .mind-controls-wrap.is-open {
-    display: block;
-  }
-
-  .mind-controls-close,
-  .mind-header__mobile-actions {
-    display: flex;
-  }
-
-  .mind-controls-close {
-    width: 100%;
-    justify-content: center;
-    border-width: 0 0 1px;
-  }
-}
-
 @media (max-width: 760px) {
   .app-shell-grid {
     grid-template-columns: 52px minmax(0, 1fr) !important;
@@ -811,28 +682,6 @@ progress::-moz-progress-bar {
 
   .mind-header {
     min-height: 62px;
-  }
-
-  .mind-layout {
-    display: block;
-    position: relative;
-  }
-
-  .mind-chat-sidebar {
-    position: absolute;
-    z-index: 11;
-    inset: 0 auto 0 0;
-    display: none;
-    width: min(280px, calc(100vw - 58px));
-    box-shadow: 8px 0 8px rgba(0, 0, 0, 0.38);
-  }
-
-  .mind-chat-sidebar.is-open {
-    display: flex;
-  }
-
-  .mind-conversation {
-    height: 100%;
   }
 
   .mind-messages,
@@ -939,8 +788,6 @@ progress::-moz-progress-bar {
     box-shadow: 0 0 24px rgba(232, 237, 244, 0.2);
   }
 }
-
-
 
 .void-logo-path {
   fill: transparent;

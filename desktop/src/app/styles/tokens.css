@@ -28,7 +28,7 @@
   --duration-fast: 160ms;
   --duration-normal: 220ms;
   --z-navigation: 20;
-  --z-dropdown: 35;
+  --z-dropdown: 55; /* Portalled menus also open inside dialogs. */
   --z-dialog: 50;
   --z-tooltip: 60;
   --z-intro: 80;

@@ -27,6 +27,11 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+        with:
+          workspaces: desktop/library-core
+      - run: cargo test --locked --manifest-path library-core/Cargo.toml
       - run: npm ci
       - run: npm run lint && npm run typecheck && npm test && npm run build
       - name: Use the official Ubuntu archive directly
@@ -73,6 +78,7 @@ jobs:
         with:
           workspaces: desktop/src-tauri
       - run: npm ci
+      - run: cargo test --locked --manifest-path library-core/Cargo.toml
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Build branded NSIS candidate without publishing
         run: npm run tauri -- build --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":false}}'

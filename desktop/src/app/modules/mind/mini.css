@@ -1,0 +1,33 @@
+/* Mini keeps the conversation primary; auxiliary panels use the shared VOID primitives. */
+.mind-shell > .mind-conversation { flex: 1; }
+.mind-mini-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.mind-mini-actions > button { min-width: 34px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; }
+.mind-mini-panel { position: fixed; z-index: var(--z-dialog); left: 50%; top: 50%; translate: -50% -50%; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); display: flex; flex-direction: column; gap: 14px; padding: 20px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 24px 80px #0009; transition: opacity 160ms ease, scale 160ms ease; }
+.mind-mini-panel[data-starting-style], .mind-mini-panel[data-ending-style] { opacity: 0; scale: .98; }
+.mind-mini-panel__heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.mind-mini-panel__heading h2 { margin: 0; font-family: var(--font-display); font-size: 18px; }
+.mind-mini-panel__heading button { display: grid; place-items: center; min-width: 30px; min-height: 30px; }
+.mind-mini-panel > .mind-help { margin: 0; }
+.mind-mini-panel > input { width: 100%; flex: none; }
+.mind-mini-history { overflow-y: auto; overflow-x: hidden; min-height: 0; }
+.mind-mini-history-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: 8px; border-bottom: 1px solid var(--border); padding: 6px 0; }
+.mind-mini-history-row > button:first-child { min-width: 0; display: block; text-align: left; padding: 10px; }
+.mind-mini-history-row strong, .mind-mini-history-row span { display: block; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.mind-mini-history-row strong { font-size: 14px; font-weight: 500; }
+.mind-mini-history-row span { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.mind-mini-history-row.is-active { background: var(--surface2); border-radius: 6px; }
+.mind-mini-panel--settings { width: min(540px, calc(100vw - 32px)); }
+.mind-mini-panel--settings .mind-controls { height: auto; min-height: 0; overflow-y: auto; padding: 0; }
+.mind-mini-notice { margin: 12px max(18px, calc((100% - 780px) / 2)) 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: var(--muted); font-size: 13px; }
+.mind-mini-notice span { flex: 1 1 240px; }
+.mind-message__body ul { list-style: disc; }
+.mind-message__body ol { list-style: decimal; }
+@media (max-width: 760px) { .mind-mini-actions { gap: 4px; } .mind-mini-panel { padding: 16px; max-height: calc(100dvh - 24px); } .mind-mini-notice { margin-inline: 14px; } }
+@media (prefers-reduced-motion: reduce) { .mind-mini-panel { transition: none; } }
+
+.mind-conversation-title h2 { flex: 1; }
+.mind-conversation-title > button { display: grid; place-items: center; padding: 6px; color: var(--muted); }
+.mind-conversation-title > span { flex: none; }
+.mind-mini-rename { display: flex; flex-direction: column; gap: 16px; }
+.mind-mini-rename input { width: 100%; }
+.mind-mini-rename .mind-mini-actions { justify-content: flex-end; }

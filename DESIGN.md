@@ -56,3 +56,11 @@ The module's interface and result analyses are in Portuguese, with PT-BR as the 
 ## Embedded Mind refinement
 
 The first embedded Mind pass replaces decorative rings with the canonical shared VOID mark, uses Barlow for messages, removes permanent technical badges and opens up the setup layout. Connection details remain in the setup and controls where they help configure the local runtime. The composer has one bounded focus surface. Existing local provider, saved conversations and generation behavior are preserved. Shared navigation now animates its grid width and labels, with reduced motion resolving immediately; the mark accepts the same size convention as navigation icons.
+
+
+Mind Mini now reserves the main surface for conversation. History and model settings open in Base UI dialogs with keyboard focus containment and return. A new conversation remains an unsent draft until its first message; drafts are kept per conversation when retention is enabled. Titles stay deterministic and support manual renaming. One request owns generation, and leaving the module stops that request while keeping partial text. Offline, empty and interrupted responses have explicit retry paths. These changes retain the existing local provider and do not add voice, downloads or extra inference calls. Automated browser coverage uses simulated loopback responses; real local-model and installed-app acceptance remain manual.
+
+
+## Library
+
+Library uses open source, result and reader columns on desktop. At compact widths the reader replaces results while source selection remains available; closing it returns focus to the originating control. Search has one composite focus boundary, source/format selectors share Base UI, and passages stay literal text with actual page/line locations. Notes and source snapshots reuse the same controls and typography. Library context in Mind Mini is a small removable attachment row, and source references open bounded Base UI dialogs. No star icon, new palette, external font, cloud service or decorative motion is introduced.

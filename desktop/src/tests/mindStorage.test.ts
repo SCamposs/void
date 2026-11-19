@@ -24,7 +24,7 @@ describe("Mind storage migration", () => {
       ],
       settings: { context: 8192 },
     });
-    expect(state.version).toBe(2);
+    expect(state.version).toBe(MIND_STATE_VERSION);
     expect(state.activeChatId).toBe("chat-1");
     expect(state.settings.context).toBe(8192);
     expect(state.settings.temperature).toBeGreaterThan(0);
