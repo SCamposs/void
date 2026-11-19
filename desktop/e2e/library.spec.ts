@@ -65,6 +65,11 @@ test("Library sends selected snapshots to Mind, opens references and saves linke
   await page.getByRole("button", { name: "New note", exact: true }).click();
   await page.getByRole("textbox", { name: "Note title", exact: true }).fill("Decision");
   await page.getByRole("textbox", { name: "Note content", exact: true }).fill("Review the budget on Tuesday.");
+  await page.getByRole("button", { name: "Home", exact:true }).click();
+  await page.getByRole("button", { name: "Library", exact:true }).click();
+  await page.getByRole("button", { name: /^Notes/ }).click();
+  await page.getByRole("button", { name: /Decision Draft saved on this device/ }).click();
+  await expect(page.getByRole("textbox", { name:"Note content",exact:true })).toHaveValue("Review the budget on Tuesday.");
   await page.getByRole("button", { name: "Save note", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Edit note", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close reader" }).click();
