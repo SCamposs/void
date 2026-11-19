@@ -639,3 +639,24 @@ fn clearing_populated_library_removes_text_notes_and_roots_without_touching_orig
         "# Durable original\nprivatekeyword"
     );
 }
+
+#[test]
+fn literal_search_never_silently_discards_terms() {
+    let (_temp, sources, mut library) = fixture();
+    let words: Vec<_> = (0..24).map(|i| format!("word{i}")).collect();
+    fs::write(sources.join("words.txt"), words.join(" ")).unwrap();
+    library.add_root(&sources).unwrap();
+    run(&mut library);
+    assert_eq!(
+        library
+            .search(&words.join(" "), None, None, 0)
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(library
+        .search(&format!("{} missingterm", words.join(" ")), None, None, 0)
+        .unwrap()
+        .is_empty());
+    assert!(library.search(&"x".repeat(501), None, None, 0).is_err());
+}

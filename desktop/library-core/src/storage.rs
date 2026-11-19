@@ -229,11 +229,13 @@ impl Library {
         kind: Option<&str>,
         offset: u32,
     ) -> Result<Vec<SearchHit>> {
+        if query.chars().count() > 500 {
+            return Err("Search is limited to 500 characters.".into());
+        }
         let terms: Vec<_> = query
             .split(|c: char| !c.is_alphanumeric())
             .filter(|s| !s.is_empty())
-            .take(24)
-            .map(|s| format!("\"{}\"", s.chars().take(100).collect::<String>()))
+            .map(|s| format!("\"{s}\""))
             .collect();
         if terms.is_empty() {
             return Ok(Vec::new());

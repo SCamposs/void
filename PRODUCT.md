@@ -157,3 +157,8 @@ A migrated VOID surface is done when:
 ## Current visual foundation scope
 
 The 2026-10-29 transfer brings the approved Mind palette, fonts, shared Base UI primitives, focus/scrollbar states, application shell, custom titlebar and installer artwork into VOID. Existing module controls consume the shared primitives, while module engines, renderers, domain flows and specialized layouts remain for subsequent per-module work. See [DESIGN.md](DESIGN.md). No Mind account/provider features are copied into the embedded Mind module as part of this visual transfer.
+
+
+## Library
+
+Library extends the focused local toolkit with explicit document sources, literal full-text search, a page/line reader and linked notes. It remains useful without any model. Mind Mini receives only the user's chosen passages, with inspectable snapshot references and no additional inference for indexing or search. Originals are read-only. Black open surfaces, shared Base UI controls, glacial focus, bundled Urbanist/Barlow and restrained state transitions remain the same foundation. See [the Library guide](docs/library/README.md).

@@ -40,6 +40,7 @@ test("Library sends selected snapshots to Mind, opens references and saves linke
   await page.getByRole("searchbox", { name: "Search Library" }).fill("orçamento");
   await page.getByRole("button", { name: /planejamento.md/ }).click();
   await expect(page.getByRole("region", { name: "Library reader" })).toContainText("42 unidades");
+  await expect(page.getByRole("heading", { name: "planejamento.md",exact:true })).toBeFocused();
   await expect(page.getByText("Lines 1–3", { exact: true }).last()).toBeVisible();
   await expect(page.locator(".library-passage")).toHaveAttribute("data-selected", "true");
   await page.screenshot({ path: testInfo.outputPath("library-reader-desktop.png") });
@@ -57,6 +58,7 @@ test("Library sends selected snapshots to Mind, opens references and saves linke
   await expect(page.getByRole("dialog")).toContainText("42 unidades");
   await expect(page.getByRole("dialog")).toContainText("Saved source snapshot");
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "1",exact:true })).toBeFocused();
   await page.getByRole("button", { name: "Save as note", exact:true }).click();
   await expect(page.getByRole("button", { name: "Saved to Library", exact:true })).toBeVisible();
   await page.screenshot({ path:testInfo.outputPath("mind-library-citations-compact.png") });

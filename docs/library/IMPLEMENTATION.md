@@ -76,3 +76,8 @@ Final-audit corrections: note search now queries the whole notes table with Unic
 
 
 Explicit-selection audit: prompt packing now uses only the target response's selected source snapshots. Removing an attachment prevents its full text from being resent through older user-message metadata. Regenerate/retry refreshes that response's selection from the current draft while preserving the original historical message snapshots. A regression test verifies both properties. This also makes an outdated-source error recoverable by removing the old attachment and selecting its replacement. Unknown hand-written Library reference links are rendered as unmatched text, and answer-note saving has an in-flight/duplicate-save guard.
+
+
+Final keyboard audit found and fixed a reference-dialog return-focus regression: Markdown link renderer functions were recreated during parent renders, replacing the original trigger node. Renderer types now live at module scope and receive source data through context, preserving DOM identity during streaming and dialogs. The browser test now asserts both reader focus entry and return to the exact citation button after Escape. The focused Library flows pass after the fix. Literal search no longer silently discards terms beyond the old internal truncation; the existing 500-character contract is enforced explicitly instead.
+
+The full scope-to-evidence audit is recorded in `ACCEPTANCE.md`, with user-facing behavior and data boundaries in `README.md`. Final completion is gated on the exact PR candidate checks, with native/manual acceptance remaining in issue #14 as requested.
