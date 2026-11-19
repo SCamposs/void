@@ -211,13 +211,13 @@ impl Library {
             || current.line_end != source.line_end
         {
             return Err(
-                "Selected source changed. Refresh Library and select the updated passage.".into(),
+                "Selected source changed. Refresh Library, remove the outdated attachment and add the updated passage.".into(),
             );
         }
         let path = Path::new(&current.path);
         let bytes = crate::index::read_source(path)?;
         if format!("{:x}", Sha256::digest(&bytes)) != current.fingerprint {
-            return Err("An original document changed since indexing. Refresh Library and select the updated passage.".into());
+            return Err("An original document changed since indexing. Refresh Library, remove the outdated attachment and add the updated passage.".into());
         }
         Ok(())
     }

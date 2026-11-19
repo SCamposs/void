@@ -19,6 +19,7 @@ export type MindStore = MindPersistedState & {
   runtimeState: MindRuntimeState;
   runtimeDetail: string;
   generation: { chatId: string; assistantId: string } | null;
+  setResponseSources: (chatId: string, assistantId: string) => void;
   attachSource: (source: SourceSnapshot) => void;
   detachSource: (id: string) => void;
   startNewChat: () => void;
@@ -93,6 +94,8 @@ export function createMindStore(repo = mindRepo) {
       runtimeState: "idle",
       runtimeDetail: "Runtime not checked.",
       generation: null,
+      setResponseSources: (chatId, assistantId) => mutate((state) => ({ chats: state.chats.map((chat) => chat.id === chatId
+        ? { ...chat,messages:chat.messages.map((message) => message.id === assistantId ? {...message,sources:[...(chat.draftSources ?? [])]} : message) } : chat) })),
       attachSource: (source) => mutate((state) => {
         const chat = state.chats.find((c) => c.id === state.activeChatId);
         const sources = chat?.draftSources ?? state.newDraftSources;

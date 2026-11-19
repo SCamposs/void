@@ -73,3 +73,6 @@ Controlled mixed-corpus evidence: `mixed_collection_evaluation_uses_real_extract
 
 
 Final-audit corrections: note search now queries the whole notes table with Unicode case folding and bounded 40-result pages, instead of searching only the loaded recent list. A regression test reaches an old note beyond the first pages. A password-protected selectable PDF fixture verifies a clear encrypted-document failure without disclosing its text. Manual refresh always invalidates the reader/results even when a tiny indexing job finishes before progress polling starts. Core coverage is now 17 Windows tests plus the Unix-only symlink test.
+
+
+Explicit-selection audit: prompt packing now uses only the target response's selected source snapshots. Removing an attachment prevents its full text from being resent through older user-message metadata. Regenerate/retry refreshes that response's selection from the current draft while preserving the original historical message snapshots. A regression test verifies both properties. This also makes an outdated-source error recoverable by removing the old attachment and selecting its replacement. Unknown hand-written Library reference links are rendered as unmatched text, and answer-note saving has an in-flight/duplicate-save guard.

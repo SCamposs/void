@@ -609,3 +609,33 @@ fn note_search_reaches_older_notes_and_paginates_without_losing_unicode() {
     );
     assert_eq!(library.notes_page("ÁRVORE", 0).unwrap().len(), 1);
 }
+
+#[test]
+fn clearing_populated_library_removes_text_notes_and_roots_without_touching_originals() {
+    let (_temp, sources, mut library) = fixture();
+    let file = sources.join("facts.md");
+    fs::write(&file, "# Durable original\nprivatekeyword").unwrap();
+    library.add_root(&sources).unwrap();
+    run(&mut library);
+    let hit = library
+        .search("privatekeyword", None, None, 0)
+        .unwrap()
+        .remove(0);
+    let source = library.snapshot(hit.passage.id).unwrap();
+    library
+        .save_note(None, "Saved note", "privatekeyword", &[source])
+        .unwrap();
+    library.clear().unwrap();
+    assert_eq!(library.note_count().unwrap(), 0);
+    assert!(library.notes().unwrap().is_empty());
+    assert!(library.roots().unwrap().is_empty());
+    assert!(library.documents(None, 0).unwrap().is_empty());
+    assert!(library
+        .search("privatekeyword", None, None, 0)
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        fs::read_to_string(file).unwrap(),
+        "# Durable original\nprivatekeyword"
+    );
+}

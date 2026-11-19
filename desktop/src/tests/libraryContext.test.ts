@@ -43,3 +43,18 @@ describe("explicit Library context", () => {
     expect(result.cited).toEqual([source]);
   });
 });
+
+
+it("does not resend a removed source from conversation history and can retry with a new selection", () => {
+  const store = createMindStore({ load:()=>structuredClone(DEFAULT_MIND_STATE),save:()=>{},reset:()=>structuredClone(DEFAULT_MIND_STATE) });
+  store.getState().attachSource(source);
+  const first = store.getState().addUserMessage("First question");
+  store.getState().detachSource(sourceId(source));
+  const second = store.getState().addUserMessage("Now answer without that document");
+  let chat = store.getState().chats[0];
+  expect(libraryPrompt(chat,second.assistantId,DEFAULT_GENERATION_SETTINGS).map((m)=>m.content).join(" ")).not.toContain("ZEBRA");
+  store.getState().setResponseSources(first.chatId,first.assistantId);
+  chat = store.getState().chats[0];
+  expect(chat.messages[0].sources).toHaveLength(1);
+  expect(chat.messages[1].sources).toEqual([]);
+});

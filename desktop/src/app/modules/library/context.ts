@@ -18,10 +18,12 @@ export function libraryPrompt(chat: MindChat, assistantId: string, settings: Gen
   const end = chat.messages.findIndex((m) => m.id === assistantId);
   if (end < 0) throw new Error("Response no longer belongs to this conversation.");
   const history = chat.messages.slice(0,end).filter((m) => m.content.trim());
-  const usesSources = history.some((m) => m.role === "user" && m.sources?.length);
+  const selectedSources = chat.messages[end].sources ?? [];
+  const latestUser = [...history].reverse().find((m) => m.role === "user");
+  const usesSources = selectedSources.length > 0;
   const system = { role: "system" as const, content: settings.systemPrompt + (usesSources ? `\n\n${RULES}` : "") };
-  const packed = history.map((m) => ({ role: m.role, content: m.content + (m.role === "user" && m.sources?.length
-    ? `\n\nLibrary reference data (JSON):\n${JSON.stringify(m.sources.map((s) => ({ id:sourceId(s), title:s.title, page:s.page, lineStart:s.lineStart, lineEnd:s.lineEnd, text:s.text })))}` : "") }));
+  const packed = history.map((m) => ({ role: m.role, content: m.content + (m.id === latestUser?.id && selectedSources.length
+    ? `\n\nLibrary reference data (JSON):\n${JSON.stringify(selectedSources.map((s) => ({ id:sourceId(s), title:s.title, page:s.page, lineStart:s.lineStart, lineEnd:s.lineEnd, text:s.text })))}` : "") }));
   const budget = settings.context - settings.maxTokens - 128;
   const cost = () => bytes(system.content) + 16 + packed.reduce((sum,m) => sum + bytes(m.content) + 16,0);
   while (cost() > budget && packed.length > 1) {

@@ -34,6 +34,7 @@ export function MindModule() {
   const draft = activeChat?.draft ?? store.newDraft;
   const setDraft = store.updateDraft;
   const [openSource, setOpenSource] = useState<SourceSnapshot | null>(null);
+  const [savingNote, setSavingNote] = useState<string | null>(null);
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const draftSources = activeChat?.draftSources ?? store.newDraftSources;
   const [showRename, setShowRename] = useState(false);
@@ -73,7 +74,10 @@ export function MindModule() {
 
   if (!store.onboardingComplete) return <MindSetup />;
 
-  const runGeneration = mindGeneration.start;
+  const runGeneration = (chatId: string,assistantId: string) => {
+    useMindStore.getState().setResponseSources(chatId,assistantId);
+    return mindGeneration.start(chatId,assistantId);
+  };
 
   const sendMessage = async () => {
     if (busy || runtimePending) return;
@@ -161,7 +165,7 @@ export function MindModule() {
                     )}
                     {message.content && editingId !== message.id && (
                       <div className="mind-message__actions">
-                        {message.role === "assistant" && <Button disabled={!isTauriRuntime() || busy} onClick={() => { void libraryApi.saveNote(activeChat.title,message.content,message.sources ?? []).then(() => setSavedNote(message.id)).catch((error) => store.setRuntimeStatus("error",String(error))); }}>{savedNote === message.id ? "Saved to Library" : "Save as note"}</Button>}
+                        {message.role === "assistant" && <Button disabled={!isTauriRuntime() || busy || savingNote === message.id || savedNote === message.id} aria-busy={savingNote === message.id} onClick={() => { setSavingNote(message.id); void libraryApi.saveNote(activeChat.title,message.content,message.sources ?? []).then(() => setSavedNote(message.id)).catch((error) => store.setRuntimeStatus("error",String(error))).finally(() => setSavingNote(null)); }}>{savingNote === message.id ? "Saving note…" : savedNote === message.id ? "Saved to Library" : "Save as note"}</Button>}
                         <Button onClick={() => void copyMessage(message)}>{copiedId === message.id ? "Copied" : "Copy"}</Button>
                         {message.role === "user" && <Button disabled={busy} onClick={() => { setEditingId(message.id); setEditingContent(message.content); }}>Edit</Button>}
                         {message.role === "assistant" && message.id === activeChat.messages[activeChat.messages.length - 1].id && <Button disabled={busy} onClick={() => void regenerate(message)}>Regenerate</Button>}

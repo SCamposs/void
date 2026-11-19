@@ -11,9 +11,14 @@ export function MarkdownMessage({ content, sources = [], onOpenSource, validateR
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ children, href, ...props }) => href?.startsWith("#library-") && onOpenSource
-            ? <Button className="library-citation" onClick={() => { const source = sources.find((s) => `#library-${sourceId(s)}` === href); if (source) onOpenSource(source); }}>{children}</Button>
-            : <a {...props} href={href} target="_blank" rel="noreferrer">{children}</a>,
+          a: ({ children, href, ...props }) => {
+            if (href?.startsWith("#library-")) {
+              const source = sources.find((s) => `#library-${sourceId(s)}` === href);
+              return source && onOpenSource ? <Button className="library-citation" onClick={() => onOpenSource(source)}>{children}</Button>
+                : <span className="library-citation-warning">{children} (unmatched source)</span>;
+            }
+            return <a {...props} href={href} target="_blank" rel="noreferrer">{children}</a>;
+          },
           code: ({ className, children, ...props }) => {
             const block = className?.startsWith("language-");
             return block ? (
