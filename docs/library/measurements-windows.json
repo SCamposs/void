@@ -1,0 +1,10 @@
+{
+  "date": "2026-11-19",
+  "platform": "Windows x64",
+  "profile": "debug",
+  "fixture": "mixed_collection_evaluation_uses_real_extractors_and_all_search_pages",
+  "parentPeakWorkingSetBytes": 9367552,
+  "harnessWallMs": 1043,
+  "benchmark": "LIBRARY_MIXED_EVALUATION ready=156 error=3 index_ms=781 full_query_us=[3842, 2105, 837] db_bytes=135168",
+  "scope": "Parent indexing/test process only. Excludes WebView and PDF subprocess RSS. Each PDF subprocess has a separately enforced 512 MiB committed-memory ceiling; that ceiling is not an observed usage measurement."
+}

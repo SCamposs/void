@@ -476,3 +476,86 @@ fn isolated_pdf_reader_produces_same_pages_and_recovers_after_timeout() {
         .unwrap_err()
         .contains("could not be read"));
 }
+
+#[test]
+fn mixed_collection_evaluation_uses_real_extractors_and_all_search_pages() {
+    use void_library::process::ProcessExtractor;
+    let (_temp, sources, mut library) = fixture();
+    for i in 0..90 {
+        fs::write(sources.join(format!("plan-{i:03}.md")),format!("# Plano {i}\nA revisão do projeto Juniper ocorre na terça-feira.\nOrçamento aprovado: 42 unidades.")).unwrap();
+    }
+    for i in 0..60 {
+        fs::write(
+            sources.join(format!("schedule-{i:03}.txt")),
+            format!("Atlas schedule {i}\nThe launch is on Friday.\nOwner: research group."),
+        )
+        .unwrap();
+    }
+    for i in 0..6 {
+        fs::write(
+            sources.join(format!("report-{i}.pdf")),
+            pdf(&["Cedar review in March", "Approved renewal: 17 units"]),
+        )
+        .unwrap();
+    }
+    fs::write(sources.join("broken.pdf"), b"invalid pdf fixture").unwrap();
+    fs::write(sources.join("scanned.pdf"), pdf(&[""])).unwrap();
+    fs::write(sources.join("binary.txt"), b"\0not text").unwrap();
+    let root = library.add_root(&sources).unwrap();
+    let extractor = ProcessExtractor::new(std::path::PathBuf::from(env!(
+        "CARGO_BIN_EXE_library-worker"
+    )));
+    let started = Instant::now();
+    let progress = index::refresh_with(
+        &mut library,
+        &AtomicBool::new(false),
+        |_| {},
+        |path, bytes, cancel| extractor.extract(path, bytes, cancel),
+    )
+    .unwrap();
+    let indexing = started.elapsed();
+    assert_eq!(progress.indexed, 156);
+    assert_eq!(progress.errors, 3);
+    let cases = [
+        ("revisao terca", 90, "md"),
+        ("launch Friday", 60, "txt"),
+        ("renewal 17", 6, "pdf"),
+    ];
+    let mut latencies = Vec::new();
+    for (query, expected, kind) in cases {
+        let started = Instant::now();
+        let mut offset = 0;
+        let mut seen = std::collections::HashSet::new();
+        loop {
+            let hits = library
+                .search(query, Some(root.id), Some(kind), offset)
+                .unwrap();
+            if hits.is_empty() {
+                break;
+            }
+            assert!(hits.iter().all(|hit| hit.document.kind == kind));
+            for hit in &hits {
+                assert!(seen.insert(hit.passage.id));
+                if kind == "pdf" {
+                    assert_eq!(hit.passage.page, Some(2));
+                }
+            }
+            offset += hits.len() as u32;
+        }
+        assert_eq!(seen.len(), expected);
+        latencies.push(started.elapsed().as_micros());
+    }
+    assert!(library
+        .search("nonexistentkeyword", None, None, 0)
+        .unwrap()
+        .is_empty());
+    let first_doc = library.documents(None, 0).unwrap();
+    assert_eq!(first_doc.len(), 100);
+    assert_eq!(library.documents(None, 100).unwrap().len(), 59);
+    eprintln!(
+        "LIBRARY_MIXED_EVALUATION ready=156 error=3 index_ms={} full_query_us={:?} db_bytes={}",
+        indexing.as_millis(),
+        latencies,
+        library.storage_bytes().unwrap()
+    );
+}
